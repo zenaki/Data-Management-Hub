@@ -1389,7 +1389,7 @@ class Component extends DCLogic {
           if (id === blk.id || laneOf(infoOf(id).type) !== lane) return;
           get(id).member = true;
           var cur = id, g = 0;
-          while (g++ < 20) {
+          while (g++ < 1) { // one container level (task group, dataset, bucket, repository, pipeline) keeps lines running sideways
             var d = byId[cur]; if (!d || !d.parent || d.parent === blk.id) break;
             var p = byId[d.parent]; if (!p || laneOf(p.type) !== lane) break;
             var pn = get(p.id); if (pn.children.indexOf(cur) < 0) pn.children.push(cur);
@@ -1409,31 +1409,26 @@ class Component extends DCLogic {
         if (!kids.length && n.children.length && !(n.member && showable(n.id))) return null;
         return { id: n.id, member: n.member, children: kids, wasContainer: n.children.length > 0 };
       };
-      var PADC = 10, HH = 36, LGAP = 110;
-      var widthOf = function (n) { return n.children.length ? Math.max.apply(null, n.children.map(widthOf)) + 2 * PADC : NW; };
+      // Horizontal bands (one per lane) inside each DAG; within a band every asset sits in the
+      // column of its lineage depth, so lines run sideways (left -> right).
+      var PADC = 12, HH = 36, GXD = 120, RG = 14;
       var boxStyle = function (id, lvl) {
         var k = kindOf(id), hit = lq && (id + ' ' + (byId[id] ? byId[id].name : '')).toLowerCase().indexOf(lq) >= 0;
         var bd = k === 'sel' ? '#0F766E' : k === 'up' ? '#1D4ED8' : k === 'down' ? '#C2410C' : hit ? '#CA8A04' : '#B8C2CC';
-        var bg = k === 'sel' ? '#E7F4F2' : k === 'up' ? '#EFF6FF' : k === 'down' ? '#FFF7ED' : (lvl % 2 ? '#FFFFFF' : '#F6F8FA');
+        var bg = k === 'sel' ? '#E7F4F2' : k === 'up' ? '#EFF6FF' : k === 'down' ? '#FFF7ED' : (lvl % 2 ? '#F6F8FA' : '#FFFFFF');
         return { bd: bd, bg: bg, bw: k === 'all' || k === 'other' ? 1 : 2 };
       };
       var regHidden = function (bk, n, anchor) { (inst[bk] = inst[bk] || {})[n.id] = anchor; n.children.forEach(function (c) { regHidden(bk, c, anchor); }); };
-      var place = function (bk, n, x, y, lvl) {
-        if (!n.children.length && !n.wasContainer) return placeNode(bk, n.id, x, y);
-        var key = bk + '|' + n.id, closed = !!s.collapsed[key], w = widthOf(n), d = byId[n.id];
-        var st = boxStyle(n.id, lvl), cnt = 0;
-        var countLeaves = function (m) { if (!m.children.length) cnt++; m.children.forEach(countLeaves); }; n.children.forEach(countLeaves);
-        var b = { x: x, y: y, w: Math.max(w, NW + 2 * PADC), h: HH, hh: HH, fs: 12, title: d ? d.name : n.id, sub: (d ? tinfo(d.type).label : 'Group') + ' · ' + cnt + ' inside', bg: st.bg, bd: st.bd, bw: st.bw, bs: 'solid', op: 1, dot: dotColor(n.id), canToggle: true, open: !closed, chev: closed ? '▸' : '▾',
-          toggleLabel: (closed ? 'Open ' : 'Close ') + n.id, toggle: function () { var c = Object.assign({}, self.state.collapsed); if (c[key]) delete c[key]; else c[key] = 1; set({ collapsed: c }); }, pick: function () { selectAsset(n.id); }, hasPick: true };
-        boxes.push(b);
-        var anchor = { key: key, x: x, y: y, w: b.w, ay: y + HH / 2, showC: false, rows: {} };
-        (inst[bk] = inst[bk] || {})[n.id] = anchor;
-        if (!firstPos[n.id]) firstPos[n.id] = { x: x, y: y };
-        if (closed) { n.children.forEach(function (c) { regHidden(bk, c, anchor); }); return HH; }
-        var cy = y + HH + 4;
-        n.children.forEach(function (c) { cy += place(bk, c, x + PADC, cy, lvl + 1) + 10; });
-        b.h = cy - y - 10 + PADC;
-        return b.h;
+      var nodeH = function (id) { var d = byId[id], nf = d ? d.fields.length : 0; return 4 + HEAD + (s.showCols && nf ? 9 + nf * ROW : 0); };
+      var pack = function (items) {
+        var rows = [];
+        items.slice().sort(function (a, b) { return a.x0 - b.x0; }).forEach(function (it) {
+          var r = null;
+          for (var i = 0; i < rows.length; i++) { if (rows[i].end + 24 <= it.x0) { r = rows[i]; break; } }
+          if (!r) { r = { end: -1e9, h: 0, items: [] }; rows.push(r); }
+          r.items.push(it); r.end = it.x1; r.h = Math.max(r.h, it.h);
+        });
+        return rows;
       };
       var by = PAD;
       blocks.forEach(function (blk) {
@@ -1446,24 +1441,77 @@ class Component extends DCLogic {
         var props = dg ? dg.properties || {} : {};
         var nTasks = Object.keys(blk.members).filter(function (m) { return byId[m] && byId[m].type === 'airflow.task'; }).length;
         var b = { x: PAD, y: by, w: 600, h: 52, hh: 52, fs: 15, title: dg ? dg.name + '  (' + dg.id + ')' : 'Not in any DAG', sub: dg ? 'Airflow DAG' + (props.schedule ? ' · schedule ' + props.schedule : '') + ' · ' + nTasks + ' tasks · ' + (Object.keys(blk.members).length - 1) + ' assets' : restN + ' assets with no DAG',
-          bg: st.bg, bd: dg ? (st.bd === '#B8C2CC' ? '#8996A3' : st.bd) : '#B8C2CC', bw: 2, bs: dg ? 'solid' : 'dashed', op: 1, dot: dg ? dotColor(dg.id) : '#94A3B8', canToggle: true, open: !closed, chev: closed ? '▸' : '▾',
+          bg: st.bg === '#F6F8FA' ? '#FFFFFF' : st.bg, bd: dg ? (st.bd === '#B8C2CC' ? '#8996A3' : st.bd) : '#B8C2CC', bw: 2, bs: dg ? 'solid' : 'dashed', op: 1, dot: dg ? dotColor(dg.id) : '#94A3B8', canToggle: true, open: !closed, chev: closed ? '▸' : '▾',
           toggleLabel: (closed ? 'Open ' : 'Close ') + (dg ? dg.id : 'unassigned assets'), toggle: function () { var c = Object.assign({}, self.state.collapsed); if (c[bkey]) delete c[bkey]; else c[bkey] = 1; set({ collapsed: c }); },
           pick: function () { if (dg) selectAsset(dg.id); }, hasPick: !!dg };
         boxes.push(b);
         if (dg) { (inst[blk.id] = inst[blk.id] || {})[dg.id] = { key: bkey, x: PAD, y: by, w: 600, ay: by + 26, showC: false, rows: {} }; if (!firstPos[dg.id]) firstPos[dg.id] = { x: PAD, y: by }; }
         if (closed) { by += 52 + 32; baseW = Math.max(baseW, PAD + 600 + PAD); return; }
-        var lx = PAD + 24, maxY = by + 60;
-        lanes.forEach(function (l) {
-          var lw = Math.max.apply(null, l.roots.map(widthOf));
-          boxes.push({ x: lx, y: by + 60, w: lw, h: 22, hh: 22, fs: 11, title: l.L[1].toUpperCase(), sub: '', bg: 'transparent', bd: 'transparent', bw: 0, bs: 'solid', op: 1, dot: 'transparent', canToggle: false, open: true, chev: '', toggleLabel: '', toggle: function () {}, pick: function () {}, hasPick: false, lane: true });
-          var ly = by + 60 + 28;
-          l.roots.forEach(function (r) { ly += place(blk.id, r, lx, ly, 1) + 16; });
-          maxY = Math.max(maxY, ly);
-          lx += lw + LGAP;
+
+        // lineage depth of each member, counted only inside this DAG
+        var mem = blk.members, cd = {};
+        var colOf = function (id, seen) {
+          if (cd[id] !== undefined) return cd[id];
+          if (seen[id]) return 0;
+          seen[id] = 1;
+          var u = (upMap[id] || []).filter(function (x) { return mem[x] && x !== blk.id; });
+          var v = u.length ? 1 + Math.max.apply(null, u.map(function (x) { return colOf(x, seen); })) : 0;
+          seen[id] = 0; cd[id] = v; return v;
+        };
+        // sources with no upstream inside the DAG sit right before their first consumer
+        var colF = function (id) {
+          var u = (upMap[id] || []).filter(function (x) { return mem[x] && x !== blk.id; });
+          if (u.length) return colOf(id, {});
+          var dn = (downMap[id] || []).filter(function (x) { return mem[x] && x !== blk.id; });
+          return dn.length ? Math.max(0, Math.min.apply(null, dn.map(function (x) { return colOf(x, {}); })) - 1) : 0;
+        };
+        var x0b = PAD + 16 + 2 * PADC;
+        var colX = function (c) { return x0b + c * (NW + GXD); };
+        var measure = function (n) {
+          var key = blk.id + '|' + n.id;
+          if (!n.children.length && !n.wasContainer) { var lx = colX(colF(n.id)); return { n: n, leaf: true, key: key, x0: lx, x1: lx + NW, h: nodeH(n.id) }; }
+          var kids = n.children.map(measure), isClosed = !!s.collapsed[key];
+          var own = n.member && (upMap[n.id] || downMap[n.id]) ? colX(colF(n.id)) : null;
+          var xs0 = kids.map(function (k) { return k.x0; }), xs1 = kids.map(function (k) { return k.x1; });
+          if (own !== null || !kids.length) { var ox = own !== null ? own : colX(colF(n.id)); xs0.push(ox); xs1.push(ox + NW); }
+          var x0 = Math.min.apply(null, xs0) - PADC, x1 = Math.max.apply(null, xs1) + PADC;
+          if (x1 - x0 < NW + 2 * PADC) x1 = x0 + NW + 2 * PADC;
+          var rows = isClosed ? [] : pack(kids);
+          var h = isClosed ? HH : HH + 4 + rows.reduce(function (a, r) { return a + r.h + RG; }, 0) - (rows.length ? RG : 0) + PADC;
+          return { n: n, leaf: false, key: key, closed: isClosed, kids: kids, rows: rows, x0: x0, x1: x1, h: h };
+        };
+        var render = function (m, y, lvl) {
+          if (m.leaf) { placeNode(blk.id, m.n.id, m.x0, y); return; }
+          var n = m.n, d = byId[n.id], sty = boxStyle(n.id, lvl), cnt = 0;
+          var countLeaves = function (q) { if (!q.children.length) cnt++; q.children.forEach(countLeaves); };
+          n.children.forEach(countLeaves);
+          var key = m.key, bx = { x: m.x0, y: y, w: m.x1 - m.x0, h: m.h, hh: HH, fs: 12, title: d ? d.name : n.id, sub: (d ? tinfo(d.type).label : 'Group') + ' · ' + cnt + ' inside', bg: sty.bg, bd: sty.bd, bw: sty.bw, bs: 'solid', op: 1, dot: dotColor(n.id), canToggle: true, open: !m.closed, chev: m.closed ? '▸' : '▾',
+            toggleLabel: (m.closed ? 'Open ' : 'Close ') + n.id, toggle: function () { var c = Object.assign({}, self.state.collapsed); if (c[key]) delete c[key]; else c[key] = 1; set({ collapsed: c }); }, pick: function () { selectAsset(n.id); }, hasPick: true };
+          boxes.push(bx);
+          var anchor = { key: key, x: m.x0, y: y, w: bx.w, ay: y + HH / 2, showC: false, rows: {} };
+          (inst[blk.id] = inst[blk.id] || {})[n.id] = anchor;
+          if (!firstPos[n.id]) firstPos[n.id] = { x: m.x0, y: y };
+          if (m.closed) { n.children.forEach(function (c) { regHidden(blk.id, c, anchor); }); return; }
+          var ry = y + HH + 4;
+          m.rows.forEach(function (r) { r.items.forEach(function (it) { render(it, ry, lvl + 1); }); ry += r.h + RG; });
+        };
+        // one plane per DAG: everything ordered by lineage depth, packed into rows
+        var cy = by + 64, maxX = PAD + 600, all = [];
+        lanes.forEach(function (l, li) { l.roots.forEach(function (r) { var m = measure(r); m.lane = li; all.push(m); }); });
+        all.sort(function (a, c) { return (a.x0 - c.x0) || (a.lane - c.lane); });
+        var rowsAll = [];
+        all.forEach(function (it) {
+          var r = null;
+          for (var i = 0; i < rowsAll.length; i++) { if (rowsAll[i].end + 24 <= it.x0) { r = rowsAll[i]; break; } }
+          if (!r) { r = { end: -1e9, h: 0, items: [] }; rowsAll.push(r); }
+          r.items.push(it); r.end = it.x1; r.h = Math.max(r.h, it.h);
         });
-        b.w = Math.max(600, lx - LGAP + 24 - PAD);
+        rowsAll.forEach(function (r) { r.items.forEach(function (it) { render(it, cy, 1); }); cy += r.h + RG + 6; });
+        all.forEach(function (m) { maxX = Math.max(maxX, m.x1); });
+        cy += 6;
+        b.w = maxX + 26 - PAD;
         if (inst[blk.id] && dg) inst[blk.id][dg.id].w = b.w;
-        b.h = maxY - by + 8;
+        b.h = cy - by + 2;
         by += b.h + 32;
         baseW = Math.max(baseW, PAD + b.w + PAD);
       });
