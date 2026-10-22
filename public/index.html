@@ -160,15 +160,16 @@ textarea.inp{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:13px;l
 
 <div class="card" style="overflow-x: auto">
 <table class="tbl" style="min-width: 980px">
-<thead><tr><th scope="col">Column</th><th scope="col">Type</th><th scope="col">Nullable</th><th scope="col">PII</th><th scope="col">Description</th><th scope="col">Expression &amp; sources</th><th scope="col"><span style="position: absolute; left: -9999px">Actions</span></th></tr></thead>
+<thead><tr><th scope="col">Column</th><th scope="col">Type</th><th scope="col">Class</th><th scope="col">Nullable</th><th scope="col">PII</th><th scope="col">Description</th><th scope="col">Expression &amp; sources</th><th scope="col"><span style="position: absolute; left: -9999px">Actions</span></th></tr></thead>
 <tbody>
 <sc-for list="{{fieldRows}}" as="f" hint-placeholder-count="4">
 <tr>
 <td class="mono" style="font-weight: 500">{{f.name}}</td>
 <td class="mono" style="color: #0F766E">{{f.type}}</td>
+<td><span style="font-size: 12px; padding: 3px 8px; border-radius: 999px; background: {{f.clsBg}}; color: {{f.clsFg}}; white-space: nowrap">{{f.cls}}</span></td>
 <td>{{f.nullText}}</td>
 <td><span style="font-size: 12px; padding: 3px 8px; border-radius: 999px; background: {{f.piiBg}}; color: {{f.piiFg}}">{{f.piiText}}</span></td>
-<td style="color: #3B4856">{{f.description}}</td>
+<td style="color: #3B4856">{{f.description}}<sc-if value="{{f.hasInh}}" hint-placeholder-val="{{false}}"><span class="mono" style="display: block; font-size: 11px; color: #6B21A8; margin-top: 2px">{{f.inhNote}}</span></sc-if></td>
 <td style="max-width: 320px">
 <sc-if value="{{f.hasExpr}}" hint-placeholder-val="{{false}}"><code class="mono" style="display: block; font-size: 12px; color: #0F766E; white-space: pre-wrap; word-break: break-word; margin-bottom: 4px">{{f.expr}}</code></sc-if>
 <span class="mono" style="font-size: 11px; color: #5B6876; word-break: break-all">{{f.srcText}}</span>
@@ -209,12 +210,12 @@ textarea.inp{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:13px;l
 <div style="display: flex; flex-direction: column; gap: 16px">
 <div class="card" style="padding: 16px; display: flex; flex-direction: column; gap: 14px">
 <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end">
-<div style="flex: 1 1 360px; position: relative; min-width: 0">
+<div style="flex: 1 1 320px; position: relative; min-width: 0">
 <label class="lbl">Search assets, columns or expressions
 <input class="inp" type="search" placeholder="e.g. total_sales, SUM, raw.orders…" autocomplete="off" value="{{lq}}" onChange="{{onLq}}" onKeyDown="{{onLqKey}}">
 </label>
 <sc-if value="{{hasSugg}}" hint-placeholder-val="{{false}}">
-<ul aria-label="Search results" style="position: absolute; z-index: 20; left: 0; right: 0; top: 100%; margin: 4px 0 0; padding: 6px; list-style: none; background: #FFFFFF; border: 1px solid #C5CED8; border-radius: 10px; box-shadow: 0 10px 28px rgba(21, 32, 43, 0.14); max-height: 340px; overflow: auto">
+<ul aria-label="Search results" style="position: absolute; z-index: 30; left: 0; right: 0; top: 100%; margin: 4px 0 0; padding: 6px; list-style: none; background: #FFFFFF; border: 1px solid #C5CED8; border-radius: 10px; box-shadow: 0 10px 28px rgba(21, 32, 43, 0.14); max-height: 340px; overflow: auto">
 <sc-for list="{{sugg}}" as="g" hint-placeholder-count="3">
 <li><button type="button" onClick="{{g.pick}}" style="width: 100%; text-align: left; min-height: 44px; padding: 8px 10px; border: 0; background: transparent; border-radius: 6px; cursor: pointer; font: inherit; color: #15202B; display: flex; gap: 10px; align-items: center">
 <span style="font-size: 11px; font-weight: 600; padding: 2px 6px; border-radius: 4px; background: {{g.kbg}}; color: {{g.kfg}}; white-space: nowrap">{{g.kind}}</span>
@@ -224,36 +225,94 @@ textarea.inp{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:13px;l
 </ul>
 </sc-if>
 <sc-if value="{{noSugg}}" hint-placeholder-val="{{false}}">
-<p style="position: absolute; z-index: 20; left: 0; right: 0; top: 100%; margin: 4px 0 0; padding: 12px; background: #FFFFFF; border: 1px solid #C5CED8; border-radius: 10px; font-size: 13px; color: #4A5765">No matches.</p>
+<p style="position: absolute; z-index: 30; left: 0; right: 0; top: 100%; margin: 4px 0 0; padding: 12px; background: #FFFFFF; border: 1px solid #C5CED8; border-radius: 10px; font-size: 13px; color: #4A5765">No matches.</p>
 </sc-if>
 </div>
 <div role="group" aria-label="Zoom" style="display: flex; gap: 4px; align-items: center">
 <button type="button" class="btn2" style="min-width: 44px; padding: 0; font-size: 18px" onClick="{{zoomOut}}" aria-label="Zoom out">−</button>
-<input type="range" min="20" max="160" step="5" value="{{zoomPct}}" onChange="{{onZoomRange}}" aria-label="Zoom level" style="width: 120px; accent-color: #0F766E">
+<input type="range" min="20" max="160" step="5" value="{{zoomPct}}" onChange="{{onZoomRange}}" aria-label="Zoom level" style="width: 110px; accent-color: #0F766E">
 <button type="button" class="btn2" style="min-width: 44px; padding: 0; font-size: 18px" onClick="{{zoomIn}}" aria-label="Zoom in">+</button>
 <button type="button" class="btn2" style="min-width: 64px; padding: 0 8px" onClick="{{zoomReset}}" aria-label="Reset zoom to 100%"><span class="mono" style="font-size: 13px">{{zoomText}}</span></button>
 <button type="button" class="btn2" onClick="{{zoomFit}}">Fit to screen</button>
 </div>
-<button type="button" class="btn2" onClick="{{toggleCols}}">{{colsLabel}}</button>
-<button type="button" class="btn2" onClick="{{toggleIso}}">{{isoLabel}}</button>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end">
 <button type="button" class="btn2" aria-pressed="{{focusOnly}}" style="background: {{focusBg}}; color: {{focusFg}}" onClick="{{toggleFocus}}">Related only</button>
+<label class="lbl">Upstream depth<input class="inp" type="number" min="0" max="20" style="width: 110px" value="{{depthUp}}" onChange="{{onDepthUp}}"></label>
+<label class="lbl">Downstream depth<input class="inp" type="number" min="0" max="20" style="width: 110px" value="{{depthDown}}" onChange="{{onDepthDown}}"></label>
+<label class="lbl">Type
+<select class="inp" style="width: 190px" value="{{fType}}" onChange="{{onFType}}"><option value="">All types</option><sc-for list="{{fTypeOpts}}" as="o" hint-placeholder-count="3"><option value="{{o.id}}">{{o.label}}</option></sc-for></select>
+</label>
+<label class="lbl">Domain
+<select class="inp" style="width: 150px" value="{{fDomain}}" onChange="{{onFDomain}}"><option value="">All domains</option><sc-for list="{{fDomainOpts}}" as="o" hint-placeholder-count="3"><option value="{{o.id}}">{{o.id}}</option></sc-for></select>
+</label>
+<label class="lbl">Relation
+<select class="inp" style="width: 150px" value="{{fRel}}" onChange="{{onFRel}}"><option value="">All relations</option><sc-for list="{{fRelOpts}}" as="o" hint-placeholder-count="3"><option value="{{o.id}}">{{o.id}}</option></sc-for></select>
+</label>
+<label class="lbl">Filter mode
+<select class="inp" style="width: 130px" value="{{fMode}}" onChange="{{onFMode}}"><option value="hide">Hide others</option><option value="highlight">Highlight</option></select>
+</label>
+<label class="lbl">Colour by
+<select class="inp" style="width: 120px" value="{{colorBy}}" onChange="{{onColorBy}}"><option value="type">Type</option><option value="domain">Domain</option></select>
+</label>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center">
+<div role="group" aria-label="Layout" style="display: flex; gap: 0">
+<button type="button" class="btn2" aria-pressed="{{isDag}}" style="border-radius: 8px 0 0 8px; background: {{dagBg}}; color: {{dagFg}}" onClick="{{viewDag}}">DAG containers</button>
+<button type="button" class="btn2" aria-pressed="{{isFlat}}" style="border-radius: 0 8px 8px 0; margin-left: -1px; background: {{flatBg}}; color: {{flatFg}}" onClick="{{viewFlat}}">Flat graph</button>
+</div>
+<sc-if value="{{isDag}}" hint-placeholder-val="{{true}}">
+<button type="button" class="btn2" onClick="{{openAll}}">Open all</button>
+<button type="button" class="btn2" onClick="{{closeAll}}">Close all</button>
+</sc-if>
+<button type="button" class="btn2" onClick="{{toggleCols}}">{{colsLabel}}</button>
+<sc-if value="{{isFlat}}" hint-placeholder-val="{{false}}">
+<button type="button" class="btn2" onClick="{{toggleIso}}">{{isoLabel}}</button>
+</sc-if>
+<button type="button" class="btn2" onClick="{{toggleMini}}">{{miniLabel}}</button>
+<button type="button" class="btn2" aria-pressed="{{connect}}" style="background: {{connectBg}}; color: {{connectFg}}" onClick="{{toggleConnect}}">Connect mode</button>
+<button type="button" class="btn2" onClick="{{exportSvg}}">Export SVG</button>
+<button type="button" class="btn2" onClick="{{exportPng}}">Export PNG</button>
 <button type="button" class="btn2" onClick="{{resetView}}">Reset</button>
 </div>
-<div style="display: flex; flex-wrap: wrap; gap: 16px; font-size: 13px; color: #3B4856; align-items: center">
-<span>Click an asset header or a column name to trace it:</span>
+
+<div style="display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; color: #3B4856; align-items: center">
 <span style="display: inline-flex; gap: 6px; align-items: center"><span aria-hidden="true" style="width: 12px; height: 12px; border-radius: 3px; background: #0F766E"></span>Selected</span>
 <span style="display: inline-flex; gap: 6px; align-items: center"><span aria-hidden="true" style="width: 12px; height: 12px; border-radius: 3px; background: #DBEAFE; border: 2px solid #1D4ED8"></span>Upstream</span>
 <span style="display: inline-flex; gap: 6px; align-items: center"><span aria-hidden="true" style="width: 12px; height: 12px; border-radius: 3px; background: #FFEDD5; border: 2px solid #C2410C"></span>Downstream</span>
-<span style="display: inline-flex; gap: 6px; align-items: center"><span class="mono" style="font-size: 11px; color: #0F766E">ƒx</span>has an expression</span>
-<span style="color: #5B6876">Ctrl/⌘ + scroll or pinch to zoom · drag the background to pan</span>
+<span class="mono" style="font-size: 12px">ƒx transformed · pass passthrough · ren rename</span>
+<sc-for list="{{legend}}" as="lg" hint-placeholder-count="4"><span style="display: inline-flex; gap: 6px; align-items: center"><span aria-hidden="true" style="width: 10px; height: 10px; border-radius: 50%; background: {{lg.color}}"></span>{{lg.name}}</span></sc-for>
 </div>
+<span style="font-size: 12px; color: #5B6876">Click an asset header, a column or a line. Ctrl/⌘ + scroll or pinch to zoom · drag the background to pan · the +N buttons beside a node show hidden neighbours.</span>
 </div>
 
-<div class="card" ref="{{diagRef}}" style="overflow: auto; max-height: 680px; background: #FBFCFD; cursor: grab">
+<div role="tablist" aria-label="Lineage view" style="display: flex; gap: 8px">
+<button type="button" role="tab" aria-selected="{{isGraph}}" class="btn2" style="background: {{gTabBg}}; color: {{gTabFg}}" onClick="{{viewGraph}}">Graph</button>
+<button type="button" role="tab" aria-selected="{{isImpact}}" class="btn2" style="background: {{iTabBg}}; color: {{iTabFg}}" onClick="{{viewImpact}}">Impact table</button>
+</div>
+
+<sc-if value="{{isGraph}}" hint-placeholder-val="{{true}}">
+<div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start">
+<div style="flex: 999 1 560px; min-width: 0; position: relative">
+<div class="card" ref="{{diagRef}}" style="overflow: auto; height: 680px; max-height: 75vh; background: #FBFCFD; cursor: grab">
 <div style="position: relative; width: {{cw}}px; height: {{chh}}px">
 <div style="position: absolute; left: 0; top: 0; width: {{baseW}}px; height: {{baseH}}px; transform: scale({{zoom}}); transform-origin: 0 0">
+<sc-for list="{{boxes}}" as="b" hint-placeholder-count="2">
+<div style="position: absolute; left: {{b.x}}px; top: {{b.y}}px; width: {{b.w}}px; height: {{b.h}}px; box-sizing: border-box; border: {{b.bw}}px {{b.bs}} {{b.bd}}; border-radius: 12px; background: {{b.bg}}; opacity: {{b.op}}">
+<div style="display: flex; align-items: center; gap: 6px; height: {{b.hh}}px; padding: 0 8px; box-sizing: border-box">
+<sc-if value="{{b.canToggle}}" hint-placeholder-val="{{true}}"><button type="button" onClick="{{b.toggle}}" aria-label="{{b.toggleLabel}}" aria-expanded="{{b.open}}" style="flex: none; width: 28px; height: 28px; border: 1px solid #C5CED8; border-radius: 6px; background: #FFFFFF; color: #15202B; font: inherit; font-size: 13px; cursor: pointer; padding: 0">{{b.chev}}</button></sc-if>
+<span aria-hidden="true" style="flex: none; width: 9px; height: 9px; border-radius: 50%; background: {{b.dot}}"></span>
+<button type="button" onClick="{{b.pick}}" title="{{b.title}}" style="flex: 1; min-width: 0; border: 0; background: transparent; padding: 0; font: inherit; color: #15202B; cursor: pointer; text-align: left; display: flex; flex-direction: column; gap: 1px">
+<span style="font-size: {{b.fs}}px; font-weight: 600; letter-spacing: 0.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%">{{b.title}}</span>
+<sc-if value="{{b.sub}}" hint-placeholder-val="{{true}}"><span style="font-size: 11px; color: #5B6876; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%">{{b.sub}}</span></sc-if>
+</button>
+</div>
+</div>
+</sc-for>
 <sc-for list="{{paths}}" as="p" hint-placeholder-count="3">
-<svg aria-hidden="true" width="1" height="1" style="position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; opacity: {{p.op}}"><path d="{{p.d}}" style="fill: none; stroke: {{p.color}}; stroke-width: {{p.w}}px"></path><path d="{{p.head}}" style="fill: {{p.color}}; stroke: none"></path></svg>
+<svg aria-hidden="true" width="1" height="1" style="position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; opacity: {{p.op}}"><path d="{{p.d}}" style="fill: none; stroke: {{p.color}}; stroke-width: {{p.w}}px"></path><path d="{{p.head}}" style="fill: {{p.color}}; stroke: none"></path><path d="{{p.d}}" onClick="{{p.pick}}" style="fill: none; stroke: transparent; stroke-width: 14px; pointer-events: stroke; cursor: pointer"></path></svg>
 </sc-for>
 <sc-for list="{{nodes}}" as="n" hint-placeholder-count="3">
 <div style="position: absolute; left: {{n.x}}px; top: {{n.y}}px; width: 240px; height: {{n.h}}px; box-sizing: border-box; border-radius: 10px; background: #FFFFFF; border: 2px solid {{n.bd}}; opacity: {{n.op}}; overflow: hidden; box-shadow: 0 1px 3px rgba(21, 32, 43, 0.08)">
@@ -270,10 +329,60 @@ textarea.inp{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:13px;l
 </sc-if>
 </div>
 </sc-for>
+<sc-for list="{{exps}}" as="x" hint-placeholder-count="2">
+<button type="button" onClick="{{x.pick}}" title="{{x.title}}" aria-label="{{x.title}}" style="position: absolute; left: {{x.x}}px; top: {{x.y}}px; height: 24px; min-width: 36px; padding: 0 6px; border-radius: 12px; border: 1px solid #9AA7B4; background: #FFFFFF; color: #15202B; font: inherit; font-size: 11px; font-weight: 600; cursor: pointer">{{x.label}}</button>
+</sc-for>
+<sc-for list="{{mores}}" as="mo" hint-placeholder-count="1">
+<button type="button" onClick="{{mo.pick}}" style="position: absolute; left: {{mo.x}}px; top: {{mo.y}}px; width: 240px; height: 36px; border: 1px dashed #9AA7B4; border-radius: 10px; background: #FFFFFF; color: #15202B; font: inherit; font-size: 12px; cursor: pointer">{{mo.label}}</button>
+</sc-for>
 </div>
 </div>
 <sc-if value="{{noNodes}}" hint-placeholder-val="{{false}}">
-<p style="margin: 0; padding: 20px; font-size: 14px; color: #4A5765">No lineage nodes yet.</p>
+<p style="margin: 0; padding: 20px; font-size: 14px; color: #4A5765">No lineage nodes match the current view.</p>
+</sc-if>
+</div>
+<sc-if value="{{showMini}}" hint-placeholder-val="{{true}}">
+<div role="button" aria-label="Minimap — click to jump" onClick="{{onMini}}" style="position: absolute; right: 22px; bottom: 22px; width: {{mini.w}}px; height: {{mini.h}}px; background: #FFFFFF; border: 1px solid #C5CED8; border-radius: 6px; box-shadow: 0 4px 14px rgba(21, 32, 43, 0.12); cursor: pointer; overflow: hidden">
+<sc-for list="{{mini.nodes}}" as="m" hint-placeholder-count="6"><div style="position: absolute; left: {{m.x}}px; top: {{m.y}}px; width: {{m.w}}px; height: {{m.h}}px; background: {{m.c}}; border-radius: 1px"></div></sc-for>
+<div style="position: absolute; left: {{mini.vx}}px; top: {{mini.vy}}px; width: {{mini.vw}}px; height: {{mini.vh}}px; border: 2px solid #0F766E; background: rgba(15, 118, 110, 0.08); box-sizing: border-box"></div>
+</div>
+</sc-if>
+</div>
+
+<sc-if value="{{showPanel}}" hint-placeholder-val="{{true}}">
+<aside class="card" aria-label="Details" style="flex: 1 1 300px; min-width: 0; box-sizing: border-box; padding: 16px; display: flex; flex-direction: column; gap: 12px; max-height: 75vh; overflow: auto">
+<div style="display: flex; justify-content: space-between; gap: 8px; align-items: flex-start">
+<div style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
+<span style="font-size: 12px; font-weight: 600; letter-spacing: 0.04em; color: #0F766E">{{panelKind}}</span>
+<span class="mono" style="font-size: 13px; font-weight: 600; word-break: break-all">{{panel.title}}</span>
+</div>
+<div style="display: flex; gap: 4px; flex: none">
+<button type="button" class="btn2" style="min-height: 36px; padding: 0 10px; font-size: 12px" onClick="{{togglePin}}">{{pinLabel}}</button>
+<button type="button" class="btn2" style="min-height: 36px; padding: 0 10px; font-size: 12px" onClick="{{closePanel}}" aria-label="Clear selection">Clear</button>
+</div>
+</div>
+<sc-if value="{{noPanel}}" hint-placeholder-val="{{false}}">
+<p style="margin: 0; font-size: 13px; color: #4A5765; line-height: 1.5">Select an asset, a column or a line in the diagram to see its details, expression, paths to source and neighbours.</p>
+</sc-if>
+<sc-if value="{{hasPanel}}" hint-placeholder-val="{{true}}">
+<dl style="margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: 13px">
+<sc-for list="{{panel.rows}}" as="r" hint-placeholder-count="4"><dt style="color: #5B6876">{{r.k}}</dt><dd style="margin: 0; word-break: break-word">{{r.v}}</dd></sc-for>
+</dl>
+<sc-if value="{{panel.hasCode}}" hint-placeholder-val="{{false}}"><code class="mono" style="display: block; font-size: 12px; color: #0F766E; background: #E7F4F2; padding: 8px 10px; border-radius: 6px; white-space: pre-wrap; word-break: break-word">= {{panel.code}}</code></sc-if>
+<sc-if value="{{panel.hasL1}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 12px; font-weight: 600; letter-spacing: 0.04em; color: #3B4856">{{panel.l1t}}</span>
+<sc-for list="{{panel.l1}}" as="it" hint-placeholder-count="2"><button type="button" onClick="{{it.pick}}" style="text-align: left; padding: 6px 8px; border: 1px solid #DCE3EA; border-radius: 6px; background: #FFFFFF; font: inherit; cursor: pointer; display: flex; flex-direction: column; gap: 2px; min-height: 40px"><span class="mono" style="font-size: 12px; word-break: break-all; color: #15202B">{{it.t}}</span><span style="font-size: 11px; color: #5B6876">{{it.s}}</span></button></sc-for>
+</div>
+</sc-if>
+<sc-if value="{{panel.hasL2}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 12px; font-weight: 600; letter-spacing: 0.04em; color: #3B4856">{{panel.l2t}}</span>
+<sc-for list="{{panel.l2}}" as="it" hint-placeholder-count="2"><button type="button" onClick="{{it.pick}}" style="text-align: left; padding: 6px 8px; border: 1px solid #DCE3EA; border-radius: 6px; background: #FFFFFF; font: inherit; cursor: pointer; display: flex; flex-direction: column; gap: 2px; min-height: 40px"><span class="mono" style="font-size: 12px; word-break: break-all; color: #15202B">{{it.t}}</span><span style="font-size: 11px; color: #5B6876">{{it.s}}</span></button></sc-for>
+</div>
+</sc-if>
+</sc-if>
+</aside>
 </sc-if>
 </div>
 
@@ -308,16 +417,40 @@ textarea.inp{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:13px;l
 </div>
 </section>
 </sc-if>
+</sc-if>
 
-<sc-if value="{{hasDsFocus}}" hint-placeholder-val="{{false}}">
-<section class="card" style="padding: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; font-size: 14px">
-<div style="display: flex; flex-direction: column; gap: 8px"><span style="font-size: 12px; color: #1D4ED8; font-weight: 600">UPSTREAM OF {{focus.id}}</span>
-<div style="display: flex; flex-wrap: wrap; gap: 6px"><sc-for list="{{upChips}}" as="h" hint-placeholder-count="2"><button type="button" class="btn2 mono" style="min-height: 36px; font-size: 12px" onClick="{{h.pick}}">{{h.id}}</button></sc-for></div>
-<sc-if value="{{noUpChips}}" hint-placeholder-val="{{false}}"><span style="font-size: 13px; color: #5B6876">None — this is a source.</span></sc-if></div>
-<div style="display: flex; flex-direction: column; gap: 8px"><span style="font-size: 12px; color: #C2410C; font-weight: 600">DOWNSTREAM OF {{focus.id}}</span>
-<div style="display: flex; flex-wrap: wrap; gap: 6px"><sc-for list="{{downChips}}" as="h" hint-placeholder-count="2"><button type="button" class="btn2 mono" style="min-height: 36px; font-size: 12px" onClick="{{h.pick}}">{{h.id}}</button></sc-for></div>
-<sc-if value="{{noDownChips}}" hint-placeholder-val="{{false}}"><span style="font-size: 13px; color: #5B6876">None — this is the end of the flow.</span></sc-if></div>
-<p style="margin: 0; font-size: 13px; color: #4A5765; grid-column: 1 / -1">Click a column name in the diagram to see its expression and where its values come from.</p>
+<sc-if value="{{isImpact}}" hint-placeholder-val="{{false}}">
+<section class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 14px" aria-labelledby="imp-h">
+<div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; justify-content: space-between">
+<div style="display: flex; flex-direction: column; gap: 4px; min-width: 0">
+<h2 id="imp-h" style="margin: 0; font-size: 17px; font-weight: 600; word-break: break-all">{{impTitle}}</h2>
+<span style="font-size: 13px; color: #4A5765">{{impCount}} · every hop, not limited by the depth setting</span>
+</div>
+<div style="display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap">
+<label class="lbl">Direction
+<select class="inp" style="width: 160px" value="{{impDir}}" onChange="{{onImpDir}}"><option value="both">Both</option><option value="up">Upstream only</option><option value="down">Downstream only</option></select>
+</label>
+<button type="button" class="btn" onClick="{{impCsv}}">Download CSV</button>
+</div>
+</div>
+<div style="overflow-x: auto">
+<table class="tbl" style="min-width: 760px">
+<thead><tr><th scope="col">Direction</th><th scope="col">Depth</th><th scope="col">Asset / column</th><th scope="col">Type</th><th scope="col">Owner</th><th scope="col">Domain</th></tr></thead>
+<tbody>
+<sc-for list="{{impRows}}" as="r" hint-placeholder-count="4">
+<tr>
+<td><span style="font-size: 12px; padding: 2px 8px; border-radius: 999px; background: {{r.bg}}; color: {{r.fg}}">{{r.dir}}</span></td>
+<td class="mono">{{r.depth}}</td>
+<td><button type="button" onClick="{{r.pick}}" class="mono" style="border: 0; background: transparent; padding: 0; color: #0F766E; text-decoration: underline; cursor: pointer; font-size: 13px; text-align: left; word-break: break-all">{{r.id}}</button></td>
+<td>{{r.type}}</td>
+<td>{{r.owner}}</td>
+<td>{{r.domain}}</td>
+</tr>
+</sc-for>
+</tbody>
+</table>
+<sc-if value="{{noImp}}" hint-placeholder-val="{{false}}"><p style="margin: 0; padding: 16px; font-size: 14px; color: #4A5765">Select an asset or a column (in the graph or with search) to list everything it depends on and everything it affects.</p></sc-if>
+</div>
 </section>
 </sc-if>
 
@@ -340,6 +473,7 @@ textarea.inp{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:13px;l
 
 <section class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 16px" aria-labelledby="add-e">
 <h2 id="add-e" style="margin: 0; font-size: 17px; font-weight: 600">Add lineage relation</h2>
+<p style="margin: 0; font-size: 13px; color: #4A5765">Or turn on <strong>Connect mode</strong> and click two assets in the graph; the relation type and process below are used for it.</p>
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px">
 <label class="lbl">From
 <select class="inp mono" value="{{edgeForm.from}}" onChange="{{efFrom}}">
@@ -373,8 +507,8 @@ textarea.inp{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:13px;l
 <label style="display: flex; gap: 8px; align-items: center; min-height: 44px"><input type="radio" name="mode" style="width: 18px; height: 18px" checked="{{modeReplace}}" onChange="{{setReplace}}"> Replace everything</label>
 <label style="display: flex; gap: 8px; align-items: center; min-height: 44px"><input type="radio" name="mode" style="width: 18px; height: 18px" checked="{{modeMerge}}" onChange="{{setMerge}}"> Merge (update by id)</label>
 </fieldset>
-<label class="lbl">Choose files (.zip, .yaml, .yml)<input class="inp" type="file" multiple="{{true}}" onChange="{{onFile}}" onInput="{{onFile}}"></label>
-<div onDragOver="{{onDragOver}}" onDrop="{{onDrop}}" style="padding: 20px; border: 2px dashed #9AA7B4; border-radius: 10px; text-align: center; font-size: 14px; color: #3B4856; background: #F8FAFB">…or drag and drop .zip / .yaml files here</div>
+<label class="lbl">Choose files (.zip, .yaml, .yml, or OpenLineage .json / .jsonl)<input class="inp" type="file" multiple="{{true}}" onChange="{{onFile}}" onInput="{{onFile}}"></label>
+<div onDragOver="{{onDragOver}}" onDrop="{{onDrop}}" style="padding: 20px; border: 2px dashed #9AA7B4; border-radius: 10px; text-align: center; font-size: 14px; color: #3B4856; background: #F8FAFB">…or drag and drop .zip / .yaml / OpenLineage .json files here</div>
 <label class="lbl">…or paste a single YAML document<textarea class="inp" rows="10" placeholder="version: 2&#10;assets:&#10;  - id: ..." value="{{importText}}" onChange="{{onImportText}}"></textarea></label>
 <div style="display: flex; gap: 8px; flex-wrap: wrap"><button type="button" class="btn" onClick="{{applyPaste}}">Apply YAML</button><button type="button" class="btn2" onClick="{{loadSample}}">Load Airflow + GCP example</button></div>
 <sc-if value="{{hasLoaded}}" hint-placeholder-val="{{false}}">
@@ -400,6 +534,34 @@ textarea.inp{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:13px;l
 </div>
 <textarea class="inp" rows="22" readOnly="{{true}}" aria-label="Exported YAML (single file)" value="{{yaml}}"></textarea>
 </section>
+
+<section class="card" style="grid-column: 1 / -1; padding: 20px; display: flex; flex-direction: column; gap: 14px" aria-labelledby="val-h">
+<div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; justify-content: space-between">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<h2 id="val-h" style="margin: 0; font-size: 17px; font-weight: 600">Validation</h2>
+<span style="font-size: 13px; color: #4A5765">{{valSummary}}</span>
+</div>
+<label class="lbl">Severity
+<select class="inp" style="width: 160px" value="{{vSev}}" onChange="{{onVSev}}"><option value="">All</option><option value="Error">Errors</option><option value="Warning">Warnings</option><option value="Info">Info</option></select>
+</label>
+</div>
+<div style="overflow: auto; max-height: 420px">
+<table class="tbl" style="min-width: 720px">
+<thead><tr><th scope="col">Severity</th><th scope="col">Item</th><th scope="col">Problem</th><th scope="col"><span style="position: absolute; left: -9999px">Actions</span></th></tr></thead>
+<tbody>
+<sc-for list="{{valRows}}" as="v" hint-placeholder-count="3">
+<tr>
+<td><span style="font-size: 12px; padding: 2px 8px; border-radius: 999px; background: {{v.bg}}; color: {{v.fg}}">{{v.sev}}</span></td>
+<td class="mono" style="font-size: 12px; word-break: break-all">{{v.item}}</td>
+<td>{{v.msg}}</td>
+<td style="text-align: right"><sc-if value="{{v.hasPick}}" hint-placeholder-val="{{true}}"><button type="button" class="btn2" style="min-height: 36px" onClick="{{v.pick}}">Show</button></sc-if></td>
+</tr>
+</sc-for>
+</tbody>
+</table>
+<sc-if value="{{noVal}}" hint-placeholder-val="{{false}}"><p style="margin: 0; padding: 16px; font-size: 14px; color: #4A5765">No problems found.</p></sc-if>
+</div>
+</section>
 </div>
 </sc-if>
 
@@ -418,7 +580,9 @@ class Component extends DCLogic {
       tab: 'yaml', types: this.defaultTypes(), datasets: [], lineage: [], tf: '', hideIso: true,
       sel: null, linSel: null, linCol: null, q: '', fq: '', lq: '', zoom: 0.9, showCols: true, focusOnly: false,
       dsForm: this.emptyDs(), fieldForm: this.emptyField(), edgeForm: { from: '', to: '', type: '', process: '' },
-      importText: '', mode: 'replace', msg: '', msgKind: 'ok', loaded: [], unused: [], sourceName: ''
+      importText: '', mode: 'replace', msg: '', msgKind: 'ok', loaded: [], unused: [], sourceName: '',
+      layout: 'dag', collapsed: {}, depthUp: 2, depthDown: 2, expUp: {}, expDown: {}, layerLimit: 20, layerMore: {}, selEdge: null, linView: 'graph', impDir: 'both',
+      fType: '', fDomain: '', fRel: '', fMode: 'hide', colorBy: 'type', connect: false, connectFrom: null, scr: { l: 0, t: 0, w: 0, h: 0 }, showMini: true, panelPinned: true, vSev: ''
     };
     this.diagRef = this.attachDiagram.bind(this);
   }
@@ -435,9 +599,21 @@ class Component extends DCLogic {
   attachDiagram(el) {
     var self = this;
     if (this._diag === el) return;
-    if (this._diag) { this._diag.removeEventListener('wheel', this._onWheel); this._diag.removeEventListener('mousedown', this._onDown); }
+    if (this._diag) { this._diag.removeEventListener('wheel', this._onWheel); this._diag.removeEventListener('mousedown', this._onDown); this._diag.removeEventListener('scroll', this._onScroll); }
     this._diag = el;
     if (!el) return;
+    if (!this._onScroll) {
+      this._onScroll = function () {
+        if (self._raf) return;
+        self._raf = requestAnimationFrame(function () {
+          self._raf = 0; var d = self._diag; if (!d) return;
+          var p = self.state.scr;
+          if (p.l !== d.scrollLeft || p.t !== d.scrollTop || p.w !== d.clientWidth || p.h !== d.clientHeight) self.setState({ scr: { l: d.scrollLeft, t: d.scrollTop, w: d.clientWidth, h: d.clientHeight } });
+        });
+      };
+    }
+    el.addEventListener('scroll', this._onScroll);
+    setTimeout(this._onScroll, 0);
     if (!this._onWheel) {
       this._onWheel = function (e) {
         if (!(e.ctrlKey || e.metaKey)) return;
@@ -459,6 +635,99 @@ class Component extends DCLogic {
     }
     el.addEventListener('wheel', this._onWheel, { passive: false });
     el.addEventListener('mousedown', this._onDown);
+  }
+  // bring the newly selected asset into view
+  componentDidUpdate(pp, ps) {
+    var s = this.state, el = this._diag, L = this._layout;
+    if (!el || !L || s.tab !== 'lineage' || s.linView !== 'graph') return;
+    var target = s.linCol ? s.linCol.slice(0, s.linCol.lastIndexOf('.')) : s.linSel;
+    var changed = target && (ps.linSel !== s.linSel || ps.linCol !== s.linCol || ps.layout !== s.layout || ps.tab !== s.tab);
+    if (!changed || !L.first[target]) return;
+    var p = L.first[target], z = s.zoom, x = p.x * z, y = p.y * z;
+    if (x < el.scrollLeft || x > el.scrollLeft + el.clientWidth - 120 || y < el.scrollTop || y > el.scrollTop + el.clientHeight - 60) {
+      el.scrollLeft = Math.max(0, x - el.clientWidth / 3); el.scrollTop = Math.max(0, y - 80);
+    }
+  }
+  buildSvg() {
+    var L = this._layout; if (!L) return '';
+    var esc = function (t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+    var cut = function (t, n) { t = String(t); return t.length > n ? t.slice(0, n - 1) + '…' : t; };
+    var mono = 'IBM Plex Mono, Menlo, monospace', sans = 'IBM Plex Sans, Arial, sans-serif';
+    var out = ['<svg xmlns="http://www.w3.org/2000/svg" width="' + L.baseW + '" height="' + L.baseH + '" viewBox="0 0 ' + L.baseW + ' ' + L.baseH + '" font-family="' + sans + '">', '<rect width="100%" height="100%" fill="#FBFCFD"/>'];
+    L.boxes.forEach(function (b) {
+      if (!b.lane) out.push('<rect x="' + b.x + '" y="' + b.y + '" width="' + b.w + '" height="' + b.h + '" rx="12" fill="' + (b.bg === 'transparent' ? 'none' : b.bg) + '" stroke="' + b.bd + '" stroke-width="' + b.bw + '"' + (b.bs === 'dashed' ? ' stroke-dasharray="6 4"' : '') + '/>');
+      out.push('<text x="' + (b.x + (b.lane ? 0 : 44)) + '" y="' + (b.y + (b.sub ? b.hh / 2 - 2 : b.hh / 2 + 4)) + '" font-size="' + b.fs + '" font-weight="600" fill="#15202B">' + esc(cut(b.title, Math.floor(b.w / (b.fs * 0.6)))) + '</text>');
+      if (b.sub) out.push('<text x="' + (b.x + 44) + '" y="' + (b.y + b.hh / 2 + 12) + '" font-size="11" fill="#5B6876">' + esc(cut(b.sub, Math.floor(b.w / 6.4))) + '</text>');
+    });
+    L.paths.forEach(function (p) { out.push('<g opacity="' + p.op + '"><path d="' + p.d + '" fill="none" stroke="' + p.color + '" stroke-width="' + p.w + '"/><path d="' + p.head + '" fill="' + p.color + '"/></g>'); });
+    L.nodes.forEach(function (n) {
+      out.push('<g opacity="' + n.op + '"><rect x="' + (n.x + 1) + '" y="' + (n.y + 1) + '" width="238" height="' + (n.h - 2) + '" rx="10" fill="#FFFFFF" stroke="' + n.bd + '" stroke-width="2"/>');
+      out.push('<rect x="' + (n.x + 2) + '" y="' + (n.y + 2) + '" width="236" height="58" rx="9" fill="' + n.bg + '"/><circle cx="' + (n.x + 17) + '" cy="' + (n.y + 23) + '" r="4.5" fill="' + n.tcolor + '"/>');
+      out.push('<text x="' + (n.x + 28) + '" y="' + (n.y + 27) + '" font-size="12" font-family="' + mono + '" fill="' + n.fg + '">' + esc(cut(n.id, 29)) + '</text><text x="' + (n.x + 14) + '" y="' + (n.y + 47) + '" font-size="11" fill="' + n.fg + '">' + esc(cut(n.typeLabel + ' · ' + n.name, 38)) + '</text>');
+      if (n.showCols) n.cols.forEach(function (c, i) {
+        var cy = n.y + 2 + 58 + 5 + i * 26;
+        if (c.bg !== 'transparent') out.push('<rect x="' + (n.x + 2) + '" y="' + cy + '" width="236" height="26" fill="' + c.bg + '"/>');
+        out.push('<text x="' + (n.x + 14) + '" y="' + (cy + 17) + '" font-size="12" font-family="' + mono + '" fill="' + c.fg + '">' + esc(cut(c.name, 24)) + '</text><text x="' + (n.x + 228) + '" y="' + (cy + 17) + '" font-size="10" text-anchor="end" font-family="' + mono + '" fill="' + c.fg + '">' + esc(c.badge) + '</text>');
+      });
+      out.push('</g>');
+    });
+    out.push('</svg>');
+    return out.join('');
+  }
+  /* OpenLineage RunEvents (JSON array, single object or NDJSON) -> Metadata Hub document */
+  convertOpenLineage(texts) {
+    var events = [];
+    texts.forEach(function (t) {
+      t = String(t).trim(); if (!t) return;
+      try {
+        if (t[0] === '[') events = events.concat(JSON.parse(t));
+        else if (t[0] === '{' && !/\n\{/.test(t)) events.push(JSON.parse(t));
+        else t.split(/\r?\n/).forEach(function (l) { l = l.trim(); if (l) events.push(JSON.parse(l)); });
+      } catch (e) { throw new Error('OpenLineage JSON could not be parsed: ' + e.message); }
+    });
+    var assets = {}, edges = [], seenE = {};
+    var dsId = function (d) { var ns = String(d.namespace || ''), n = String(d.name || ''); if (!ns || /^bigquery/i.test(ns)) return n; return ns.replace(/^[a-z0-9+.-]+:\/\//i, '').replace(/\/$/, '') + '/' + n; };
+    var dsType = function (d) { var ns = String(d.namespace || ''); return /^bigquery/i.test(ns) ? 'bigquery.table' : /^gs:/i.test(ns) ? 'gcs.object' : 'dataset'; };
+    var ensure = function (id, type, name) { if (!assets[id]) assets[id] = { id: id, type: type, name: name || id, fields: [], properties: {}, __file: 'openlineage' }; return assets[id]; };
+    var field = function (a, name, type, desc) { var f = a.fields.find(function (x) { return x.name === name; }); if (!f) { f = { name: name, type: type || 'STRING', description: desc || '' }; a.fields.push(f); } return f; };
+    var edge = function (f, t, type) { var k = f + '|' + t; if (seenE[k]) return; seenE[k] = 1; edges.push({ from: f, to: t, type: type, process: 'OpenLineage' }); };
+    var schema = function (a, d) { ((d.facets && d.facets.schema && d.facets.schema.fields) || []).forEach(function (f) { field(a, f.name, f.type, f.description); }); };
+    events.forEach(function (ev) {
+      var job = ev && ev.job; if (!job || !job.name) return;
+      var jns = String(job.namespace || ''), jid = 'job.' + (jns ? jns.replace(/[^A-Za-z0-9_.-]+/g, '_') + '.' : '') + job.name;
+      var ja = ensure(jid, /airflow/i.test(jns + ' ' + (ev.producer || '')) ? 'airflow.task' : 'job', job.name);
+      if (jns) ja.properties.openlineage_namespace = jns;
+      var sql = job.facets && job.facets.sql && job.facets.sql.query; if (sql) ja.properties.sql = sql;
+      (ev.inputs || []).forEach(function (d) { var id = dsId(d); schema(ensure(id, dsType(d), d.name), d); edge(id, jid, 'reads'); });
+      (ev.outputs || []).forEach(function (d) {
+        var id = dsId(d), a = ensure(id, dsType(d), d.name); schema(a, d); edge(jid, id, 'writes');
+        var cl = (d.facets && d.facets.columnLineage && d.facets.columnLineage.fields) || {};
+        Object.keys(cl).forEach(function (col) {
+          var info = cl[col] || {}, f = field(a, col), inputs = info.inputFields || [];
+          f.sources = inputs.map(function (i) { var iid = dsId(i); field(ensure(iid, dsType(i), i.name), i.field); return iid + '.' + i.field; });
+          var tr = inputs.map(function (i) { return (i.transformations || [])[0]; }).filter(Boolean)[0];
+          f.expression = info.transformationDescription || (tr && tr.description) || '';
+        });
+      });
+    });
+    return { asset_types: [{ id: 'job', label: 'Job (OpenLineage)', category: 'OpenLineage', color: '#475569' }], assets: Object.keys(assets).map(function (k) { return assets[k]; }), lineage: edges };
+  }
+  mergeLoaded(a, b) {
+    var datasets = a.datasets.slice();
+    b.datasets.forEach(function (n) {
+      var i = datasets.findIndex(function (x) { return x.id === n.id; });
+      if (i < 0) { datasets.push(n); return; }
+      var cur = Object.assign({}, datasets[i]), fields = cur.fields.slice();
+      n.fields.forEach(function (f) {
+        var j = fields.findIndex(function (x) { return x.name === f.name; });
+        if (j < 0) fields.push(f);
+        else if (!fields[j].sources.length && f.sources.length) fields[j] = Object.assign({}, fields[j], { sources: f.sources, expression: fields[j].expression || f.expression });
+      });
+      cur.fields = fields; datasets[i] = cur;
+    });
+    var lineage = a.lineage.slice();
+    b.lineage.forEach(function (n) { if (!lineage.some(function (x) { return x.from === n.from && x.to === n.to; })) lineage.push(n); });
+    return { types: this.mergeTypes(a.types, b.types), datasets: datasets, lineage: lineage, loaded: (a.loaded || []).concat(b.loaded || []), unused: a.unused || [] };
   }
   componentWillUnmount() {
     if (this._onMove) { window.removeEventListener('mousemove', this._onMove); window.removeEventListener('mouseup', this._onUp); }
@@ -751,7 +1020,7 @@ class Component extends DCLogic {
       var nlen = dv.getUint16(off + 28, true), elen = dv.getUint16(off + 30, true), clen = dv.getUint16(off + 32, true), lho = dv.getUint32(off + 42, true);
       var name = dec.decode(u8.subarray(off + 46, off + 46 + nlen));
       off += 46 + nlen + elen + clen;
-      if (/\/$/.test(name) || !/\.ya?ml$/i.test(name) || /(^|\/)(__MACOSX|\.)/.test(name)) continue;
+      if (/\/$/.test(name) || !/\.(ya?ml|json|jsonl|ndjson)$/i.test(name) || /(^|\/)(__MACOSX|\.)/.test(name)) continue;
       var start = lho + 30 + dv.getUint16(lho + 26, true) + dv.getUint16(lho + 28, true), data = u8.subarray(start, start + csize), out;
       if (method === 0) out = data;
       else if (method === 8) {
@@ -881,6 +1150,26 @@ class Component extends DCLogic {
     var fieldMap = {};
     ds.forEach(function (d) { d.fields.forEach(function (f) { fieldMap[d.id + '.' + f.name] = { ds: d.id, f: f }; }); });
     var refDs = function (r) { var i = r.lastIndexOf('.'); return i < 0 ? r : r.slice(0, i); };
+    var byId = {}; ds.forEach(function (d) { byId[d.id] = d; });
+    // column classification (dbt-style): Source / Passthrough / Rename / Transformed
+    var classify = function (f) {
+      var src = f.sources || [];
+      if (!src.length) return 'Source';
+      if (f.expression || src.length > 1) return 'Transformed';
+      return src[0].slice(src[0].lastIndexOf('.') + 1) === f.name ? 'Passthrough' : 'Rename';
+    };
+    var CLS = { Source: ['#EEF1F4', '#3B4856', 'src'], Passthrough: ['#E0F2FE', '#075985', 'pass'], Rename: ['#F3E8FF', '#6B21A8', 'ren'], Transformed: ['#E7F4F2', '#115E59', 'ƒx'] };
+    // description inherited through passthrough / rename columns
+    var inherit = function (ref) {
+      var seen = {}, cur = ref;
+      for (var i = 0; i < 25; i++) {
+        var fm = fieldMap[cur]; if (!fm || seen[cur]) return null; seen[cur] = 1;
+        if (cur !== ref && fm.f.description) return { text: fm.f.description, from: cur };
+        var c = classify(fm.f); if (c !== 'Passthrough' && c !== 'Rename') return null;
+        cur = fm.f.sources[0];
+      }
+      return null;
+    };
     var allEdges = edges.slice();
     ds.forEach(function (d) { d.fields.forEach(function (f) { (f.sources || []).forEach(function (src) { var sd = refDs(src); if (sd !== d.id && !allEdges.some(function (e) { return e.from === sd && e.to === d.id; })) allEdges.push({ from: sd, to: d.id, process: '(implied by columns)' }); }); }); });
     var countUp = function (id) { return allEdges.filter(function (e) { return e.to === id; }).length; };
@@ -923,7 +1212,8 @@ class Component extends DCLogic {
     var cur = ds.find(function (d) { return d.id === s.sel; }) || ds[0] || null;
     var fq = s.fq.trim().toLowerCase();
     var fieldRows = cur ? cur.fields.filter(function (f) { return !fq || [f.name, f.type, f.description, f.expression].join(' ').toLowerCase().indexOf(fq) >= 0; }).map(function (f) {
-      return { name: f.name, type: f.type, description: f.description || '—', nullText: f.nullable ? 'Yes' : 'No', piiText: f.pii ? 'PII' : 'No', piiBg: f.pii ? '#FFEDD5' : '#EEF1F4', piiFg: f.pii ? '#9A3412' : '#4A5765',
+      var cl = classify(f), inh = !f.description ? inherit(cur.id + '.' + f.name) : null;
+      return { name: f.name, type: f.type, cls: cl, clsBg: CLS[cl][0], clsFg: CLS[cl][1], description: f.description || (inh ? inh.text : '—'), hasInh: !!inh, inhNote: inh ? 'inherited from ' + inh.from : '', nullText: f.nullable ? 'Yes' : 'No', piiText: f.pii ? 'PII' : 'No', piiBg: f.pii ? '#FFEDD5' : '#EEF1F4', piiFg: f.pii ? '#9A3412' : '#4A5765',
         hasExpr: !!f.expression, expr: f.expression || '', srcText: (f.sources || []).length ? '← ' + f.sources.join(', ') : 'source column',
         trace: function () { set({ tab: 'lineage', linCol: cur.id + '.' + f.name, linSel: cur.id, focusOnly: false, msg: '' }); },
         del: function () { self.updateFields(cur.id, function (fs) { return fs.filter(function (x) { return x.name !== f.name; }); }); } };
@@ -939,133 +1229,401 @@ class Component extends DCLogic {
     };
 
     // lineage
-    var ids = ds.map(function (d) { return d.id; });
-    allEdges.forEach(function (e) { [e.from, e.to].forEach(function (x) { if (ids.indexOf(x) < 0) ids.push(x); }); });
-    var memo = {};
-    var depth = function (id, seen) {
-      if (memo[id] !== undefined) return memo[id];
-      if (seen[id]) return 0;
-      seen[id] = 1;
-      var upE = allEdges.filter(function (e) { return e.to === id; });
-      var dd = upE.length ? 1 + Math.max.apply(null, upE.map(function (e) { return depth(e.from, seen); })) : 0;
-      seen[id] = 0; memo[id] = dd; return dd;
-    };
     var walk = function (start, dir) {
       var out = [], stack = [start];
       while (stack.length) { var x = stack.pop(); allEdges.forEach(function (e) { var a = dir === 'up' ? e.to : e.from, b = dir === 'up' ? e.from : e.to; if (a === x && out.indexOf(b) < 0 && b !== start) { out.push(b); stack.push(b); } }); }
       return out;
     };
-    var consumers = function (ref) { return Object.keys(fieldMap).filter(function (k) { return (fieldMap[k].f.sources || []).indexOf(ref) >= 0; }); };
+    var relOf = function (e) { return e.type || (e.process === '(implied by columns)' ? 'derived' : 'unspecified'); };
+    var gEdges = allEdges.filter(function (e) { return !s.fRel || relOf(e) === s.fRel; });
+    var idSet = {}, ids = [];
+    var addId = function (x) { if (!idSet[x]) { idSet[x] = 1; ids.push(x); } };
+    ds.forEach(function (d) { addId(d.id); });
+    allEdges.forEach(function (e) { addId(e.from); addId(e.to); });
+    var upMap = {}, downMap = {};
+    gEdges.forEach(function (e) { (upMap[e.to] = upMap[e.to] || []).push(e.from); (downMap[e.from] = downMap[e.from] || []).push(e.to); });
+    var memo = {};
+    var depth = function (id, seen) {
+      if (memo[id] !== undefined) return memo[id];
+      if (seen[id]) return 0;
+      seen[id] = 1;
+      var u = upMap[id] || [];
+      var dd = u.length ? 1 + Math.max.apply(null, u.map(function (x) { return depth(x, seen); })) : 0;
+      seen[id] = 0; memo[id] = dd; return dd;
+    };
+    var bfs = function (start, map) {
+      var dist = {}, queue = [start]; dist[start] = 0;
+      while (queue.length) { var x = queue.shift(); (map[x] || []).forEach(function (y) { if (dist[y] === undefined) { dist[y] = dist[x] + 1; queue.push(y); } }); }
+      delete dist[start]; return dist;
+    };
+    var consMap = {}, srcMap = {};
+    Object.keys(fieldMap).forEach(function (k) { srcMap[k] = fieldMap[k].f.sources || []; srcMap[k].forEach(function (r) { (consMap[r] = consMap[r] || []).push(k); }); });
     var lc = s.linCol && fieldMap[s.linCol] ? s.linCol : null;
-    var colUp = [], colDown = [], st, xr;
+    var colUpDist = lc ? bfs(lc, srcMap) : {}, colDownDist = lc ? bfs(lc, consMap) : {};
+    var colUp = Object.keys(colUpDist), colDown = Object.keys(colDownDist);
+    var ls = lc ? refDs(lc) : (s.linSel && idSet[s.linSel] ? s.linSel : null);
+    var upDist = {}, downDist = {};
     if (lc) {
-      st = [lc]; while (st.length) { xr = st.pop(); (fieldMap[xr] ? fieldMap[xr].f.sources : []).forEach(function (r) { if (r !== lc && colUp.indexOf(r) < 0) { colUp.push(r); st.push(r); } }); }
-      st = [lc]; while (st.length) { xr = st.pop(); consumers(xr).forEach(function (r) { if (r !== lc && colDown.indexOf(r) < 0) { colDown.push(r); st.push(r); } }); }
-    }
-    var ls = lc ? refDs(lc) : (s.linSel && ids.indexOf(s.linSel) >= 0 ? s.linSel : null);
-    var ups = [], downs = [];
-    if (lc) {
-      colUp.forEach(function (r) { var d0 = refDs(r); if (d0 !== ls && ups.indexOf(d0) < 0) ups.push(d0); });
-      colDown.forEach(function (r) { var d0 = refDs(r); if (d0 !== ls && downs.indexOf(d0) < 0) downs.push(d0); });
-    } else if (ls) { ups = walk(ls, 'up'); downs = walk(ls, 'down'); }
-    var kindOf = function (id) { return !ls ? 'all' : id === ls ? 'sel' : ups.indexOf(id) >= 0 ? 'up' : downs.indexOf(id) >= 0 ? 'down' : 'other'; };
-    var visible = ids.filter(function (id) {
-      if (s.focusOnly && ls && kindOf(id) === 'other') return false;
-      if (s.hideIso && id !== ls && !allEdges.some(function (e) { return e.from === id || e.to === id; })) return false;
-      return true;
-    });
+      colUp.forEach(function (r) { var d0 = refDs(r); if (d0 !== ls && (upDist[d0] === undefined || colUpDist[r] < upDist[d0])) upDist[d0] = colUpDist[r]; });
+      colDown.forEach(function (r) { var d0 = refDs(r); if (d0 !== ls && (downDist[d0] === undefined || colDownDist[r] < downDist[d0])) downDist[d0] = colDownDist[r]; });
+    } else if (ls) { upDist = bfs(ls, upMap); downDist = bfs(ls, downMap); }
+    var ups = Object.keys(upDist), downs = Object.keys(downDist);
+    var kindOf = function (id) { return !ls ? 'all' : id === ls ? 'sel' : upDist[id] !== undefined ? 'up' : downDist[id] !== undefined ? 'down' : 'other'; };
+    var infoOf = function (id) { var d = byId[id]; return d ? { type: d.type, domain: d.domain } : { type: 'external', domain: '' }; };
+    var matchF = function (id) { var i = infoOf(id); return (!s.fType || i.type === s.fType) && (!s.fDomain || i.domain === s.fDomain); };
+    var filtering = !!(s.fType || s.fDomain);
     var lq = s.lq.trim().toLowerCase();
+    var isDag = s.layout === 'dag';
 
-    var NW = 240, GX = 120, HEAD = 58, ROW = 26, GY = 28, PAD = 28;
-    var lvOf = {}; visible.forEach(function (id) { lvOf[id] = depth(id, {}); });
-    var usedLv = []; visible.forEach(function (id) { if (usedLv.indexOf(lvOf[id]) < 0) usedLv.push(lvOf[id]); });
-    usedLv.sort(function (a, b) { return a - b; });
-    var colY = usedLv.map(function () { return PAD; });
-    var pos = {}, nodes = [], baseH = PAD;
+    // which assets are inside the depth window around the selection ("Related only")
+    var vis = {};
+    if (ls && s.focusOnly) {
+      vis[ls] = 1;
+      ups.forEach(function (id) { if (lc || upDist[id] <= s.depthUp) vis[id] = 1; });
+      downs.forEach(function (id) { if (lc || downDist[id] <= s.depthDown) vis[id] = 1; });
+    } else ids.forEach(function (id) { vis[id] = 1; });
+    if (!isDag) {
+      for (var pass = 0; pass < 6; pass++) {
+        var grew = false;
+        Object.keys(s.expUp).forEach(function (id) { if (vis[id]) (upMap[id] || []).forEach(function (x) { if (!vis[x]) { vis[x] = 1; grew = true; } }); });
+        Object.keys(s.expDown).forEach(function (id) { if (vis[id]) (downMap[id] || []).forEach(function (x) { if (!vis[x]) { vis[x] = 1; grew = true; } }); });
+        if (!grew) break;
+      }
+    }
+    var showable = function (id) {
+      if (id === ls) return true;
+      if (!vis[id]) return false;
+      if (filtering && s.fMode === 'hide' && !matchF(id)) return false;
+      return true;
+    };
+
+    // colours
+    var domains = []; ds.forEach(function (d) { if (d.domain && domains.indexOf(d.domain) < 0) domains.push(d.domain); }); domains.sort();
+    var DPAL = ['#0F766E', '#1D4ED8', '#C2410C', '#7E22CE', '#A16207', '#BE123C', '#0E7490', '#4D7C0F', '#9333EA', '#475569'];
+    var domColor = function (dm) { var i = domains.indexOf(dm); return i < 0 ? '#94A3B8' : DPAL[i % DPAL.length]; };
+    var dotColor = function (id) { var d = byId[id]; if (!d) return '#94A3B8'; return s.colorBy === 'domain' ? domColor(d.domain) : tinfo(d.type).color; };
     var pal = { all: ['#FFFFFF', '#15202B', '#C5CED8', 1], sel: ['#0F766E', '#FFFFFF', '#0F766E', 1], up: ['#DBEAFE', '#1E3A8A', '#1D4ED8', 1], down: ['#FFEDD5', '#7C2D12', '#C2410C', 1], other: ['#FFFFFF', '#15202B', '#DCE3EA', 0.4] };
-    visible.forEach(function (id) {
-      var li = usedLv.indexOf(lvOf[id]);
-      var d = ds.find(function (x) { return x.id === id; });
-      var fields = d ? d.fields : [];
+
+    var NW = 240, HEAD = 58, ROW = 26, PAD = 48;
+    var nodes = [], boxes = [], exps = [], mores = [], paths = [], inst = {}, firstPos = {}, allKeys = [];
+    var baseW = 400, baseH = 200;
+
+    var selectAsset = function (id) {
+      var st = self.state;
+      if (st.connect) {
+        if (!st.connectFrom) { set({ connectFrom: id, msg: 'Connect mode: ' + id + ' is the source. Now click the target asset.', msgKind: 'ok' }); return; }
+        if (st.connectFrom === id) { set({ connectFrom: null, msg: 'Connect mode: source cleared.', msgKind: 'ok' }); return; }
+        addRel(st.connectFrom, id, st.edgeForm.type.trim() || 'depends_on', st.edgeForm.process.trim()); return;
+      }
+      set({ linSel: st.linSel === id && !st.linCol ? null : id, linCol: null, selEdge: null });
+    };
+    var addRel = function (from, to, type, process) {
+      if (from === to) return say('Source and target must differ.', 'err');
+      if (self.state.lineage.some(function (e) { return e.from === from && e.to === to; })) return say('That relation already exists.', 'err');
+      if (walk(from, 'up').indexOf(to) >= 0) return say('This would create a cycle (' + to + ' is already upstream of ' + from + ').', 'err');
+      set({ lineage: self.state.lineage.concat([{ from: from, to: to, type: type, process: process, properties: {} }]), connectFrom: null, linSel: to, linCol: null, msg: 'Added relation ' + from + ' → ' + to + (type ? ' (' + type + ')' : '') + '. Export to keep it.', msgKind: 'ok' });
+    };
+
+    // one asset card (leaf), placed at x,y inside block `bk`
+    var placeNode = function (bk, id, x, y) {
+      var d = byId[id], fields = d ? d.fields : [];
       var showC = s.showCols && fields.length > 0;
       var h = 4 + HEAD + (showC ? 9 + fields.length * ROW : 0);
-      var x = PAD + li * (NW + GX), y = colY[li];
-      colY[li] += h + GY; baseH = Math.max(baseH, colY[li]);
-      var rows = {};
-      var k = kindOf(id), p = pal[k];
+      var rows = {}, k = kindOf(id), p = pal[k];
       var hit = lq && (id + ' ' + (d ? d.name : '')).toLowerCase().indexOf(lq) >= 0;
       var cols = fields.map(function (f, i) {
-        var ref = id + '.' + f.name;
+        var ref = id + '.' + f.name, cl = classify(f);
         rows[f.name] = y + 2 + HEAD + 5 + i * ROW + ROW / 2;
-        var ck = !lc ? 'none' : ref === lc ? 'sel' : colUp.indexOf(ref) >= 0 ? 'up' : colDown.indexOf(ref) >= 0 ? 'down' : 'dim';
+        var ck = !lc ? 'none' : ref === lc ? 'sel' : colUpDist[ref] !== undefined ? 'up' : colDownDist[ref] !== undefined ? 'down' : 'dim';
         var chit = lq && (ref + ' ' + (f.expression || '') + ' ' + f.description).toLowerCase().indexOf(lq) >= 0;
         var cp = { none: [chit ? '#FEF08A' : 'transparent', '#15202B', 400], sel: ['#0F766E', '#FFFFFF', 600], up: ['#DBEAFE', '#1E3A8A', 500], down: ['#FFEDD5', '#7C2D12', 500], dim: [chit ? '#FEF08A' : 'transparent', '#6B7785', 400] }[ck];
-        return { name: f.name, badge: f.expression ? 'ƒx' : f.type, title: ref + (f.expression ? ' = ' + f.expression : ''), bg: cp[0], fg: cp[1], fw: cp[2],
-          pick: function () { set({ linCol: self.state.linCol === ref ? null : ref, linSel: id }); } };
+        return { name: f.name, badge: cl === 'Source' ? f.type : CLS[cl][2], title: ref + ' · ' + cl + (f.expression ? ' = ' + f.expression : ''), bg: cp[0], fg: cp[1], fw: cp[2],
+          pick: function () { set({ linCol: self.state.linCol === ref ? null : ref, linSel: id, selEdge: null }); } };
       });
-      pos[id] = { x: x, y: y, showC: showC, rows: rows };
-      nodes.push({ id: id, name: d ? d.name : 'not in catalog', typeLabel: d ? tinfo(d.type).label : 'External', tcolor: d ? tinfo(d.type).color : '#94A3B8', x: x, y: y, h: h, bg: p[0], fg: p[1], bd: hit ? '#CA8A04' : p[2], op: p[3], showCols: showC, cols: cols,
-        pick: function () { set({ linSel: self.state.linSel === id && !self.state.linCol ? null : id, linCol: null }); } });
-    });
-    var baseW = usedLv.length ? PAD * 2 + usedLv.length * NW + (usedLv.length - 1) * GX : 400;
-    baseH = Math.max(baseH + PAD - GY, 200);
-    var paths = [];
-    var curve = function (x1, y1, x2, y2, color, w, op) {
-      var dx = Math.max(40, (x2 - x1) / 2), xe = x2 - 8;
-      paths.push({ d: 'M' + x1 + ' ' + y1 + ' C' + (x1 + dx) + ' ' + y1 + ' ' + (xe - dx) + ' ' + y2 + ' ' + xe + ' ' + y2, head: 'M' + x2 + ' ' + y2 + ' L' + (x2 - 10) + ' ' + (y2 - 5) + ' L' + (x2 - 10) + ' ' + (y2 + 5) + ' Z', color: color, w: w, op: op });
+      var op = p[3]; if (filtering && s.fMode === 'highlight' && !matchF(id) && id !== ls) op = 0.25;
+      var isFrom = s.connect && s.connectFrom === id;
+      nodes.push({ id: id, name: d ? d.name : 'not in catalog', typeLabel: d ? tinfo(d.type).label : 'External', tcolor: dotColor(id), x: x, y: y, h: h, bg: p[0], fg: p[1], bd: isFrom || hit ? '#CA8A04' : p[2], op: op, showCols: showC, cols: cols,
+        pick: function () { selectAsset(id); } });
+      (inst[bk] = inst[bk] || {})[id] = { key: bk + '|' + id, x: x, y: y, w: NW, ay: y + 31, showC: showC, rows: rows };
+      if (!firstPos[id]) firstPos[id] = { x: x, y: y };
+      return h;
     };
-    allEdges.forEach(function (e) {
-      var a = pos[e.from], b = pos[e.to]; if (!a || !b || a.x >= b.x) return;
-      var color = '#A3AFBB', w = 1.5, op = lc ? 0.3 : 1;
-      if (!lc && ls) {
-        var inUp = (e.to === ls || ups.indexOf(e.to) >= 0) && ups.indexOf(e.from) >= 0;
-        var inDown = (e.from === ls || downs.indexOf(e.from) >= 0) && downs.indexOf(e.to) >= 0;
-        if (inUp) { color = '#1D4ED8'; w = 2.5; } else if (inDown) { color = '#C2410C'; w = 2.5; } else op = 0.25;
-      }
-      curve(a.x + NW, a.y + 31, b.x, b.y + 31, color, w, op);
-    });
-    if (lc) {
-      var inTrace = [lc].concat(colUp, colDown);
-      inTrace.forEach(function (ref) {
-        var fm = fieldMap[ref]; if (!fm) return;
-        var td = refDs(ref), tc = ref.slice(td.length + 1);
-        fm.f.sources.forEach(function (src) {
-          if (inTrace.indexOf(src) < 0) return;
-          var sd = refDs(src), sc = src.slice(sd.length + 1), a = pos[sd], b = pos[td];
-          if (!a || !b || a.x >= b.x) return;
-          var y1 = a.showC && a.rows[sc] ? a.rows[sc] : a.y + 31, y2 = b.showC && b.rows[tc] ? b.rows[tc] : b.y + 31;
-          var isUp = ref === lc || colUp.indexOf(ref) >= 0;
-          curve(a.x + NW, y1, b.x, y2, isUp ? '#1D4ED8' : '#C2410C', 2.5, 1);
-        });
-      });
-    }
-    var z = s.zoom;
 
-    var goCol = function (ref) { return function () { set({ linCol: ref, linSel: refDs(ref) }); }; };
+    if (isDag) {
+      // ---------- DAG view: nested, collapsible containers ----------
+      var LANES = [['config', 'Variables & connections'], ['source', 'Sources & storage'], ['airflow', 'Airflow task groups & tasks'], ['bigquery', 'BigQuery'], ['ml', 'ML & artifacts']];
+      var laneOf = function (type) {
+        if (type === 'airflow.variable' || type === 'airflow.connection') return 'config';
+        var c = tinfo(type).category;
+        if (c === 'Airflow') return 'airflow';
+        if (c === 'BigQuery') return 'bigquery';
+        if (c === 'Vertex AI' || c === 'Artifact Registry') return 'ml';
+        return 'source';
+      };
+      var dagMemo = {};
+      var dagOf = function (id) {
+        if (dagMemo[id] !== undefined) return dagMemo[id];
+        var cur = byId[id], g = 0, res = null;
+        while (cur && g++ < 30) { if (cur.type === 'airflow.dag') { res = cur.id; break; } cur = cur.parent ? byId[cur.parent] : null; }
+        dagMemo[id] = res; return res;
+      };
+      var nbr = {};
+      allEdges.forEach(function (e) { (nbr[e.from] = nbr[e.from] || []).push(e.to); (nbr[e.to] = nbr[e.to] || []).push(e.from); });
+      var blocks = ds.filter(function (d) { return d.type === 'airflow.dag'; }).map(function (dg) {
+        var mem = {}, queue = [];
+        ds.forEach(function (d) { if (dagOf(d.id) === dg.id) { mem[d.id] = 1; queue.push(d.id); } });
+        while (queue.length) {
+          var x = queue.shift();
+          (nbr[x] || []).forEach(function (y) { if (mem[y]) return; var od = dagOf(y); if (od && od !== dg.id) return; mem[y] = 1; queue.push(y); });
+        }
+        return { id: dg.id, dag: dg, members: mem };
+      });
+      var assigned = {}, hasChild = {};
+      blocks.forEach(function (b) { Object.keys(b.members).forEach(function (k) { assigned[k] = 1; }); });
+      ds.forEach(function (d) { if (d.parent) hasChild[d.parent] = 1; });
+      var rest = {}, restN = 0;
+      ids.forEach(function (x) { if (!assigned[x] && !(hasChild[x] && !nbr[x])) { rest[x] = 1; restN++; } });
+      if (restN) blocks.push({ id: '__none', dag: null, members: rest });
+
+      var buildLane = function (blk, lane) {
+        var tn = {}, isChild = {}, order = [];
+        var get = function (id) { if (!tn[id]) { tn[id] = { id: id, children: [], member: false }; order.push(id); } return tn[id]; };
+        Object.keys(blk.members).forEach(function (id) {
+          if (id === blk.id || laneOf(infoOf(id).type) !== lane) return;
+          get(id).member = true;
+          var cur = id, g = 0;
+          while (g++ < 20) {
+            var d = byId[cur]; if (!d || !d.parent || d.parent === blk.id) break;
+            var p = byId[d.parent]; if (!p || laneOf(p.type) !== lane) break;
+            var pn = get(p.id); if (pn.children.indexOf(cur) < 0) pn.children.push(cur);
+            isChild[cur] = 1; cur = p.id;
+          }
+        });
+        var sortIds = function (a, b) { return (depth(a, {}) - depth(b, {})) || (a < b ? -1 : a > b ? 1 : 0); };
+        var toTree = function (id) { var n = tn[id]; return { id: id, member: n.member, children: n.children.slice().sort(sortIds).map(toTree) }; };
+        var roots = order.filter(function (id) { return !isChild[id]; }).sort(sortIds).map(toTree);
+        var collectKeys = function (n) { if (n.children.length) { allKeys.push(blk.id + '|' + n.id); n.children.forEach(collectKeys); } };
+        roots.forEach(collectKeys);
+        return roots;
+      };
+      var prune = function (n) {
+        var kids = n.children.map(prune).filter(Boolean);
+        if (!kids.length && !(n.member && showable(n.id))) return null;
+        if (!kids.length && n.children.length && !(n.member && showable(n.id))) return null;
+        return { id: n.id, member: n.member, children: kids, wasContainer: n.children.length > 0 };
+      };
+      var PADC = 10, HH = 36, LGAP = 110;
+      var widthOf = function (n) { return n.children.length ? Math.max.apply(null, n.children.map(widthOf)) + 2 * PADC : NW; };
+      var boxStyle = function (id, lvl) {
+        var k = kindOf(id), hit = lq && (id + ' ' + (byId[id] ? byId[id].name : '')).toLowerCase().indexOf(lq) >= 0;
+        var bd = k === 'sel' ? '#0F766E' : k === 'up' ? '#1D4ED8' : k === 'down' ? '#C2410C' : hit ? '#CA8A04' : '#B8C2CC';
+        var bg = k === 'sel' ? '#E7F4F2' : k === 'up' ? '#EFF6FF' : k === 'down' ? '#FFF7ED' : (lvl % 2 ? '#FFFFFF' : '#F6F8FA');
+        return { bd: bd, bg: bg, bw: k === 'all' || k === 'other' ? 1 : 2 };
+      };
+      var regHidden = function (bk, n, anchor) { (inst[bk] = inst[bk] || {})[n.id] = anchor; n.children.forEach(function (c) { regHidden(bk, c, anchor); }); };
+      var place = function (bk, n, x, y, lvl) {
+        if (!n.children.length && !n.wasContainer) return placeNode(bk, n.id, x, y);
+        var key = bk + '|' + n.id, closed = !!s.collapsed[key], w = widthOf(n), d = byId[n.id];
+        var st = boxStyle(n.id, lvl), cnt = 0;
+        var countLeaves = function (m) { if (!m.children.length) cnt++; m.children.forEach(countLeaves); }; n.children.forEach(countLeaves);
+        var b = { x: x, y: y, w: Math.max(w, NW + 2 * PADC), h: HH, hh: HH, fs: 12, title: d ? d.name : n.id, sub: (d ? tinfo(d.type).label : 'Group') + ' · ' + cnt + ' inside', bg: st.bg, bd: st.bd, bw: st.bw, bs: 'solid', op: 1, dot: dotColor(n.id), canToggle: true, open: !closed, chev: closed ? '▸' : '▾',
+          toggleLabel: (closed ? 'Open ' : 'Close ') + n.id, toggle: function () { var c = Object.assign({}, self.state.collapsed); if (c[key]) delete c[key]; else c[key] = 1; set({ collapsed: c }); }, pick: function () { selectAsset(n.id); }, hasPick: true };
+        boxes.push(b);
+        var anchor = { key: key, x: x, y: y, w: b.w, ay: y + HH / 2, showC: false, rows: {} };
+        (inst[bk] = inst[bk] || {})[n.id] = anchor;
+        if (!firstPos[n.id]) firstPos[n.id] = { x: x, y: y };
+        if (closed) { n.children.forEach(function (c) { regHidden(bk, c, anchor); }); return HH; }
+        var cy = y + HH + 4;
+        n.children.forEach(function (c) { cy += place(bk, c, x + PADC, cy, lvl + 1) + 10; });
+        b.h = cy - y - 10 + PADC;
+        return b.h;
+      };
+      var by = PAD;
+      blocks.forEach(function (blk) {
+        var bkey = blk.id + '|' + blk.id; allKeys.push(bkey);
+        var lanes = LANES.map(function (L) { return { L: L, roots: buildLane(blk, L[0]).map(prune).filter(Boolean) }; }).filter(function (l) { return l.roots.length; });
+        var dagShow = blk.dag ? showable(blk.id) : false;
+        if (!lanes.length && !dagShow) return;
+        var closed = !!s.collapsed[bkey], dg = blk.dag;
+        var st = dg ? boxStyle(dg.id, 0) : { bd: '#B8C2CC', bg: '#F6F8FA', bw: 1 };
+        var props = dg ? dg.properties || {} : {};
+        var nTasks = Object.keys(blk.members).filter(function (m) { return byId[m] && byId[m].type === 'airflow.task'; }).length;
+        var b = { x: PAD, y: by, w: 600, h: 52, hh: 52, fs: 15, title: dg ? dg.name + '  (' + dg.id + ')' : 'Not in any DAG', sub: dg ? 'Airflow DAG' + (props.schedule ? ' · schedule ' + props.schedule : '') + ' · ' + nTasks + ' tasks · ' + (Object.keys(blk.members).length - 1) + ' assets' : restN + ' assets with no DAG',
+          bg: st.bg, bd: dg ? (st.bd === '#B8C2CC' ? '#8996A3' : st.bd) : '#B8C2CC', bw: 2, bs: dg ? 'solid' : 'dashed', op: 1, dot: dg ? dotColor(dg.id) : '#94A3B8', canToggle: true, open: !closed, chev: closed ? '▸' : '▾',
+          toggleLabel: (closed ? 'Open ' : 'Close ') + (dg ? dg.id : 'unassigned assets'), toggle: function () { var c = Object.assign({}, self.state.collapsed); if (c[bkey]) delete c[bkey]; else c[bkey] = 1; set({ collapsed: c }); },
+          pick: function () { if (dg) selectAsset(dg.id); }, hasPick: !!dg };
+        boxes.push(b);
+        if (dg) { (inst[blk.id] = inst[blk.id] || {})[dg.id] = { key: bkey, x: PAD, y: by, w: 600, ay: by + 26, showC: false, rows: {} }; if (!firstPos[dg.id]) firstPos[dg.id] = { x: PAD, y: by }; }
+        if (closed) { by += 52 + 32; baseW = Math.max(baseW, PAD + 600 + PAD); return; }
+        var lx = PAD + 24, maxY = by + 60;
+        lanes.forEach(function (l) {
+          var lw = Math.max.apply(null, l.roots.map(widthOf));
+          boxes.push({ x: lx, y: by + 60, w: lw, h: 22, hh: 22, fs: 11, title: l.L[1].toUpperCase(), sub: '', bg: 'transparent', bd: 'transparent', bw: 0, bs: 'solid', op: 1, dot: 'transparent', canToggle: false, open: true, chev: '', toggleLabel: '', toggle: function () {}, pick: function () {}, hasPick: false, lane: true });
+          var ly = by + 60 + 28;
+          l.roots.forEach(function (r) { ly += place(blk.id, r, lx, ly, 1) + 16; });
+          maxY = Math.max(maxY, ly);
+          lx += lw + LGAP;
+        });
+        b.w = Math.max(600, lx - LGAP + 24 - PAD);
+        if (inst[blk.id] && dg) inst[blk.id][dg.id].w = b.w;
+        b.h = maxY - by + 8;
+        by += b.h + 32;
+        baseW = Math.max(baseW, PAD + b.w + PAD);
+      });
+      baseH = Math.max(by + PAD - 32, 200);
+    } else {
+      // ---------- Flat graph: layered left to right ----------
+      var GX = 130, GY = 28, MOREH = 36;
+      var visible = ids.filter(function (id) { if (!showable(id)) return false; if (id !== ls && s.hideIso && !(upMap[id] || downMap[id])) return false; return true; });
+      var visSet = {}; visible.forEach(function (id) { visSet[id] = 1; });
+      var lvOf = {}; visible.forEach(function (id) { lvOf[id] = depth(id, {}); });
+      var usedLv = []; visible.forEach(function (id) { if (usedLv.indexOf(lvOf[id]) < 0) usedLv.push(lvOf[id]); });
+      usedLv.sort(function (a, b) { return a - b; });
+      var rank = { sel: 0, up: 1, down: 1, all: 2, other: 3 };
+      var colY = usedLv.map(function () { return PAD; });
+      usedLv.forEach(function (lv, li) {
+        var list = visible.filter(function (id) { return lvOf[id] === lv; }).sort(function (a, b) { return (rank[kindOf(a)] - rank[kindOf(b)]) || (a < b ? -1 : a > b ? 1 : 0); });
+        var limit = s.layerLimit + (s.layerMore[lv] || 0), x = PAD + li * (NW + GX);
+        list.slice(0, limit).forEach(function (id) {
+          var y = colY[li], h = placeNode('flat', id, x, y);
+          colY[li] += h + GY; baseH = Math.max(baseH, colY[li]);
+          var hu = (upMap[id] || []).filter(function (x2) { return !visSet[x2]; }).length, hd = (downMap[id] || []).filter(function (x2) { return !visSet[x2]; }).length;
+          if (hu) exps.push({ x: x - 44, y: y + 17, label: '+' + hu, title: 'Show ' + hu + ' hidden upstream of ' + id, pick: function () { var m = Object.assign({}, self.state.expUp); m[id] = 1; set({ expUp: m }); } });
+          if (hd) exps.push({ x: x + NW + 8, y: y + 17, label: '+' + hd, title: 'Show ' + hd + ' hidden downstream of ' + id, pick: function () { var m = Object.assign({}, self.state.expDown); m[id] = 1; set({ expDown: m }); } });
+        });
+        if (list.length > limit) {
+          var hiddenN = list.length - limit;
+          mores.push({ x: x, y: colY[li], label: '+ ' + Math.min(hiddenN, 20) + ' more (' + hiddenN + ' hidden in this layer)', pick: function () { var m = Object.assign({}, self.state.layerMore); m[lv] = (m[lv] || 0) + 20; set({ layerMore: m }); } });
+          colY[li] += MOREH + GY; baseH = Math.max(baseH, colY[li]);
+        }
+      });
+      baseW = usedLv.length ? PAD * 2 + usedLv.length * NW + (usedLv.length - 1) * GX : 400;
+      baseH = Math.max(baseH + PAD - GY, 200);
+    }
+
+    // ---------- lines ----------
+    var se = s.selEdge;
+    var addPath = function (d, hx, hy, dir, color, w, op, pick) {
+      paths.push({ d: d, head: 'M' + hx + ' ' + hy + ' L' + (hx - 10 * dir) + ' ' + (hy - 5) + ' L' + (hx - 10 * dir) + ' ' + (hy + 5) + ' Z', color: color, w: w, op: op, pick: pick });
+    };
+    var link = function (a, ay, b, by2, color, w, op, pick) {
+      var x1, x2, dx;
+      if (b.x >= a.x + a.w + 8) { x1 = a.x + a.w; x2 = b.x; dx = Math.max(40, (x2 - x1) / 2); addPath('M' + x1 + ' ' + ay + ' C' + (x1 + dx) + ' ' + ay + ' ' + (x2 - 8 - dx) + ' ' + by2 + ' ' + (x2 - 8) + ' ' + by2, x2, by2, 1, color, w, op, pick); }
+      else if (b.x + b.w <= a.x - 8) { x1 = a.x; x2 = b.x + b.w; dx = Math.max(40, (x1 - x2) / 2); addPath('M' + x1 + ' ' + ay + ' C' + (x1 - dx) + ' ' + ay + ' ' + (x2 + 8 + dx) + ' ' + by2 + ' ' + (x2 + 8) + ' ' + by2, x2, by2, -1, color, w, op, pick); }
+      else { var xr = Math.max(a.x + a.w, b.x + b.w); x1 = a.x + a.w; x2 = b.x + b.w; addPath('M' + x1 + ' ' + ay + ' C' + (xr + 60) + ' ' + ay + ' ' + (xr + 60) + ' ' + by2 + ' ' + (x2 + 8) + ' ' + by2, x2, by2, -1, color, w, op, pick); }
+    };
+    Object.keys(inst).forEach(function (bk) {
+      var I = inst[bk], seenK = {};
+      gEdges.forEach(function (e) {
+        var a = I[e.from], b = I[e.to]; if (!a || !b || a === b || a.key === b.key) return;
+        var k = a.key + '>' + b.key; if (seenK[k]) return; seenK[k] = 1;
+        var color = '#A3AFBB', w = 1.5, op = lc ? 0.3 : 1;
+        if (!lc && ls) {
+          var inUp = (e.to === ls || upDist[e.to] !== undefined) && upDist[e.from] !== undefined;
+          var inDown = (e.from === ls || downDist[e.from] !== undefined) && downDist[e.to] !== undefined;
+          if (inUp) { color = '#1D4ED8'; w = 2.5; } else if (inDown) { color = '#C2410C'; w = 2.5; } else op = 0.25;
+        }
+        if (se && se.from === e.from && se.to === e.to) { color = '#0F766E'; w = 3.5; op = 1; }
+        link(a, a.ay, b, b.ay, color, w, op, function () { set({ selEdge: { from: e.from, to: e.to } }); });
+      });
+      if (lc) {
+        var inTrace = [lc].concat(colUp, colDown), inSet = {};
+        inTrace.forEach(function (r) { inSet[r] = 1; });
+        inTrace.forEach(function (ref) {
+          var fm = fieldMap[ref]; if (!fm) return;
+          var td = refDs(ref), tc = ref.slice(td.length + 1);
+          fm.f.sources.forEach(function (src) {
+            if (!inSet[src]) return;
+            var sd = refDs(src), sc = src.slice(sd.length + 1), a = I[sd], b = I[td];
+            if (!a || !b || a.key === b.key) return;
+            var y1 = a.showC && a.rows[sc] ? a.rows[sc] : a.ay, y2 = b.showC && b.rows[tc] ? b.rows[tc] : b.ay;
+            var isUp = ref === lc || colUpDist[ref] !== undefined;
+            link(a, y1, b, y2, isUp ? '#1D4ED8' : '#C2410C', 2.5, 1, function () { set({ linCol: src, linSel: sd, selEdge: null }); });
+          });
+        });
+      }
+    });
+    var z = s.zoom;
+    self._layout = { nodes: nodes, boxes: boxes, paths: paths, baseW: baseW, baseH: baseH, first: firstPos };
+
+    // ---------- column trace ----------
+    var goCol = function (ref) { return function () { set({ linCol: ref, linSel: refDs(ref), selEdge: null }); }; };
     var exprOf = function (ref) { var fm = fieldMap[ref]; if (!fm) return 'Not defined in the data dictionary'; if (fm.f.expression) return fm.f.expression; return fm.f.sources.length ? 'Copied as-is from ' + fm.f.sources.join(', ') : 'Source column — original data from the system'; };
-    var mkItem = function (ref, dep, cyc, root) { var fm = fieldMap[ref], he = !cyc && !!(fm && fm.f.expression); return { ref: ref, indent: Math.min(dep, 8) * 22, line: cyc ? '(cycle detected — stopping)' : exprOf(ref), type: fm ? fm.f.type : '?', hasExpr: he, noExpr: !he, pick: goCol(ref), arrow: dep === 0 ? '●' : '↳', bg: root ? '#E7F4F2' : '#F5F9FF', bd: root ? '#0F766E' : '#C7D7F5' }; };
+    var mkItem = function (ref, dep, cyc, root) { var fm = fieldMap[ref], he = !cyc && !!(fm && fm.f.expression); return { ref: ref, indent: Math.min(dep, 8) * 22, line: cyc ? '(cycle detected — stopping)' : exprOf(ref), type: fm ? fm.f.type + ' · ' + classify(fm.f) : '?', hasExpr: he, noExpr: !he, pick: goCol(ref), arrow: dep === 0 ? '●' : '↳', bg: root ? '#E7F4F2' : '#F5F9FF', bd: root ? '#0F766E' : '#C7D7F5' }; };
     var traceUp = [], traceDown = [];
-    var visitUp = function (ref, dep, path) { var cyc = path.indexOf(ref) >= 0; traceUp.push(mkItem(ref, dep, cyc, dep === 0)); if (cyc || dep > 15) return; (fieldMap[ref] ? fieldMap[ref].f.sources : []).forEach(function (r) { visitUp(r, dep + 1, path.concat([ref])); }); };
-    var visitDown = function (ref, dep, path) { var cyc = path.indexOf(ref) >= 0; traceDown.push(mkItem(ref, dep - 1, cyc, false)); if (cyc || dep > 15) return; consumers(ref).forEach(function (r) { visitDown(r, dep + 1, path.concat([ref])); }); };
+    var visitUp = function (ref, dep, path) { var cyc = path.indexOf(ref) >= 0; traceUp.push(mkItem(ref, dep, cyc, dep === 0)); if (cyc || dep > 15) return; (srcMap[ref] || []).forEach(function (r) { visitUp(r, dep + 1, path.concat([ref])); }); };
+    var visitDown = function (ref, dep, path) { var cyc = path.indexOf(ref) >= 0; traceDown.push(mkItem(ref, dep - 1, cyc, false)); if (cyc || dep > 15) return; (consMap[ref] || []).forEach(function (r) { visitDown(r, dep + 1, path.concat([ref])); }); };
     var summary = '';
     if (lc) {
-      visitUp(lc, 0, []); consumers(lc).forEach(function (r) { visitDown(r, 1, [lc]); });
-      var roots = colUp.filter(function (r) { return !fieldMap[r] || !fieldMap[r].f.sources.length; });
-      summary = 'Depends on ' + colUp.length + ' upstream columns across ' + ups.length + ' assets; ' + roots.length + ' of them are original source columns. Feeds ' + colDown.length + ' downstream columns.';
+      visitUp(lc, 0, []); (consMap[lc] || []).forEach(function (r) { visitDown(r, 1, [lc]); });
+      var roots0 = colUp.filter(function (r) { return !fieldMap[r] || !fieldMap[r].f.sources.length; });
+      summary = 'Depends on ' + colUp.length + ' upstream columns across ' + ups.length + ' assets; ' + roots0.length + ' of them are original source columns. Feeds ' + colDown.length + ' downstream columns.';
     }
-    var chips = function (arr) { return arr.map(function (id) { return { id: id, pick: function () { set({ linSel: id, linCol: null }); } }; }); };
 
+    // ---------- detail panel ----------
+    var propList = function (o) { return Object.keys(o || {}).map(function (k) { var v = o[k]; return { k: k, v: v !== null && typeof v === 'object' ? JSON.stringify(v) : String(v) }; }); };
+    var panel = null;
+    if (se) {
+      var under = allEdges.filter(function (e) { return e.from === se.from && e.to === se.to; });
+      var e0 = under[0] || {};
+      panel = { kind: 'Relation', title: se.from + ' → ' + se.to, rows: [{ k: 'Relation', v: relOf(e0) }, { k: 'Process', v: e0.process || '—' }].concat(propList(e0.properties)), code: (e0.properties && (e0.properties.sql || e0.properties.query)) || '',
+        l1t: 'Endpoints', l1: [se.from, se.to].map(function (x) { return { t: x, s: byId[x] ? tinfo(byId[x].type).label : 'External', pick: function () { set({ linSel: x, linCol: null, selEdge: null }); } }; }), l2t: '', l2: [] };
+    } else if (lc) {
+      var fm0 = fieldMap[lc].f, cl0 = classify(fm0), inh0 = !fm0.description ? inherit(lc) : null;
+      panel = { kind: 'Column · ' + cl0, title: lc, rows: [{ k: 'Type', v: fm0.type }, { k: 'Nullable', v: fm0.nullable ? 'Yes' : 'No' }, { k: 'PII', v: fm0.pii ? 'Yes' : 'No' }, { k: 'Description', v: fm0.description || (inh0 ? inh0.text + ' (inherited from ' + inh0.from + ')' : '—') }, { k: 'Upstream', v: colUp.length + ' columns' }, { k: 'Downstream', v: colDown.length + ' columns' }],
+        code: fm0.expression || '', l1t: 'Direct sources', l1: fm0.sources.map(function (r) { return { t: r, s: fieldMap[r] ? classify(fieldMap[r].f) : 'not found in the dictionary', pick: goCol(r) }; }),
+        l2t: 'Used by', l2: (consMap[lc] || []).map(function (r) { return { t: r, s: classify(fieldMap[r].f), pick: goCol(r) }; }) };
+    } else if (ls) {
+      var d0 = byId[ls], pathsTo = [];
+      var dfs = function (id, chain) { if (pathsTo.length >= 6 || chain.length > 15) return; var u = upMap[id] || []; if (!u.length) { if (chain.length > 1) pathsTo.push(chain.slice()); return; } u.forEach(function (x) { if (chain.indexOf(x) < 0) { chain.push(x); dfs(x, chain); chain.pop(); } }); };
+      dfs(ls, [ls]);
+      panel = { kind: d0 ? tinfo(d0.type).label : 'External asset', title: ls,
+        rows: (d0 ? [{ k: 'Name', v: d0.name }, { k: 'Owner', v: d0.owner || '—' }, { k: 'Domain', v: d0.domain || '—' }, { k: 'Parent', v: d0.parent || '—' }, { k: 'Columns', v: String(d0.fields.length) }, { k: 'Description', v: d0.description || '—' }] : []).concat([{ k: 'Upstream', v: ups.length + ' assets' }, { k: 'Downstream', v: downs.length + ' assets' }]).concat(d0 ? propList(d0.properties) : []),
+        code: '', l1t: 'Paths to source', l1: pathsTo.map(function (c) { return { t: c.join(' ← '), s: (c.length - 1) + ' hops', pick: function () { set({ linSel: c[c.length - 1], linCol: null, selEdge: null }); } }; }),
+        l2t: 'Direct neighbours', l2: (upMap[ls] || []).map(function (x) { return { t: x, s: 'upstream', pick: function () { set({ linSel: x, linCol: null, selEdge: null }); } }; }).concat((downMap[ls] || []).map(function (x) { return { t: x, s: 'downstream', pick: function () { set({ linSel: x, linCol: null, selEdge: null }); } }; })) };
+    }
+    if (panel) { panel.hasCode = !!panel.code; panel.hasL1 = panel.l1.length > 0; panel.hasL2 = panel.l2.length > 0; }
+
+    // ---------- impact table ----------
+    var impRows = [];
+    var mkImp = function (dir, dist, id, isCol) {
+      var aid = isCol ? refDs(id) : id, d = byId[aid];
+      impRows.push({ dir: dir, depth: dist, id: id, type: isCol ? (fieldMap[id] ? fieldMap[id].f.type + ' · ' + classify(fieldMap[id].f) : 'not found') : (d ? tinfo(d.type).label : 'External'), owner: d ? d.owner || '—' : '—', domain: d ? d.domain || '—' : '—',
+        bg: dir === 'Upstream' ? '#DBEAFE' : '#FFEDD5', fg: dir === 'Upstream' ? '#1E3A8A' : '#7C2D12',
+        pick: function () { set(isCol ? { linCol: id, linSel: aid, linView: 'graph', selEdge: null } : { linSel: id, linCol: null, linView: 'graph', selEdge: null }); } });
+    };
+    if (lc) { if (s.impDir !== 'down') colUp.forEach(function (r) { mkImp('Upstream', colUpDist[r], r, true); }); if (s.impDir !== 'up') colDown.forEach(function (r) { mkImp('Downstream', colDownDist[r], r, true); }); }
+    else if (ls) { if (s.impDir !== 'down') ups.forEach(function (id) { mkImp('Upstream', upDist[id], id, false); }); if (s.impDir !== 'up') downs.forEach(function (id) { mkImp('Downstream', downDist[id], id, false); }); }
+    impRows.sort(function (a, b) { return a.dir === b.dir ? (a.depth - b.depth) || (a.id < b.id ? -1 : 1) : (a.dir === 'Upstream' ? -1 : 1); });
+
+    // ---------- search ----------
     var sugg = [];
     if (lq) {
       ds.forEach(function (d) {
-        if ((d.id + ' ' + d.name + ' ' + d.domain + ' ' + tinfo(d.type).label).toLowerCase().indexOf(lq) >= 0) sugg.push({ kind: tinfo(d.type).label, kbg: '#E7F4F2', kfg: '#115E59', ref: d.id, sub: d.name, pick: function () { set({ linSel: d.id, linCol: null, lq: '' }); } });
+        if ((d.id + ' ' + d.name + ' ' + d.domain + ' ' + tinfo(d.type).label).toLowerCase().indexOf(lq) >= 0) sugg.push({ kind: tinfo(d.type).label, kbg: '#E7F4F2', kfg: '#115E59', ref: d.id, sub: d.name, pick: function () { set({ linSel: d.id, linCol: null, selEdge: null, lq: '' }); } });
         d.fields.forEach(function (f) {
           var r = d.id + '.' + f.name;
-          if ((r + ' ' + f.description + ' ' + (f.expression || '')).toLowerCase().indexOf(lq) >= 0) sugg.push({ kind: f.expression ? 'Column ƒx' : 'Column', kbg: '#DBEAFE', kfg: '#1E3A8A', ref: r, sub: f.expression ? '= ' + f.expression : (f.description || f.type), pick: function () { set({ linCol: r, linSel: d.id, lq: '' }); } });
+          if ((r + ' ' + f.description + ' ' + (f.expression || '')).toLowerCase().indexOf(lq) >= 0) sugg.push({ kind: 'Column · ' + classify(f), kbg: '#DBEAFE', kfg: '#1E3A8A', ref: r, sub: f.expression ? '= ' + f.expression : (f.description || f.type), pick: function () { set({ linCol: r, linSel: d.id, selEdge: null, lq: '' }); } });
         });
       });
       sugg = sugg.slice(0, 12);
     }
+
+    // ---------- minimap ----------
+    var ms = Math.min(180 / baseW, 140 / baseH, 0.25), scr = s.scr;
+    var mini = { w: Math.max(40, Math.round(baseW * ms)), h: Math.max(30, Math.round(baseH * ms)),
+      nodes: boxes.filter(function (b) { return !b.lane && b.fs === 15; }).map(function (b) { return { x: Math.round(b.x * ms), y: Math.round(b.y * ms), w: Math.max(2, Math.round(b.w * ms)), h: Math.max(2, Math.round(b.h * ms)), c: '#EEF1F4' }; })
+        .concat(nodes.map(function (n) { return { x: Math.round(n.x * ms), y: Math.round(n.y * ms), w: Math.max(2, Math.round(NW * ms)), h: Math.max(2, Math.round(n.h * ms)), c: n.bg === '#FFFFFF' ? '#B8C2CC' : n.bd }; })),
+      vx: Math.round(scr.l / z * ms), vy: Math.round(scr.t / z * ms), vw: Math.max(8, Math.round((scr.w || 600) / z * ms)), vh: Math.max(8, Math.round((scr.h || 400) / z * ms)) };
+    var onMini = function (e) {
+      var el = self._diag; if (!el) return;
+      var r = e.currentTarget.getBoundingClientRect(), zz = self.state.zoom;
+      el.scrollLeft = (e.clientX - r.left) / ms * zz - el.clientWidth / 2;
+      el.scrollTop = (e.clientY - r.top) / ms * zz - el.clientHeight / 2;
+    };
+    var legend = s.colorBy === 'domain' ? domains.map(function (dm) { return { name: dm, color: domColor(dm) }; })
+      : (function () { var seenT = {}, out = []; nodes.forEach(function (n) { var d = byId[n.id], t = d ? d.type : 'external'; if (!seenT[t] && out.length < 14) { seenT[t] = 1; out.push({ name: tinfo(t).label, color: n.tcolor }); } }); return out; })();
+
     var edgeRows = edges.map(function (e, i) { return { from: e.from, to: e.to, type: e.type || '—', process: e.process || '—', del: function () { set({ lineage: self.state.lineage.filter(function (_, j) { return j !== i; }), msg: 'Deleted relation ' + e.from + ' → ' + e.to + '.', msgKind: 'ok' }); } }; });
     var addEdge = function () {
       var f = self.state.edgeForm;
@@ -1101,12 +1659,48 @@ class Component extends DCLogic {
         if (/\.zip$/i.test(file.name)) return file.arrayBuffer().then(function (b) { return self.readZip(b); }).then(function (fs) { Object.assign(raw, fs); });
         return file.text().then(function (t) { raw[file.webkitRelativePath || file.name] = t; });
       })).then(function () {
-        self.applyLoaded(self.loadProject(raw), list.map(function (f) { return f.name; }).join(', '));
+        var yamlRaw = {}, ol = [], olNames = [];
+        Object.keys(raw).forEach(function (k) { if (/\.(json|jsonl|ndjson)$/i.test(k)) { ol.push(raw[k]); olNames.push(k); } else yamlRaw[k] = raw[k]; });
+        var d = Object.keys(yamlRaw).length ? self.loadProject(yamlRaw) : { types: [], datasets: [], lineage: [], loaded: [], unused: [] };
+        if (ol.length) { var o = self.normalize(self.convertOpenLineage(ol)); o.loaded = olNames.map(function (n) { return n + ' (OpenLineage)'; }); d = self.mergeLoaded(d, o); }
+        self.applyLoaded(d, list.map(function (f) { return f.name; }).join(', '));
       }).catch(function (err) { say('Import failed — ' + (err && err.message ? err.message : String(err)), 'err'); }).then(function () { self._busy = false; if (input) { try { input.value = ''; } catch (x) {} } });
     };
     var onFile = function (e) { readList(Array.prototype.slice.call((e.target && e.target.files) || []), e.target); };
     var onDragOver = function (e) { e.preventDefault(); };
     var onDrop = function (e) { e.preventDefault(); readList(Array.prototype.slice.call((e.dataTransfer && e.dataTransfer.files) || []), null); };
+    // validation
+    var issues = [];
+    var addI = function (sev, item, msg, target) {
+      issues.push({ sev: sev, item: item, msg: msg, bg: sev === 'Error' ? '#FEF3F2' : sev === 'Warning' ? '#FFFAEB' : '#EEF1F4', fg: sev === 'Error' ? '#912018' : sev === 'Warning' ? '#93370D' : '#3B4856', hasPick: !!(byId[target] || fieldMap[target]),
+        pick: function () { var isCol = !byId[target] && !!fieldMap[target]; set(isCol ? { tab: 'lineage', linCol: target, linSel: refDs(target), linView: 'graph', selEdge: null } : { tab: 'lineage', linSel: target, linCol: null, linView: 'graph', selEdge: null }); } });
+    };
+    ds.forEach(function (d) {
+      if (!d.owner) addI('Info', d.id, 'No owner', d.id);
+      if (d.parent && !byId[d.parent]) addI('Warning', d.id, 'Parent "' + d.parent + '" is not defined as an asset', d.id);
+      if (!tmap[d.type]) addI('Info', d.id, 'Type "' + d.type + '" is not in asset_types', d.id);
+      var names = {};
+      d.fields.forEach(function (f) {
+        var ref = d.id + '.' + f.name;
+        if (names[f.name]) addI('Error', ref, 'Duplicate column name', d.id);
+        names[f.name] = 1;
+        (f.sources || []).forEach(function (r) { if (!fieldMap[r]) addI('Error', ref, 'Source column "' + r + '" is not defined', ref); });
+        if (f.expression && !(f.sources || []).length) addI('Warning', ref, 'Has an expression but no source columns', ref);
+      });
+    });
+    edges.forEach(function (e) { [e.from, e.to].forEach(function (x) { if (!byId[x]) addI('Warning', e.from + ' → ' + e.to, '"' + x + '" is not defined as an asset', x); }); });
+    var downAll = {}, vColor = {}, nCyc = 0;
+    allEdges.forEach(function (e) { (downAll[e.from] = downAll[e.from] || []).push(e.to); });
+    var dfsC = function (x, stack) {
+      vColor[x] = 1; stack.push(x);
+      (downAll[x] || []).forEach(function (y) { if (nCyc >= 5) return; if (vColor[y] === 1) { nCyc++; addI('Error', stack.slice(stack.indexOf(y)).concat([y]).join(' → '), 'Lineage cycle', y); } else if (!vColor[y]) dfsC(y, stack); });
+      stack.pop(); vColor[x] = 2;
+    };
+    Object.keys(downAll).forEach(function (x) { if (!vColor[x]) dfsC(x, []); });
+    var sevRank = { Error: 0, Warning: 1, Info: 2 };
+    issues.sort(function (a, b) { return sevRank[a.sev] - sevRank[b.sev]; });
+    var nErr = issues.filter(function (i) { return i.sev === 'Error'; }).length, nWarn = issues.filter(function (i) { return i.sev === 'Warning'; }).length;
+    var valRows = issues.filter(function (i) { return !s.vSev || i.sev === s.vSev; }).slice(0, 300);
     var msgPal = s.msgKind === 'err' ? ['#FEF3F2', '#912018', '#F3C1BC'] : ['#ECFDF3', '#05603A', '#A6E9C5'];
 
     return {
@@ -1130,7 +1724,11 @@ class Component extends DCLogic {
       fieldForm: s.fieldForm, ffName: form('fieldForm', 'name'), ffType: form('fieldForm', 'type'), ffNull: form('fieldForm', 'nullable', true), ffPii: form('fieldForm', 'pii', true), ffDesc: form('fieldForm', 'description'), ffExpr: form('fieldForm', 'expression'), ffSrc: form('fieldForm', 'sources'),
       types: ['STRING', 'INT64', 'NUMERIC', 'BIGNUMERIC', 'FLOAT64', 'BOOL', 'DATE', 'DATETIME', 'TIMESTAMP', 'TIME', 'JSON', 'BYTES', 'GEOGRAPHY', 'ARRAY', 'STRUCT'].map(function (v) { return { v: v }; }),
       addField: addField,
-      nodes: nodes, paths: paths, noNodes: visible.length === 0,
+      nodes: nodes, boxes: boxes, paths: paths, exps: exps, mores: mores, noNodes: nodes.length === 0 && boxes.length === 0,
+      isDag: isDag, isFlat: !isDag, dagBg: isDag ? '#0F766E' : '#FFFFFF', dagFg: isDag ? '#FFFFFF' : '#15202B', flatBg: !isDag ? '#0F766E' : '#FFFFFF', flatFg: !isDag ? '#FFFFFF' : '#15202B',
+      viewDag: function () { set({ layout: 'dag' }); }, viewFlat: function () { set({ layout: 'flat' }); },
+      openAll: function () { set({ collapsed: {} }); },
+      closeAll: function () { var c = {}; allKeys.forEach(function (k) { c[k] = 1; }); set({ collapsed: c }); },
       baseW: baseW, baseH: baseH, cw: Math.round(baseW * z), chh: Math.round(baseH * z), zoom: z, zoomText: Math.round(z * 100) + '%',
       zoomIn: function () { self.zoomTo(self.state.zoom * 1.2); },
       zoomOut: function () { self.zoomTo(self.state.zoom / 1.2); },
@@ -1138,32 +1736,74 @@ class Component extends DCLogic {
       zoomPct: Math.round(z * 100), onZoomRange: function (e) { self.zoomTo(Number(e.target.value) / 100); },
       zoomFit: function () {
         var el = self._diag; if (!el) return;
-        var fz = Math.min((el.clientWidth - 8) / baseW, (Math.min(680, window.innerHeight * 0.75) - 8) / baseH, 1.6);
+        var fz = Math.min((el.clientWidth - 8) / baseW, (el.clientHeight - 8) / baseH, 1.6);
         self.setState({ zoom: Math.max(0.2, Math.floor(fz * 100) / 100) }, function () { el.scrollLeft = 0; el.scrollTop = 0; });
       },
       diagRef: this.diagRef,
       colsLabel: s.showCols ? 'Hide columns' : 'Show columns', toggleCols: function () { set({ showCols: !self.state.showCols }); },
       isoLabel: s.hideIso ? 'Show unlinked assets' : 'Hide unlinked assets', toggleIso: function () { set({ hideIso: !self.state.hideIso }); },
       focusOnly: s.focusOnly, focusBg: s.focusOnly ? '#0F766E' : '#FFFFFF', focusFg: s.focusOnly ? '#FFFFFF' : '#15202B', toggleFocus: function () { set({ focusOnly: !self.state.focusOnly }); },
-      resetView: function () { set({ linSel: null, linCol: null, zoom: 0.9, focusOnly: false, lq: '' }); },
+      depthUp: s.depthUp, depthDown: s.depthDown,
+      onDepthUp: function (e) { set({ depthUp: Math.max(0, Math.min(20, parseInt(e.target.value, 10) || 0)) }); },
+      onDepthDown: function (e) { set({ depthDown: Math.max(0, Math.min(20, parseInt(e.target.value, 10) || 0)) }); },
+      fType: s.fType, fDomain: s.fDomain, fRel: s.fRel, fMode: s.fMode, colorBy: s.colorBy,
+      onFType: function (e) { set({ fType: e.target.value }); }, onFDomain: function (e) { set({ fDomain: e.target.value }); }, onFRel: function (e) { set({ fRel: e.target.value }); },
+      onFMode: function (e) { set({ fMode: e.target.value }); }, onColorBy: function (e) { set({ colorBy: e.target.value }); },
+      fTypeOpts: s.types.filter(function (t) { return ds.some(function (d) { return d.type === t.id; }); }).map(function (t) { return { id: t.id, label: t.label }; }),
+      fDomainOpts: domains.map(function (dm) { return { id: dm }; }),
+      fRelOpts: allEdges.map(relOf).filter(function (v, i, a) { return a.indexOf(v) === i; }).sort().map(function (v) { return { id: v }; }),
+      legend: legend,
+      showMini: s.showMini && nodes.length > 0, miniLabel: s.showMini ? 'Hide minimap' : 'Show minimap', toggleMini: function () { set({ showMini: !self.state.showMini }); }, mini: mini, onMini: onMini,
+      connect: s.connect, connectBg: s.connect ? '#CA8A04' : '#FFFFFF', connectFg: s.connect ? '#FFFFFF' : '#15202B',
+      toggleConnect: function () { var on = !self.state.connect; set({ connect: on, connectFrom: null, msg: on ? 'Connect mode on: click a source asset, then a target asset. The relation type and process come from the "Add lineage relation" form (default depends_on).' : 'Connect mode off.', msgKind: 'ok' }); },
+      exportSvg: function () { save(new Blob([self.buildSvg()], { type: 'image/svg+xml' }), 'lineage-' + stamp + '.svg', 'SVG downloaded.'); },
+      exportPng: function () {
+        var L = self._layout; if (!L) return;
+        var url = URL.createObjectURL(new Blob([self.buildSvg()], { type: 'image/svg+xml' })), img = new Image();
+        img.onload = function () {
+          var sc = Math.min(2, 8000 / Math.max(L.baseW, L.baseH)), c = document.createElement('canvas');
+          c.width = Math.round(L.baseW * sc); c.height = Math.round(L.baseH * sc);
+          var g = c.getContext('2d'); g.scale(sc, sc); g.drawImage(img, 0, 0); URL.revokeObjectURL(url);
+          c.toBlob(function (b) { if (b) save(b, 'lineage-' + stamp + '.png', 'PNG downloaded.'); else say('Could not render the PNG.', 'err'); });
+        };
+        img.onerror = function () { say('Could not render the PNG.', 'err'); };
+        img.src = url;
+      },
+      isGraph: s.linView === 'graph', isImpact: s.linView === 'impact',
+      gTabBg: s.linView === 'graph' ? '#15202B' : '#FFFFFF', gTabFg: s.linView === 'graph' ? '#FFFFFF' : '#15202B', iTabBg: s.linView === 'impact' ? '#15202B' : '#FFFFFF', iTabFg: s.linView === 'impact' ? '#FFFFFF' : '#15202B',
+      viewGraph: function () { set({ linView: 'graph' }); }, viewImpact: function () { set({ linView: 'impact' }); },
+      impRows: impRows, noImp: impRows.length === 0, impCount: impRows.length + ' rows', impDir: s.impDir, onImpDir: function (e) { set({ impDir: e.target.value }); },
+      impTitle: lc ? 'Impact of column ' + lc : ls ? 'Impact of ' + ls : 'Impact analysis',
+      impCsv: function () {
+        if (!impRows.length) return say('Select an asset or a column first.', 'err');
+        var q2 = function (v) { return '"' + String(v).replace(/"/g, '""') + '"'; };
+        var lines = [['Direction', 'Depth', 'Id', 'Type', 'Owner', 'Domain'].join(',')].concat(impRows.map(function (r) { return [r.dir, r.depth, r.id, r.type, r.owner, r.domain].map(q2).join(','); }));
+        save(new Blob([lines.join('\n')], { type: 'text/csv' }), 'impact-' + String(lc || ls).replace(/[^A-Za-z0-9_.-]+/g, '_') + '.csv', 'Impact CSV downloaded.');
+      },
+      hasPanel: !!panel, noPanel: !panel, showPanel: !!panel || s.panelPinned, panelKind: panel ? panel.kind.toUpperCase() : 'DETAILS',
+      panel: panel || { title: '', rows: [], code: '', hasCode: false, l1t: '', l1: [], hasL1: false, l2t: '', l2: [], hasL2: false },
+      pinLabel: s.panelPinned ? 'Unpin' : 'Pin', togglePin: function () { set({ panelPinned: !self.state.panelPinned }); },
+      closePanel: function () { set({ linSel: null, linCol: null, selEdge: null }); },
+      resetView: function () { set({ linSel: null, linCol: null, selEdge: null, zoom: 0.9, focusOnly: false, lq: '', expUp: {}, expDown: {}, layerMore: {}, fType: '', fDomain: '', fRel: '', connect: false, connectFrom: null, collapsed: {} }); },
       lq: s.lq, onLq: function (e) { set({ lq: e.target.value }); },
       onLqKey: function (e) { if (e.key === 'Enter' && sugg[0]) { e.preventDefault(); sugg[0].pick(); } else if (e.key === 'Escape') set({ lq: '' }); },
       sugg: sugg, hasSugg: sugg.length > 0, noSugg: !!lq && sugg.length === 0,
       hasColTrace: !!lc, ct: { ref: lc || '', summary: summary }, traceUp: traceUp, traceDown: traceDown, noDown: traceDown.length === 0,
-      hasDsFocus: !!ls && !lc, focus: { id: ls || '' }, upChips: chips(ups), downChips: chips(downs), noUpChips: ups.length === 0, noDownChips: downs.length === 0,
       edgeRows: edgeRows, edgeForm: s.edgeForm, efFrom: form('edgeForm', 'from'), efTo: form('edgeForm', 'to'), efProc: form('edgeForm', 'process'), efType: form('edgeForm', 'type'), addEdge: addEdge,
       relTypes: ['reads', 'writes', 'calls', 'triggers', 'uses', 'produces', 'configures', 'deploys', 'depends_on'].map(function (v) { return { v: v }; }),
-      loadSample: function () { var d = self.sample(); set({ types: d.types, datasets: d.datasets, lineage: d.lineage, sel: 'acme-sales.mart.sales_daily', linSel: null, linCol: 'acme-sales.mart.sales_daily.total_sales', focusOnly: true, tf: '', loaded: [], unused: [], sourceName: 'built-in example', tab: 'lineage', msg: 'Loaded the example: 5 domains, ' + d.datasets.length + ' assets, at least 5 of every asset type (replaced the current data). Showing the trace of total_sales — press Reset to see everything.', msgKind: 'ok' }); },
+      loadSample: function () { var d = self.sample(); set({ types: d.types, datasets: d.datasets, lineage: d.lineage, sel: 'acme-sales.mart.sales_daily', linSel: null, linCol: 'acme-sales.mart.sales_daily.total_sales', focusOnly: false, layout: 'dag', collapsed: {}, selEdge: null, tf: '', loaded: [], unused: [], sourceName: 'built-in example', tab: 'lineage', msg: 'Loaded the example: 5 domains, ' + d.datasets.length + ' assets, at least 5 of every asset type (replaced the current data). Showing the trace of total_sales — press Reset to see everything.', msgKind: 'ok' }); },
       yaml: this.toYaml(), download: download, downloadZip: downloadZip, copy: copy, onFile: onFile, onDragOver: onDragOver, onDrop: onDrop,
       importText: s.importText, onImportText: function (e) { set({ importText: e.target.value }); },
       applyPaste: function () {
         if (!self.state.importText.trim()) return say('Paste some YAML first.', 'err');
         try { self.applyLoaded(self.loadProject({ 'main.yaml': self.state.importText }), 'pasted text'); } catch (err) { say('Import failed — ' + err.message, 'err'); }
       },
+      valRows: valRows, noVal: valRows.length === 0, vSev: s.vSev, onVSev: function (e) { set({ vSev: e.target.value }); },
+      valSummary: ds.length ? nErr + ' errors · ' + nWarn + ' warnings · ' + (issues.length - nErr - nWarn) + ' info' + (valRows.length === 300 ? ' (first 300 shown)' : '') : 'Load data to validate it.',
       modeMerge: s.mode === 'merge', modeReplace: s.mode === 'replace',
       setMerge: function () { set({ mode: 'merge' }); }, setReplace: function () { set({ mode: 'replace' }); },
       hasLoaded: s.loaded.length > 0, loadedFiles: s.loaded.map(function (p) { return { p: p }; }), hasUnused: s.unused.length > 0, unusedText: s.unused.join(', '),
-      schemaHint: '# main.yaml  (entry point of a .zip)\nversion: 2\ninclude:                     # paths relative to this file\n  - asset_types.yaml\n  - airflow/**/*.yaml          # * and ** globs\n  - bigquery/*.yaml\n  - lineage.yaml\n\n# any included file may hold any of:\nasset_types:                 # optional — your own types\n  - id: dbt.model\n    label: dbt Model\n    category: dbt\n    color: "#B45309"\nassets:                      # (legacy alias: datasets)\n  - id: proj.mart.sales_daily  # required, unique\n    type: bigquery.table       # any type id\n    name: Daily sales\n    parent: proj.mart          # hierarchy (DAG > group > task)\n    owner: bi-team\n    properties:                # free-form, may be nested\n      partition_by: order_date\n    retention_days: 400        # unknown keys -> properties\n    fields:                    # (alias: columns)\n      - name: total_sales\n        type: NUMERIC\n        expression: SUM(net_amount)\n        sources: [proj.staging.orders.net_amount]\nlineage:\n  - from: airflow.dag_x.task_y\n    to: proj.mart.sales_daily\n    type: writes               # reads, writes, calls, triggers…\n    process: Daily MERGE\ninclude: [more/*.yaml]       # nested includes are allowed'
+      schemaHint: '# main.yaml  (entry point of a .zip)\nversion: 2\ninclude:                     # paths relative to this file\n  - asset_types.yaml\n  - airflow/**/*.yaml          # * and ** globs\n  - bigquery/*.yaml\n  - lineage.yaml\n\n# any included file may hold any of:\nasset_types:                 # optional — your own types\n  - id: dbt.model\n    label: dbt Model\n    category: dbt\n    color: "#B45309"\nassets:                      # (legacy alias: datasets)\n  - id: proj.mart.sales_daily  # required, unique\n    type: bigquery.table       # any type id\n    name: Daily sales\n    parent: proj.mart          # hierarchy (DAG > group > task)\n    owner: bi-team\n    properties:                # free-form, may be nested\n      partition_by: order_date\n    retention_days: 400        # unknown keys -> properties\n    fields:                    # (alias: columns)\n      - name: total_sales\n        type: NUMERIC\n        expression: SUM(net_amount)\n        sources: [proj.staging.orders.net_amount]\nlineage:\n  - from: airflow.dag_x.task_y\n    to: proj.mart.sales_daily\n    type: writes               # reads, writes, calls, triggers…\n    process: Daily MERGE\ninclude: [more/*.yaml]       # nested includes are allowed\n\n# OpenLineage RunEvents (.json array, one object, or .jsonl)\n# can be uploaded alongside: jobs, datasets, schema and\n# columnLineage facets become assets, fields and sources.'
     };
   }
 

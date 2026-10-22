@@ -19,6 +19,20 @@ One-time setup: **Settings → Pages → Build and deployment → Source: GitHub
 - `samples/` – sample data: `metadata-hub-sample.zip` (multi-file with `main.yaml`),
   `metadata-hub-sample.yaml` (single file) and `project/` (the same files unzipped).
 
+## Lineage features
+- **DAG containers** (default): every Airflow DAG is a collapsible container with lanes for
+  variables/connections, sources & storage, task groups → tasks, BigQuery (project → dataset → objects)
+  and ML/artifacts. Assets used by several DAGs appear in each. *Open all* / *Close all*.
+- **Flat graph**: layered left-to-right view with `+N` expand buttons and a per-layer limit.
+- Column-level lineage with expressions; columns classified as Source / Passthrough / Rename / Transformed,
+  descriptions inherited through passthrough and rename columns.
+- Related-only view with upstream/downstream depth, filters (type, domain, relation; hide or highlight),
+  colour by type or domain, minimap, zoom/pan, click a line for relation details.
+- Detail panel (asset, column, relation) with paths to source; Impact table with CSV download.
+- Connect mode to draw new relations; export the diagram as SVG or PNG.
+- Import OpenLineage RunEvents (`.json` / `.jsonl`) alongside YAML — see `samples/openlineage-sample.json`.
+- Validation report in Import / Export (missing source columns, unknown assets, cycles, missing owners).
+
 ## YAML format (v2)
 `main.yaml` is the entry point and pulls in other files with `include:` (relative paths,
 `*` / `**` globs, nested includes allowed). Any file may contain `asset_types`, `assets`
