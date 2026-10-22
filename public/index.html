@@ -228,9 +228,11 @@ textarea.inp{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:13px;l
 </sc-if>
 </div>
 <div role="group" aria-label="Zoom" style="display: flex; gap: 4px; align-items: center">
-<button type="button" class="btn2" style="min-width: 44px; padding: 0" onClick="{{zoomOut}}" aria-label="Zoom out">−</button>
-<span class="mono" style="min-width: 52px; text-align: center; font-size: 13px">{{zoomText}}</span>
-<button type="button" class="btn2" style="min-width: 44px; padding: 0" onClick="{{zoomIn}}" aria-label="Zoom in">+</button>
+<button type="button" class="btn2" style="min-width: 44px; padding: 0; font-size: 18px" onClick="{{zoomOut}}" aria-label="Zoom out">−</button>
+<input type="range" min="20" max="160" step="5" value="{{zoomPct}}" onChange="{{onZoomRange}}" aria-label="Zoom level" style="width: 120px; accent-color: #0F766E">
+<button type="button" class="btn2" style="min-width: 44px; padding: 0; font-size: 18px" onClick="{{zoomIn}}" aria-label="Zoom in">+</button>
+<button type="button" class="btn2" style="min-width: 64px; padding: 0 8px" onClick="{{zoomReset}}" aria-label="Reset zoom to 100%"><span class="mono" style="font-size: 13px">{{zoomText}}</span></button>
+<button type="button" class="btn2" onClick="{{zoomFit}}">Fit to screen</button>
 </div>
 <button type="button" class="btn2" onClick="{{toggleCols}}">{{colsLabel}}</button>
 <button type="button" class="btn2" onClick="{{toggleIso}}">{{isoLabel}}</button>
@@ -243,10 +245,11 @@ textarea.inp{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:13px;l
 <span style="display: inline-flex; gap: 6px; align-items: center"><span aria-hidden="true" style="width: 12px; height: 12px; border-radius: 3px; background: #DBEAFE; border: 2px solid #1D4ED8"></span>Upstream</span>
 <span style="display: inline-flex; gap: 6px; align-items: center"><span aria-hidden="true" style="width: 12px; height: 12px; border-radius: 3px; background: #FFEDD5; border: 2px solid #C2410C"></span>Downstream</span>
 <span style="display: inline-flex; gap: 6px; align-items: center"><span class="mono" style="font-size: 11px; color: #0F766E">ƒx</span>has an expression</span>
+<span style="color: #5B6876">Ctrl/⌘ + scroll or pinch to zoom · drag the background to pan</span>
 </div>
 </div>
 
-<div class="card" style="overflow: auto; max-height: 680px; background: #FBFCFD">
+<div class="card" ref="{{diagRef}}" style="overflow: auto; max-height: 680px; background: #FBFCFD; cursor: grab">
 <div style="position: relative; width: {{cw}}px; height: {{chh}}px">
 <div style="position: absolute; left: 0; top: 0; width: {{baseW}}px; height: {{baseH}}px; transform: scale({{zoom}}); transform-origin: 0 0">
 <sc-for list="{{paths}}" as="p" hint-placeholder-count="3">
@@ -417,6 +420,49 @@ class Component extends DCLogic {
       dsForm: this.emptyDs(), fieldForm: this.emptyField(), edgeForm: { from: '', to: '', type: '', process: '' },
       importText: '', mode: 'replace', msg: '', msgKind: 'ok', loaded: [], unused: [], sourceName: ''
     };
+    this.diagRef = this.attachDiagram.bind(this);
+  }
+
+  /* ---------- diagram zoom (ctrl/cmd + wheel, pinch) and drag-to-pan ---------- */
+  zoomTo(nz, mx, my) {
+    var el = this._diag, z = this.state.zoom;
+    nz = Math.round(Math.max(0.2, Math.min(1.6, nz)) * 100) / 100;
+    if (!el) { this.setState({ zoom: nz }); return; }
+    if (mx === undefined) { mx = el.clientWidth / 2; my = el.clientHeight / 2; }
+    var sx = (el.scrollLeft + mx) / z, sy = (el.scrollTop + my) / z;
+    this.setState({ zoom: nz }, function () { el.scrollLeft = sx * nz - mx; el.scrollTop = sy * nz - my; });
+  }
+  attachDiagram(el) {
+    var self = this;
+    if (this._diag === el) return;
+    if (this._diag) { this._diag.removeEventListener('wheel', this._onWheel); this._diag.removeEventListener('mousedown', this._onDown); }
+    this._diag = el;
+    if (!el) return;
+    if (!this._onWheel) {
+      this._onWheel = function (e) {
+        if (!(e.ctrlKey || e.metaKey)) return;
+        e.preventDefault();
+        var r = self._diag.getBoundingClientRect();
+        self.zoomTo(self.state.zoom * Math.exp(-e.deltaY * 0.0015), e.clientX - r.left, e.clientY - r.top);
+      };
+      this._onDown = function (e) {
+        if (e.button !== 0 || (e.target.closest && e.target.closest('button,input,a'))) return;
+        var d = self._diag;
+        self._pan = { x: e.clientX, y: e.clientY, l: d.scrollLeft, t: d.scrollTop };
+        d.style.cursor = 'grabbing';
+        e.preventDefault();
+      };
+      this._onMove = function (e) { var p = self._pan, d = self._diag; if (!p || !d) return; d.scrollLeft = p.l - (e.clientX - p.x); d.scrollTop = p.t - (e.clientY - p.y); };
+      this._onUp = function () { if (self._pan) { self._pan = null; if (self._diag) self._diag.style.cursor = 'grab'; } };
+      window.addEventListener('mousemove', this._onMove);
+      window.addEventListener('mouseup', this._onUp);
+    }
+    el.addEventListener('wheel', this._onWheel, { passive: false });
+    el.addEventListener('mousedown', this._onDown);
+  }
+  componentWillUnmount() {
+    if (this._onMove) { window.removeEventListener('mousemove', this._onMove); window.removeEventListener('mouseup', this._onUp); }
+    this.attachDiagram(null);
   }
 
   emptyDs() { return { id: '', type: 'bigquery.table', parent: '', name: '', domain: '', owner: '', source: '', tags: '', description: '', properties: '' }; }
@@ -1086,8 +1132,16 @@ class Component extends DCLogic {
       addField: addField,
       nodes: nodes, paths: paths, noNodes: visible.length === 0,
       baseW: baseW, baseH: baseH, cw: Math.round(baseW * z), chh: Math.round(baseH * z), zoom: z, zoomText: Math.round(z * 100) + '%',
-      zoomIn: function () { set({ zoom: Math.min(1.6, Math.round((self.state.zoom + 0.1) * 10) / 10) }); },
-      zoomOut: function () { set({ zoom: Math.max(0.4, Math.round((self.state.zoom - 0.1) * 10) / 10) }); },
+      zoomIn: function () { self.zoomTo(self.state.zoom * 1.2); },
+      zoomOut: function () { self.zoomTo(self.state.zoom / 1.2); },
+      zoomReset: function () { self.zoomTo(1); },
+      zoomPct: Math.round(z * 100), onZoomRange: function (e) { self.zoomTo(Number(e.target.value) / 100); },
+      zoomFit: function () {
+        var el = self._diag; if (!el) return;
+        var fz = Math.min((el.clientWidth - 8) / baseW, (Math.min(680, window.innerHeight * 0.75) - 8) / baseH, 1.6);
+        self.setState({ zoom: Math.max(0.2, Math.floor(fz * 100) / 100) }, function () { el.scrollLeft = 0; el.scrollTop = 0; });
+      },
+      diagRef: this.diagRef,
       colsLabel: s.showCols ? 'Hide columns' : 'Show columns', toggleCols: function () { set({ showCols: !self.state.showCols }); },
       isoLabel: s.hideIso ? 'Show unlinked assets' : 'Hide unlinked assets', toggleIso: function () { set({ hideIso: !self.state.hideIso }); },
       focusOnly: s.focusOnly, focusBg: s.focusOnly ? '#0F766E' : '#FFFFFF', focusFg: s.focusOnly ? '#FFFFFF' : '#15202B', toggleFocus: function () { set({ focusOnly: !self.state.focusOnly }); },
