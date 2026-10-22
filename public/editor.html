@@ -1,0 +1,2115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Metadata Hub · Diagram Editor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F6F8}
+.mono{font-family:'IBM Plex Mono',ui-monospace,monospace}
+.inp{box-sizing:border-box;width:100%;min-height:36px;padding:6px 10px;border:1px solid #C5CED8;border-radius:6px;background:#fff;color:#15202B;font:inherit;font-size:13px}
+.inp:focus{outline:2px solid #0F766E;outline-offset:1px;border-color:#0F766E}
+textarea.inp{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:12px;line-height:1.5;resize:vertical}
+.lbl{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:500;color:#3B4856;min-width:0}
+.tb{min-height:36px;padding:0 12px;border-radius:6px;border:1px solid #C5CED8;background:#fff;color:#15202B;font:inherit;font-size:13px;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;text-decoration:none;box-sizing:border-box}
+.tb:hover{border-color:#0F766E;color:#0F766E}
+.tb:disabled{opacity:.45;cursor:default}
+.pri{background:#0F766E;border-color:#0F766E;color:#fff}
+.pri:hover{background:#115E59;color:#fff}
+.del{min-height:32px;padding:0 10px;border-radius:6px;border:1px solid #F3C1BC;background:#fff;color:#B42318;font:inherit;font-size:12px;cursor:pointer}
+.del:hover{background:#FEF3F2}
+.pal{width:100%;min-height:34px;padding:0 10px;border:1px solid transparent;border-radius:6px;background:transparent;color:#15202B;font:inherit;font-size:13px;cursor:pointer;text-align:left;display:flex;gap:8px;align-items:center}
+.pal:hover{background:#EEF1F4;border-color:#DCE3EA}
+.sec{font-size:11px;font-weight:600;letter-spacing:.06em;color:#4A5765;text-transform:uppercase}
+.chip{display:inline-flex;align-items:center;gap:4px;max-width:100%;padding:2px 4px 2px 8px;border-radius:999px;background:#F3E8FF;color:#6B21A8;font-size:11px}
+.chip button{border:0;background:transparent;color:#6B21A8;cursor:pointer;font-size:14px;line-height:1;padding:0 4px;min-height:22px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script type="text/x-template" id="dc-template">
+<div style="height: 100vh; display: flex; flex-direction: column; font-family: 'IBM Plex Sans', system-ui, sans-serif; color: #15202B; background: #F4F6F8">
+
+<header style="flex: none; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 16px; background: #15202B; color: #E8EDF2">
+<div style="display: flex; flex-direction: column; margin-right: 8px">
+<span class="mono" style="font-size: 11px; letter-spacing: 0.08em; color: #8FD3C9">METADATA HUB</span>
+<span style="font-size: 17px; font-weight: 600">Diagram Editor</span>
+</div>
+<sc-if value="{{standalone}}" hint-placeholder-val="{{true}}"><a class="tb" href="index.html">← Viewer</a></sc-if>
+<button type="button" class="tb" onClick="{{newDoc}}">New</button>
+<label class="tb" style="position: relative; overflow: hidden">Import .zip / .yaml<input type="file" multiple="{{true}}" onChange="{{onFile}}" aria-label="Import .zip or .yaml files" style="position: absolute; inset: 0; opacity: 0; cursor: pointer"></label>
+<sc-if value="{{standalone}}" hint-placeholder-val="{{true}}"><button type="button" class="tb" onClick="{{loadSample}}">Load sample</button></sc-if>
+<button type="button" class="tb pri" onClick="{{exportZip}}">Export .zip</button>
+<button type="button" class="tb" onClick="{{exportYaml}}">Export .yaml</button>
+<span aria-hidden="true" style="width: 1px; height: 28px; background: #2C3A48"></span>
+<button type="button" class="tb" disabled="{{noUndo}}" onClick="{{undo}}">Undo</button>
+<button type="button" class="tb" disabled="{{noRedo}}" onClick="{{redo}}">Redo</button>
+<button type="button" class="tb" onClick="{{autoAll}}" title="Rearrange every asset">Auto-layout</button>
+<span aria-hidden="true" style="width: 1px; height: 28px; background: #2C3A48"></span>
+<button type="button" class="tb" style="min-width: 36px; padding: 0" onClick="{{zoomOut}}" aria-label="Zoom out">−</button>
+<button type="button" class="tb mono" style="min-width: 56px; justify-content: center" onClick="{{zoomReset}}" aria-label="Reset zoom">{{zoomText}}</button>
+<button type="button" class="tb" style="min-width: 36px; padding: 0" onClick="{{zoomIn}}" aria-label="Zoom in">+</button>
+<button type="button" class="tb" onClick="{{fit}}">Fit</button>
+<button type="button" class="tb" aria-pressed="{{showCols}}" onClick="{{toggleCols}}">{{colsLabel}}</button>
+<button type="button" class="tb" aria-pressed="{{snap}}" onClick="{{toggleSnap}}">{{snapLabel}}</button>
+</header>
+
+<sc-if value="{{hasMsg}}" hint-placeholder-val="{{false}}">
+<div role="status" style="flex: none; padding: 8px 16px; font-size: 13px; background: {{msgBg}}; color: {{msgFg}}; border-bottom: 1px solid {{msgBd}}; display: flex; justify-content: space-between; gap: 12px"><span>{{msg}}</span><button type="button" onClick="{{clearMsg}}" aria-label="Dismiss" style="border: 0; background: transparent; color: inherit; cursor: pointer; font-size: 16px">×</button></div>
+</sc-if>
+
+<div style="flex: 1; min-height: 0; display: flex">
+
+<aside aria-label="Palette and outline" style="flex: none; width: 236px; box-sizing: border-box; overflow: auto; background: #FFFFFF; border-right: 1px solid #DCE3EA; padding: 12px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<span class="sec">Add asset</span>
+<span style="font-size: 12px; color: #5B6876; line-height: 1.4">Click a type. If a container is selected, the new asset goes inside it.</span>
+<input class="inp" type="search" placeholder="Filter types…" value="{{tq}}" onChange="{{onTq}}" aria-label="Filter asset types">
+<sc-for list="{{palette}}" as="g" hint-placeholder-count="3">
+<div style="display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 11px; color: #5B6876; margin-top: 4px">{{g.cat}}</span>
+<sc-for list="{{g.items}}" as="t" hint-placeholder-count="3"><button type="button" class="pal" onClick="{{t.add}}"><span aria-hidden="true" style="flex: none; width: 9px; height: 9px; border-radius: {{t.radius}}; background: {{t.color}}"></span><span>{{t.label}}</span></button></sc-for>
+</div>
+</sc-for>
+</div>
+<label class="lbl">New relations use type
+<input class="inp mono" list="rel-types" value="{{relType}}" onChange="{{onRelType}}">
+</label>
+<datalist id="rel-types"><sc-for list="{{relTypes}}" as="r" hint-placeholder-count="3"><option value="{{r.v}}"></option></sc-for></datalist>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<span class="sec">Outline · {{assetCount}}</span>
+<input class="inp" type="search" placeholder="Find asset…" value="{{oq}}" onChange="{{onOq}}" aria-label="Find asset">
+<sc-for list="{{outline}}" as="o" hint-placeholder-count="6"><button type="button" class="pal mono" onClick="{{o.pick}}" title="{{o.id}}" style="padding-left: {{o.indent}}px; font-size: 12px; background: {{o.bg}}; min-height: 28px"><span aria-hidden="true" style="flex: none; width: 7px; height: 7px; border-radius: 50%; background: {{o.color}}"></span><span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{o.label}}</span></button></sc-for>
+</div>
+</aside>
+
+<main style="flex: 1; min-width: 0; position: relative">
+<div ref="{{canvasRef}}" style="position: absolute; inset: 0; overflow: auto; background-color: #FBFCFD; background-image: radial-gradient(#D5DCE3 1px, transparent 1px); background-size: {{gridPx}}px {{gridPx}}px; cursor: grab">
+<div style="position: relative; width: {{cw}}px; height: {{chh}}px">
+<div style="position: absolute; left: 0; top: 0; width: {{baseW}}px; height: {{baseH}}px; transform: scale({{zoom}}); transform-origin: 0 0">
+
+<sc-for list="{{boxes}}" as="b" hint-placeholder-count="2">
+<div data-node="{{b.id}}" style="position: absolute; left: {{b.x}}px; top: {{b.y}}px; width: {{b.w}}px; height: {{b.h}}px; box-sizing: border-box; border: {{b.bw}}px solid {{b.bd}}; border-radius: 12px; background: {{b.bg}}">
+<button type="button" data-drag="{{b.id}}" onClick="{{b.pick}}" title="Drag to move (with everything inside) · click to edit" style="display: flex; align-items: center; gap: 8px; width: 100%; height: 40px; padding: 0 12px; border: 0; background: transparent; font: inherit; color: #15202B; cursor: move; text-align: left">
+<span aria-hidden="true" style="flex: none; width: 10px; height: 10px; border-radius: 3px; background: {{b.dot}}"></span>
+<span style="display: flex; flex-direction: column; min-width: 0"><span style="font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{b.title}}</span><span class="mono" style="font-size: 10px; color: #5B6876; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{b.sub}}</span></span>
+</button>
+<span data-port="{{b.id}}" title="Drag to another asset to add a lineage relation" style="position: absolute; right: -8px; top: 13px; width: 12px; height: 12px; border-radius: 50%; background: #0F766E; border: 2px solid #FFFFFF; box-shadow: 0 0 0 1px #0F766E; cursor: crosshair"></span>
+<span data-resize="{{b.id}}" title="Drag to resize" style="position: absolute; right: 3px; bottom: 3px; width: 14px; height: 14px; box-sizing: border-box; border-right: 3px solid #8996A3; border-bottom: 3px solid #8996A3; border-radius: 0 0 8px 0; cursor: nwse-resize"></span>
+</div>
+</sc-for>
+
+<sc-for list="{{paths}}" as="p" hint-placeholder-count="3">
+<svg aria-hidden="true" width="1" height="1" style="position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none"><path d="{{p.d}}" style="fill: none; stroke: {{p.color}}; stroke-width: {{p.w}}px; stroke-dasharray: {{p.dash}}"></path><path d="{{p.head}}" style="fill: {{p.color}}; stroke: none"></path><path d="{{p.d}}" onClick="{{p.pick}}" style="fill: none; stroke: transparent; stroke-width: 14px; pointer-events: stroke; cursor: pointer"></path></svg>
+</sc-for>
+
+<sc-for list="{{nodes}}" as="n" hint-placeholder-count="3">
+<div data-node="{{n.id}}" style="position: absolute; left: {{n.x}}px; top: {{n.y}}px; width: 240px; height: {{n.h}}px; box-sizing: border-box; border-radius: 10px; background: #FFFFFF; border: 2px solid {{n.bd}}; box-shadow: 0 1px 3px rgba(21, 32, 43, 0.10)">
+<button type="button" data-drag="{{n.id}}" onClick="{{n.pick}}" title="Drag to move · drop inside a container to nest it · click to edit" style="width: 100%; height: 58px; box-sizing: border-box; padding: 8px 12px; border: 0; border-radius: 8px 8px 0 0; background: {{n.bg}}; color: {{n.fg}}; text-align: left; cursor: move; font: inherit; display: flex; flex-direction: column; gap: 2px; justify-content: center">
+<span style="display: flex; gap: 6px; align-items: center; max-width: 100%"><span aria-hidden="true" style="flex: none; width: 9px; height: 9px; border-radius: 50%; background: {{n.dot}}; box-shadow: 0 0 0 2px #FFFFFF"></span><span class="mono" style="font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{n.id}}</span></span>
+<span style="font-size: 11px; opacity: 0.85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%">{{n.typeLabel}} · {{n.name}}</span>
+</button>
+<span data-port="{{n.id}}" title="Drag to another asset to add a lineage relation" style="position: absolute; right: -8px; top: 22px; width: 12px; height: 12px; border-radius: 50%; background: #0F766E; border: 2px solid #FFFFFF; box-shadow: 0 0 0 1px #0F766E; cursor: crosshair"></span>
+<sc-if value="{{n.showCols}}" hint-placeholder-val="{{true}}">
+<div style="padding: 4px 0; border-top: 1px solid #E6EBF0">
+<sc-for list="{{n.cols}}" as="c" hint-placeholder-count="3">
+<button type="button" data-col="{{c.ref}}" onClick="{{c.pick}}" title="{{c.title}}" style="position: relative; width: 100%; height: 26px; border: 0; padding: 0 14px 0 12px; display: flex; justify-content: space-between; gap: 8px; align-items: center; background: {{c.bg}}; color: {{c.fg}}; font: inherit; font-size: 12px; cursor: pointer; text-align: left"><span class="mono" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{c.name}}</span><span class="mono" style="font-size: 10px; opacity: 0.75; white-space: nowrap">{{c.badge}}</span><span data-colport="{{c.ref}}" title="Drag to a column in another asset: that column will use this one as a source" style="position: absolute; right: -7px; top: 7px; width: 10px; height: 10px; border-radius: 50%; background: #7E22CE; border: 2px solid #FFFFFF; cursor: crosshair"></span></button>
+</sc-for>
+</div>
+</sc-if>
+</div>
+</sc-for>
+
+<sc-if value="{{hasTemp}}" hint-placeholder-val="{{false}}">
+<svg aria-hidden="true" width="1" height="1" style="position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none"><path d="{{temp.d}}" style="fill: none; stroke: {{temp.color}}; stroke-width: 2px; stroke-dasharray: 6 4"></path></svg>
+</sc-if>
+
+</div>
+</div>
+</div>
+<sc-if value="{{isEmpty}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); max-width: 420px; padding: 24px; background: #FFFFFF; border: 1px solid #DCE3EA; border-radius: 12px; text-align: center; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 6px 20px rgba(21, 32, 43, 0.08)">
+<strong style="font-size: 16px">Start a diagram</strong>
+<span style="font-size: 13px; color: #4A5765; line-height: 1.5">Import a .zip / .yaml project, load the sample, or add assets from the palette on the left. Drag the teal dot to connect assets, the purple dot to connect columns, and the corner of a container to resize it.</span>
+</div>
+</sc-if>
+</main>
+
+<aside aria-label="Properties" style="flex: none; width: 340px; box-sizing: border-box; overflow: auto; background: #FFFFFF; border-left: 1px solid #DCE3EA; padding: 14px; display: flex; flex-direction: column; gap: 12px">
+
+<sc-if value="{{selNone}}" hint-placeholder-val="{{true}}">
+<span class="sec">Properties</span>
+<p style="margin: 0; font-size: 13px; color: #4A5765; line-height: 1.55">Select an asset, a column, or a line to edit it.</p>
+<ul style="margin: 0; padding-left: 18px; font-size: 12px; color: #4A5765; line-height: 1.7">
+<li>Drag an asset's header to move it; drop it inside a container to nest it.</li>
+<li>Drag a container's header to move it with everything inside; drag its corner to resize.</li>
+<li>Drag the <span style="color: #0F766E; font-weight: 600">teal dot</span> onto another asset to add a lineage relation.</li>
+<li>Drag a column's <span style="color: #7E22CE; font-weight: 600">purple dot</span> onto a column of another asset to make it a source.</li>
+<li>Ctrl/⌘ + scroll to zoom; drag the background to pan.</li>
+</ul>
+<span style="font-size: 12px; color: #5B6876">{{stats}}</span>
+</sc-if>
+
+<sc-if value="{{selAsset}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 8px"><span class="sec">{{pa.typeLabel}}</span><button type="button" class="del" onClick="{{pa.del}}">Delete asset</button></div>
+<div style="display: flex; gap: 6px; align-items: flex-end">
+<label class="lbl" style="flex: 1">ID<input class="inp mono" value="{{idBuf}}" onChange="{{onIdBuf}}"></label>
+<button type="button" class="tb" disabled="{{pa.idSame}}" onClick="{{pa.rename}}">Rename</button>
+</div>
+<label class="lbl">Type
+<select class="inp" value="{{pa.type}}" onChange="{{pa.onType}}"><sc-for list="{{typeOpts}}" as="o" hint-placeholder-count="4"><option value="{{o.id}}">{{o.label}}</option></sc-for></select>
+</label>
+<label class="lbl">Name<input class="inp" value="{{pa.name}}" onChange="{{pa.onName}}"></label>
+<label class="lbl">Parent (container)
+<select class="inp mono" value="{{pa.parent}}" onChange="{{pa.onParent}}"><option value="">— none —</option><sc-for list="{{pa.parentOpts}}" as="o" hint-placeholder-count="4"><option value="{{o.id}}">{{o.id}}</option></sc-for></select>
+</label>
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px">
+<label class="lbl">Owner<input class="inp" value="{{pa.owner}}" onChange="{{pa.onOwner}}"></label>
+<label class="lbl">Domain<input class="inp" value="{{pa.domain}}" onChange="{{pa.onDomain}}"></label>
+</div>
+<label class="lbl">Source / location<input class="inp mono" value="{{pa.source}}" onChange="{{pa.onSource}}"></label>
+<label class="lbl">Tags (comma separated)<input class="inp" value="{{tagsBuf}}" onChange="{{onTagsBuf}}" onBlur="{{pa.commitTags}}"></label>
+<label class="lbl">Description<textarea class="inp" rows="2" style="font-family: inherit; font-size: 13px" value="{{pa.description}}" onChange="{{pa.onDescription}}"></textarea></label>
+<label class="lbl">Properties (YAML)<textarea class="inp" rows="4" value="{{propBuf}}" onChange="{{onPropBuf}}"></textarea></label>
+<div><button type="button" class="tb" onClick="{{pa.applyProps}}">Apply properties</button></div>
+
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 4px"><span class="sec">Columns · {{pa.colCount}}</span><button type="button" class="tb" onClick="{{pa.addCol}}">+ Column</button></div>
+<sc-for list="{{pa.cols}}" as="f" hint-placeholder-count="2">
+<div style="border: 1px solid {{f.bd}}; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 6px; background: {{f.bg}}">
+<div style="display: grid; grid-template-columns: 1fr 110px; gap: 6px">
+<input class="inp mono" aria-label="Column name" value="{{f.name}}" onChange="{{f.onName}}">
+<input class="inp mono" aria-label="Column type" list="col-types" value="{{f.type}}" onChange="{{f.onType}}">
+</div>
+<input class="inp" aria-label="Description" placeholder="Description" value="{{f.description}}" onChange="{{f.onDesc}}">
+<input class="inp mono" aria-label="Expression" placeholder="Expression, e.g. SUM(net_amount)" value="{{f.expression}}" onChange="{{f.onExpr}}">
+<div style="display: flex; flex-wrap: wrap; gap: 4px; align-items: center"><span style="font-size: 11px; color: #5B6876">Sources:</span><sc-for list="{{f.sources}}" as="sr" hint-placeholder-count="1"><span class="chip mono"><span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px">{{sr.ref}}</span><button type="button" onClick="{{sr.remove}}" aria-label="Remove source {{sr.ref}}">×</button></span></sc-for><sc-if value="{{f.noSources}}" hint-placeholder-val="{{false}}"><span style="font-size: 11px; color: #5B6876; font-style: italic">none (source column)</span></sc-if></div>
+<div style="display: flex; gap: 6px"><input class="inp mono" list="all-cols" placeholder="add source: asset.column" aria-label="Add source column" value="{{f.srcBuf}}" onChange="{{f.onSrcBuf}}"><button type="button" class="tb" onClick="{{f.addSrc}}">Add</button></div>
+<div style="display: flex; gap: 12px; align-items: center; font-size: 12px">
+<label style="display: flex; gap: 6px; align-items: center"><input type="checkbox" checked="{{f.nullable}}" onChange="{{f.onNull}}"> Nullable</label>
+<label style="display: flex; gap: 6px; align-items: center"><input type="checkbox" checked="{{f.pii}}" onChange="{{f.onPii}}"> PII</label>
+<span style="flex: 1"></span>
+<button type="button" class="del" onClick="{{f.del}}">Delete</button>
+</div>
+</div>
+</sc-for>
+<datalist id="col-types"><sc-for list="{{colTypes}}" as="ty" hint-placeholder-count="4"><option value="{{ty.v}}"></option></sc-for></datalist>
+<datalist id="all-cols"><sc-for list="{{allCols}}" as="ac" hint-placeholder-count="4"><option value="{{ac.v}}"></option></sc-for></datalist>
+
+<div style="display: flex; flex-direction: column; gap: 6px; margin-top: 4px">
+<span class="sec">Relations · {{pa.relCount}}</span>
+<sc-for list="{{pa.rels}}" as="r" hint-placeholder-count="2"><div style="display: flex; gap: 6px; align-items: center; font-size: 12px"><button type="button" class="pal mono" style="flex: 1; min-width: 0; font-size: 11px" onClick="{{r.pick}}"><span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{r.label}}</span></button><button type="button" class="del" onClick="{{r.del}}" aria-label="Delete relation">×</button></div></sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{selEdge}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; justify-content: space-between; align-items: center"><span class="sec">Lineage relation</span><button type="button" class="del" onClick="{{pe.del}}">Delete</button></div>
+<div class="mono" style="font-size: 12px; line-height: 1.6; word-break: break-all"><button type="button" class="pal mono" style="font-size: 12px" onClick="{{pe.pickFrom}}">{{pe.from}}</button><span style="color: #5B6876; padding-left: 10px">↓</span><button type="button" class="pal mono" style="font-size: 12px" onClick="{{pe.pickTo}}">{{pe.to}}</button></div>
+<label class="lbl">Relation type<input class="inp mono" list="rel-types" value="{{pe.type}}" onChange="{{pe.onType}}"></label>
+<label class="lbl">Process / transformation<input class="inp" value="{{pe.process}}" onChange="{{pe.onProcess}}"></label>
+<div><button type="button" class="tb" onClick="{{pe.reverse}}">Reverse direction</button></div>
+</sc-if>
+
+<sc-if value="{{selColSrc}}" hint-placeholder-val="{{false}}">
+<span class="sec">Column source</span>
+<div class="mono" style="font-size: 12px; line-height: 1.6; word-break: break-all"><button type="button" class="pal mono" style="font-size: 12px" onClick="{{pcs.pickSource}}">{{pcs.source}}</button><span style="color: #5B6876; padding-left: 10px">feeds ↓</span><button type="button" class="pal mono" style="font-size: 12px" onClick="{{pcs.pickTarget}}">{{pcs.target}}</button></div>
+<div><button type="button" class="del" onClick="{{pcs.remove}}">Remove this source</button></div>
+</sc-if>
+</aside>
+</div>
+</div>
+</script>
+<script src="vendor/react.production.min.js"></script>
+<script src="vendor/react-dom.production.min.js"></script>
+<script src="dc-runtime.js"></script>
+<script>window.MH_STANDALONE = true;</script>
+<script>
+(function () {
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      tab: 'yaml', types: this.defaultTypes(), datasets: [], lineage: [], tf: '', hideIso: true,
+      sel: null, linSel: null, linCol: null, q: '', fq: '', lq: '', zoom: 0.9, showCols: true, focusOnly: false,
+      dsForm: this.emptyDs(), fieldForm: this.emptyField(), edgeForm: { from: '', to: '', type: '', process: '' },
+      importText: '', mode: 'replace', msg: '', msgKind: 'ok', loaded: [], unused: [], sourceName: '',
+      layout: 'dag', layoutPos: {}, collapsed: {}, depthUp: 2, depthDown: 2, expUp: {}, expDown: {}, layerLimit: 20, layerMore: {}, selEdge: null, linView: 'graph', impDir: 'both',
+      fType: '', fDomain: '', fRel: '', fMode: 'hide', colorBy: 'type', connect: false, connectFrom: null, scr: { l: 0, t: 0, w: 0, h: 0 }, showMini: true, panelPinned: true, vSev: ''
+    };
+    this.diagRef = this.attachDiagram.bind(this);
+  }
+
+  /* ---------- diagram zoom (ctrl/cmd + wheel, pinch) and drag-to-pan ---------- */
+  zoomTo(nz, mx, my) {
+    var el = this._diag, z = this.state.zoom;
+    nz = Math.round(Math.max(0.2, Math.min(1.6, nz)) * 100) / 100;
+    if (!el) { this.setState({ zoom: nz }); return; }
+    if (mx === undefined) { mx = el.clientWidth / 2; my = el.clientHeight / 2; }
+    var sx = (el.scrollLeft + mx) / z, sy = (el.scrollTop + my) / z;
+    this.setState({ zoom: nz }, function () { el.scrollLeft = sx * nz - mx; el.scrollTop = sy * nz - my; });
+  }
+  attachDiagram(el) {
+    var self = this;
+    if (this._diag === el) return;
+    if (this._diag) { this._diag.removeEventListener('wheel', this._onWheel); this._diag.removeEventListener('mousedown', this._onDown); this._diag.removeEventListener('scroll', this._onScroll); }
+    this._diag = el;
+    if (!el) return;
+    if (!this._onScroll) {
+      this._onScroll = function () {
+        if (self._raf) return;
+        self._raf = requestAnimationFrame(function () {
+          self._raf = 0; var d = self._diag; if (!d) return;
+          var p = self.state.scr;
+          if (p.l !== d.scrollLeft || p.t !== d.scrollTop || p.w !== d.clientWidth || p.h !== d.clientHeight) self.setState({ scr: { l: d.scrollLeft, t: d.scrollTop, w: d.clientWidth, h: d.clientHeight } });
+        });
+      };
+    }
+    el.addEventListener('scroll', this._onScroll);
+    setTimeout(this._onScroll, 0);
+    if (!this._onWheel) {
+      this._onWheel = function (e) {
+        if (!(e.ctrlKey || e.metaKey)) return;
+        e.preventDefault();
+        var r = self._diag.getBoundingClientRect();
+        self.zoomTo(self.state.zoom * Math.exp(-e.deltaY * 0.0015), e.clientX - r.left, e.clientY - r.top);
+      };
+      this._onDown = function (e) {
+        if (e.button !== 0 || (e.target.closest && e.target.closest('button,input,a'))) return;
+        var d = self._diag;
+        self._pan = { x: e.clientX, y: e.clientY, l: d.scrollLeft, t: d.scrollTop };
+        d.style.cursor = 'grabbing';
+        e.preventDefault();
+      };
+      this._onMove = function (e) { var p = self._pan, d = self._diag; if (!p || !d) return; d.scrollLeft = p.l - (e.clientX - p.x); d.scrollTop = p.t - (e.clientY - p.y); };
+      this._onUp = function () { if (self._pan) { self._pan = null; if (self._diag) self._diag.style.cursor = 'grab'; } };
+      window.addEventListener('mousemove', this._onMove);
+      window.addEventListener('mouseup', this._onUp);
+    }
+    el.addEventListener('wheel', this._onWheel, { passive: false });
+    el.addEventListener('mousedown', this._onDown);
+  }
+  // bring the newly selected asset into view
+  componentDidUpdate(pp, ps) {
+    var s = this.state, el = this._diag, L = this._layout;
+    if (!el || !L || s.tab !== 'lineage' || s.linView !== 'graph') return;
+    var target = s.linCol ? s.linCol.slice(0, s.linCol.lastIndexOf('.')) : s.linSel;
+    var changed = target && (ps.linSel !== s.linSel || ps.linCol !== s.linCol || ps.layout !== s.layout || ps.tab !== s.tab);
+    if (!changed || !L.first[target]) return;
+    var p = L.first[target], z = s.zoom, x = p.x * z, y = p.y * z;
+    if (x < el.scrollLeft || x > el.scrollLeft + el.clientWidth - 120 || y < el.scrollTop || y > el.scrollTop + el.clientHeight - 60) {
+      el.scrollLeft = Math.max(0, x - el.clientWidth / 3); el.scrollTop = Math.max(0, y - 80);
+    }
+  }
+  buildSvg() {
+    var L = this._layout; if (!L) return '';
+    var esc = function (t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+    var cut = function (t, n) { t = String(t); return t.length > n ? t.slice(0, n - 1) + '…' : t; };
+    var mono = 'IBM Plex Mono, Menlo, monospace', sans = 'IBM Plex Sans, Arial, sans-serif';
+    var out = ['<svg xmlns="http://www.w3.org/2000/svg" width="' + L.baseW + '" height="' + L.baseH + '" viewBox="0 0 ' + L.baseW + ' ' + L.baseH + '" font-family="' + sans + '">', '<rect width="100%" height="100%" fill="#FBFCFD"/>'];
+    L.boxes.forEach(function (b) {
+      if (!b.lane) out.push('<rect x="' + b.x + '" y="' + b.y + '" width="' + b.w + '" height="' + b.h + '" rx="12" fill="' + (b.bg === 'transparent' ? 'none' : b.bg) + '" stroke="' + b.bd + '" stroke-width="' + b.bw + '"' + (b.bs === 'dashed' ? ' stroke-dasharray="6 4"' : '') + '/>');
+      out.push('<text x="' + (b.x + (b.lane ? 0 : 44)) + '" y="' + (b.y + (b.sub ? b.hh / 2 - 2 : b.hh / 2 + 4)) + '" font-size="' + b.fs + '" font-weight="600" fill="#15202B">' + esc(cut(b.title, Math.floor(b.w / (b.fs * 0.6)))) + '</text>');
+      if (b.sub) out.push('<text x="' + (b.x + 44) + '" y="' + (b.y + b.hh / 2 + 12) + '" font-size="11" fill="#5B6876">' + esc(cut(b.sub, Math.floor(b.w / 6.4))) + '</text>');
+    });
+    L.paths.forEach(function (p) { out.push('<g opacity="' + p.op + '"><path d="' + p.d + '" fill="none" stroke="' + p.color + '" stroke-width="' + p.w + '"/><path d="' + p.head + '" fill="' + p.color + '"/></g>'); });
+    L.nodes.forEach(function (n) {
+      out.push('<g opacity="' + n.op + '"><rect x="' + (n.x + 1) + '" y="' + (n.y + 1) + '" width="238" height="' + (n.h - 2) + '" rx="10" fill="#FFFFFF" stroke="' + n.bd + '" stroke-width="2"/>');
+      out.push('<rect x="' + (n.x + 2) + '" y="' + (n.y + 2) + '" width="236" height="58" rx="9" fill="' + n.bg + '"/><circle cx="' + (n.x + 17) + '" cy="' + (n.y + 23) + '" r="4.5" fill="' + n.tcolor + '"/>');
+      out.push('<text x="' + (n.x + 28) + '" y="' + (n.y + 27) + '" font-size="12" font-family="' + mono + '" fill="' + n.fg + '">' + esc(cut(n.id, 29)) + '</text><text x="' + (n.x + 14) + '" y="' + (n.y + 47) + '" font-size="11" fill="' + n.fg + '">' + esc(cut(n.typeLabel + ' · ' + n.name, 38)) + '</text>');
+      if (n.showCols) n.cols.forEach(function (c, i) {
+        var cy = n.y + 2 + 58 + 5 + i * 26;
+        if (c.bg !== 'transparent') out.push('<rect x="' + (n.x + 2) + '" y="' + cy + '" width="236" height="26" fill="' + c.bg + '"/>');
+        out.push('<text x="' + (n.x + 14) + '" y="' + (cy + 17) + '" font-size="12" font-family="' + mono + '" fill="' + c.fg + '">' + esc(cut(c.name, 24)) + '</text><text x="' + (n.x + 228) + '" y="' + (cy + 17) + '" font-size="10" text-anchor="end" font-family="' + mono + '" fill="' + c.fg + '">' + esc(c.badge) + '</text>');
+      });
+      out.push('</g>');
+    });
+    out.push('</svg>');
+    return out.join('');
+  }
+  /* OpenLineage RunEvents (JSON array, single object or NDJSON) -> Metadata Hub document */
+  convertOpenLineage(texts) {
+    var events = [];
+    texts.forEach(function (t) {
+      t = String(t).trim(); if (!t) return;
+      try {
+        if (t[0] === '[') events = events.concat(JSON.parse(t));
+        else if (t[0] === '{' && !/\n\{/.test(t)) events.push(JSON.parse(t));
+        else t.split(/\r?\n/).forEach(function (l) { l = l.trim(); if (l) events.push(JSON.parse(l)); });
+      } catch (e) { throw new Error('OpenLineage JSON could not be parsed: ' + e.message); }
+    });
+    var assets = {}, edges = [], seenE = {};
+    var dsId = function (d) { var ns = String(d.namespace || ''), n = String(d.name || ''); if (!ns || /^bigquery/i.test(ns)) return n; return ns.replace(/^[a-z0-9+.-]+:\/\//i, '').replace(/\/$/, '') + '/' + n; };
+    var dsType = function (d) { var ns = String(d.namespace || ''); return /^bigquery/i.test(ns) ? 'bigquery.table' : /^gs:/i.test(ns) ? 'gcs.object' : 'dataset'; };
+    var ensure = function (id, type, name) { if (!assets[id]) assets[id] = { id: id, type: type, name: name || id, fields: [], properties: {}, __file: 'openlineage' }; return assets[id]; };
+    var field = function (a, name, type, desc) { var f = a.fields.find(function (x) { return x.name === name; }); if (!f) { f = { name: name, type: type || 'STRING', description: desc || '' }; a.fields.push(f); } return f; };
+    var edge = function (f, t, type) { var k = f + '|' + t; if (seenE[k]) return; seenE[k] = 1; edges.push({ from: f, to: t, type: type, process: 'OpenLineage' }); };
+    var schema = function (a, d) { ((d.facets && d.facets.schema && d.facets.schema.fields) || []).forEach(function (f) { field(a, f.name, f.type, f.description); }); };
+    events.forEach(function (ev) {
+      var job = ev && ev.job; if (!job || !job.name) return;
+      var jns = String(job.namespace || ''), jid = 'job.' + (jns ? jns.replace(/[^A-Za-z0-9_.-]+/g, '_') + '.' : '') + job.name;
+      var ja = ensure(jid, /airflow/i.test(jns + ' ' + (ev.producer || '')) ? 'airflow.task' : 'job', job.name);
+      if (jns) ja.properties.openlineage_namespace = jns;
+      var sql = job.facets && job.facets.sql && job.facets.sql.query; if (sql) ja.properties.sql = sql;
+      (ev.inputs || []).forEach(function (d) { var id = dsId(d); schema(ensure(id, dsType(d), d.name), d); edge(id, jid, 'reads'); });
+      (ev.outputs || []).forEach(function (d) {
+        var id = dsId(d), a = ensure(id, dsType(d), d.name); schema(a, d); edge(jid, id, 'writes');
+        var cl = (d.facets && d.facets.columnLineage && d.facets.columnLineage.fields) || {};
+        Object.keys(cl).forEach(function (col) {
+          var info = cl[col] || {}, f = field(a, col), inputs = info.inputFields || [];
+          f.sources = inputs.map(function (i) { var iid = dsId(i); field(ensure(iid, dsType(i), i.name), i.field); return iid + '.' + i.field; });
+          var tr = inputs.map(function (i) { return (i.transformations || [])[0]; }).filter(Boolean)[0];
+          f.expression = info.transformationDescription || (tr && tr.description) || '';
+        });
+      });
+    });
+    return { asset_types: [{ id: 'job', label: 'Job (OpenLineage)', category: 'OpenLineage', color: '#475569' }], assets: Object.keys(assets).map(function (k) { return assets[k]; }), lineage: edges };
+  }
+  mergeLoaded(a, b) {
+    var datasets = a.datasets.slice();
+    b.datasets.forEach(function (n) {
+      var i = datasets.findIndex(function (x) { return x.id === n.id; });
+      if (i < 0) { datasets.push(n); return; }
+      var cur = Object.assign({}, datasets[i]), fields = cur.fields.slice();
+      n.fields.forEach(function (f) {
+        var j = fields.findIndex(function (x) { return x.name === f.name; });
+        if (j < 0) fields.push(f);
+        else if (!fields[j].sources.length && f.sources.length) fields[j] = Object.assign({}, fields[j], { sources: f.sources, expression: fields[j].expression || f.expression });
+      });
+      cur.fields = fields; datasets[i] = cur;
+    });
+    var lineage = a.lineage.slice();
+    b.lineage.forEach(function (n) { if (!lineage.some(function (x) { return x.from === n.from && x.to === n.to; })) lineage.push(n); });
+    return { types: this.mergeTypes(a.types, b.types), datasets: datasets, lineage: lineage, layout: Object.assign({}, a.layout || {}, b.layout || {}), loaded: (a.loaded || []).concat(b.loaded || []), unused: a.unused || [] };
+  }
+  componentWillUnmount() {
+    if (this._onMove) { window.removeEventListener('mousemove', this._onMove); window.removeEventListener('mouseup', this._onUp); }
+    this.attachDiagram(null);
+  }
+
+  emptyDs() { return { id: '', type: 'bigquery.table', parent: '', name: '', domain: '', owner: '', source: '', tags: '', description: '', properties: '' }; }
+  emptyField() { return { name: '', type: 'STRING', nullable: true, pii: false, description: '', expression: '', sources: '' }; }
+  mergeTypes(base, inc) { var out = base.slice(); (inc || []).forEach(function (t) { var i = out.findIndex(function (x) { return x.id === t.id; }); if (i >= 0) out[i] = t; else out.push(t); }); return out; }
+  defaultTypes() {
+    return [
+      ['airflow.dag', 'Airflow DAG', 'Airflow', '#0B5CAD'], ['airflow.task_group', 'Airflow Task Group', 'Airflow', '#1E40AF'], ['airflow.task', 'Airflow Task', 'Airflow', '#1D4ED8'],
+      ['airflow.variable', 'Airflow Variable', 'Airflow', '#3730A3'], ['airflow.connection', 'Airflow Connection', 'Airflow', '#3730A3'],
+      ['bigquery.project', 'BigQuery Project', 'BigQuery', '#115E59'], ['bigquery.dataset', 'BigQuery Dataset', 'BigQuery', '#0F766E'], ['bigquery.table', 'BigQuery Table', 'BigQuery', '#0F766E'],
+      ['bigquery.view', 'BigQuery View', 'BigQuery', '#0E7490'], ['bigquery.materialized_view', 'BigQuery Materialized View', 'BigQuery', '#0E7490'],
+      ['bigquery.stored_procedure', 'BigQuery Stored Procedure', 'BigQuery', '#155E75'], ['bigquery.udf', 'BigQuery UDF', 'BigQuery', '#155E75'],
+      ['vertex.pipeline', 'Vertex AI Pipeline', 'Vertex AI', '#6D28D9'], ['vertex.pipeline_component', 'Vertex Pipeline Component', 'Vertex AI', '#6D28D9'],
+      ['vertex.model', 'Model Registry Model', 'Vertex AI', '#7E22CE'], ['vertex.endpoint', 'Vertex AI Endpoint', 'Vertex AI', '#86198F'], ['vertex.feature_view', 'Vertex Feature View', 'Vertex AI', '#86198F'],
+      ['artifact_registry.repository', 'Artifact Registry Repository', 'Artifact Registry', '#9A3412'], ['artifact_registry.image', 'Artifact Registry Image', 'Artifact Registry', '#C2410C'],
+      ['gcs.bucket', 'GCS Bucket', 'Cloud Storage', '#A16207'], ['gcs.object', 'GCS Object / Path', 'Cloud Storage', '#A16207'],
+      ['dataset', 'Dataset (generic)', 'Generic', '#475569'], ['external', 'External system', 'Generic', '#475569']
+    ].map(function (t) { return { id: t[0], label: t[1], category: t[2], color: t[3] }; });
+  }
+
+  sample() {
+    var F = function (name, type, nullable, pii, description, expression, sources) { return { name: name, type: type, nullable: nullable, pii: pii, description: description, expression: expression || '', sources: sources || [] }; };
+    var A = function (id, type, name, o) { return Object.assign({ id: id, type: type, name: name, parent: '', domain: '', owner: '', source: '', description: '', tags: [], properties: {}, fields: [], file: 'example' }, o || {}); };
+    var E = function (from, to, type, process) { return { from: from, to: to, type: type, process: process || '', properties: {} }; };
+    var doms = [
+      { k: 'sales', T: 'Sales', ent: 'customer', ev: 'order', ts: 'order_ts', m: 'amount', adj: 'discount', U: 'NUMERIC', owner: 'sales-data', src: 'ERP', model: 'sales_forecast' },
+      { k: 'inventory', T: 'Inventory', ent: 'sku', ev: 'movement', ts: 'movement_ts', m: 'quantity', adj: 'damaged_qty', U: 'INT64', owner: 'supply-data', src: 'WMS', model: 'stock_forecast' },
+      { k: 'finance', T: 'Finance', ent: 'account', ev: 'txn', ts: 'txn_ts', m: 'amount', adj: 'fee', U: 'NUMERIC', owner: 'finance-data', src: 'Core banking', model: 'cashflow_forecast' },
+      { k: 'marketing', T: 'Marketing', ent: 'campaign', ev: 'click', ts: 'click_ts', m: 'cost', adj: 'refund', U: 'NUMERIC', owner: 'growth-data', src: 'Ads platform', model: 'roas_forecast' },
+      { k: 'support', T: 'Support', ent: 'customer', ev: 'ticket', ts: 'opened_ts', m: 'handle_minutes', adj: 'wait_minutes', U: 'INT64', owner: 'cx-data', src: 'Helpdesk', model: 'ticket_volume_forecast' }
+    ];
+    var assets = [], lin = [];
+    doms.forEach(function (o) {
+      var k = o.k, T = o.T, U = o.U, P = 'acme-' + k, ev = o.ev, ent = o.ent, idc = ev + '_id', entc = ent + '_id';
+      var raw = P + '.raw.' + ev + 's', stg = P + '.staging.' + ev + 's_clean', mart = P + '.mart.' + k + '_daily', view = P + '.mart.v_' + k + '_features', mv = P + '.mart.mv_' + k + '_monthly', sp = P + '.mart.sp_build_' + k + '_daily', udf = P + '.staging.fn_clean_' + o.m;
+      var dag = 'airflow.' + k + '_daily', tg = dag + '.tg_transform', tLoad = tg + '.load_staging', tSp = tg + '.call_sp', tTrain = dag + '.trigger_training';
+      var vVar = 'airflow.variable.' + k + '_gcp_project', vCon = 'airflow.connection.bq_' + k;
+      var vp = 'vertex.pipeline.' + o.model, vc = vp + '.train', mdl = 'vertex.model.' + o.model, ep = 'vertex.endpoint.' + o.model, fv = 'vertex.feature_view.' + k + '_features';
+      var repo = 'artifact_registry.ml-' + k, img = repo + '.' + k + '-trainer';
+      var bkt = 'gcs.acme-' + k + '-landing', obj = bkt + '/' + ev + 's', ext = 'external.' + o.src.toLowerCase().replace(/[^a-z]+/g, '_'), sheet = 'sheet.' + k + '_targets';
+      assets.push(
+        A(ext, 'external', o.src + ' system', { domain: T, owner: o.owner, description: 'Operational source system for ' + k + ' data.', properties: { vendor: o.src, extract: 'daily file export' } }),
+        A(sheet, 'dataset', T + ' targets sheet', { domain: T, owner: o.owner, source: 'Google Sheets', description: 'Monthly targets maintained by the business.', fields: [F('month', 'DATE', false, false, 'Target month.'), F('target_value', U, false, false, 'Monthly target.')] }),
+        A(bkt, 'gcs.bucket', 'Landing bucket ' + k, { domain: T, owner: 'platform', properties: { location: 'asia-southeast2', storage_class: 'STANDARD' } }),
+        A(obj, 'gcs.object', ev + 's landing files', { parent: bkt, domain: T, properties: { pattern: ev + 's/dt={{ ds }}/*.parquet', format: 'parquet' } }),
+        A(P, 'bigquery.project', 'GCP project ' + k, { domain: T, owner: 'platform', properties: { region: 'asia-southeast2', billing_account: 'acme-billing' } }),
+        A(P + '.raw', 'bigquery.dataset', 'raw', { parent: P, domain: T, properties: { location: 'asia-southeast2', default_table_expiration_days: 400 } }),
+        A(P + '.staging', 'bigquery.dataset', 'staging', { parent: P, domain: T, properties: { location: 'asia-southeast2' } }),
+        A(P + '.mart', 'bigquery.dataset', 'mart', { parent: P, domain: T, properties: { location: 'asia-southeast2' } }),
+        A(raw, 'bigquery.table', T + ' ' + ev + 's (raw)', { parent: P + '.raw', domain: T, owner: o.owner, source: o.src + ' via GCS', description: 'As-is ' + ev + ' records loaded from the landing bucket.', tags: ['raw'], properties: { partition_by: 'DATE(' + o.ts + ')' }, fields: [
+          F(idc, 'INT64', false, false, 'Unique ' + ev + ' ID.'),
+          F(entc, 'INT64', false, ent === 'customer', 'Reference to the ' + ent + '.'),
+          F(o.ts, 'TIMESTAMP', false, false, 'Event time (UTC).'),
+          F(o.m, U, true, false, 'Raw ' + o.m.replace(/_/g, ' ') + '.'),
+          F(o.adj, U, true, false, 'Adjustment (' + o.adj.replace(/_/g, ' ') + ').')
+        ] }),
+        A(udf, 'bigquery.udf', 'fn_clean_' + o.m, { parent: P + '.staging', domain: T, owner: 'analytics-eng', properties: { language: 'SQL', returns: U, body: 'GREATEST(IFNULL(x, 0), 0)' } }),
+        A(stg, 'bigquery.table', T + ' ' + ev + 's (clean)', { parent: P + '.staging', domain: T, owner: 'analytics-eng', description: 'Deduplicated, normalised ' + ev + 's.', tags: ['staging'], fields: [
+          F(idc, 'INT64', false, false, 'Unique ' + ev + ' ID.', 'QUALIFY ROW_NUMBER() OVER (PARTITION BY ' + idc + ' ORDER BY ' + o.ts + ' DESC) = 1', [raw + '.' + idc]),
+          F(entc, 'INT64', false, ent === 'customer', 'Reference to the ' + ent + '.', '', [raw + '.' + entc]),
+          F('event_date', 'DATE', false, false, 'Event date (Asia/Jakarta).', 'DATE(' + o.ts + ", 'Asia/Jakarta')", [raw + '.' + o.ts]),
+          F('net_value', U, false, false, 'Value after adjustment.', 'fn_clean_' + o.m + '(' + o.m + ') - IFNULL(' + o.adj + ', 0)', [raw + '.' + o.m, raw + '.' + o.adj])
+        ] }),
+        A(sp, 'bigquery.stored_procedure', 'sp_build_' + k + '_daily', { parent: P + '.mart', domain: T, owner: 'analytics-eng', properties: { language: 'SQL', args: ['run_date DATE'] } }),
+        A(mart, 'bigquery.table', T + ' daily', { parent: P + '.mart', domain: T, owner: 'bi-team', description: T + ' aggregated per day, built by a stored procedure.', tags: ['mart', 'dashboard'], fields: [
+          F('event_date', 'DATE', false, false, 'Date.', 'GROUP BY event_date', [stg + '.event_date']),
+          F('total_' + k, U, false, false, 'Total net value per day.', 'SUM(net_value)', [stg + '.net_value']),
+          F('active_' + ent + 's', 'INT64', false, false, 'Distinct ' + ent + 's per day.', 'COUNT(DISTINCT ' + entc + ')', [stg + '.' + entc]),
+          F('avg_per_' + ev, 'FLOAT64', true, false, 'Average value per ' + ev + '.', 'SAFE_DIVIDE(SUM(net_value), COUNT(' + idc + '))', [stg + '.net_value', stg + '.' + idc]),
+          F('target_attainment', 'FLOAT64', true, false, 'Month-to-date share of the monthly target.', 'SAFE_DIVIDE(SUM(SUM(net_value)) OVER (PARTITION BY DATE_TRUNC(event_date, MONTH) ORDER BY event_date), t.target_value)', [stg + '.net_value', sheet + '.target_value'])
+        ] }),
+        A(view, 'bigquery.view', T + ' features', { parent: P + '.mart', domain: T, owner: 'ml-team', fields: [
+          F('event_date', 'DATE', false, false, 'Date.', '', [mart + '.event_date']),
+          F(k + '_7d_avg', 'FLOAT64', true, false, '7-day moving average.', 'AVG(total_' + k + ') OVER (ORDER BY event_date ROWS 6 PRECEDING)', [mart + '.total_' + k])
+        ] }),
+        A(mv, 'bigquery.materialized_view', T + ' monthly', { parent: P + '.mart', domain: T, owner: 'bi-team', properties: { refresh_interval_minutes: 60 }, fields: [
+          F('month', 'DATE', false, false, 'Month.', 'DATE_TRUNC(event_date, MONTH)', [mart + '.event_date']),
+          F('monthly_total', U, false, false, 'Monthly total.', 'SUM(total_' + k + ')', [mart + '.total_' + k])
+        ] }),
+        A(vVar, 'airflow.variable', k + '_gcp_project', { domain: T, owner: 'platform', properties: { key: k + '_gcp_project', value: P } }),
+        A(vCon, 'airflow.connection', 'bq_' + k, { domain: T, owner: 'platform', properties: { conn_type: 'google_cloud_platform', project: P } }),
+        A(dag, 'airflow.dag', k + '_daily', { domain: T, owner: o.owner, description: 'Daily ' + k + ' pipeline, from landing files to model training.', tags: ['daily'], properties: { schedule: '0 1 * * *', catchup: false, max_active_runs: 1 } }),
+        A(tg, 'airflow.task_group', 'tg_transform', { parent: dag, domain: T }),
+        A(tLoad, 'airflow.task', 'load_staging', { parent: tg, domain: T, properties: { operator: 'BigQueryInsertJobOperator', retries: 2 } }),
+        A(tSp, 'airflow.task', 'call_sp', { parent: tg, domain: T, properties: { operator: 'BigQueryInsertJobOperator', sql: 'CALL mart.sp_build_' + k + '_daily(@run_date)' } }),
+        A(tTrain, 'airflow.task', 'trigger_training', { parent: dag, domain: T, properties: { operator: 'RunPipelineJobOperator' } }),
+        A(repo, 'artifact_registry.repository', 'ml-' + k, { domain: T, owner: 'ml-team', properties: { format: 'DOCKER', location: 'asia-southeast2' } }),
+        A(img, 'artifact_registry.image', k + '-trainer', { parent: repo, domain: T, owner: 'ml-team', properties: { uri: 'asia-southeast2-docker.pkg.dev/' + P + '/ml-' + k + '/' + k + '-trainer', tag: 'v1.0.0' } }),
+        A(fv, 'vertex.feature_view', k + '_features', { domain: T, owner: 'ml-team', properties: { online_store: 'acme_online', sync: 'daily' } }),
+        A(vc, 'vertex.pipeline_component', 'train', { parent: vp, domain: T, owner: 'ml-team', properties: { image: img } }),
+        A(vp, 'vertex.pipeline', o.model, { domain: T, owner: 'ml-team', properties: { template: 'gs://acme-' + k + '-pipelines/' + o.model + '.json' } }),
+        A(mdl, 'vertex.model', o.model, { domain: T, owner: 'ml-team', properties: { version: 1, framework: 'xgboost' } }),
+        A(ep, 'vertex.endpoint', o.model + '-endpoint', { domain: T, owner: 'ml-team', properties: { machine_type: 'n1-standard-2', min_replicas: 1 } })
+      );
+      lin.push(
+        E(ext, obj, 'writes', 'Daily file export'), E(obj, raw, 'writes', 'BigQuery load job'), E(vVar, dag, 'configures'), E(vCon, tLoad, 'uses'),
+        E(raw, tLoad, 'reads'), E(tLoad, stg, 'writes', 'Daily MERGE'), E(udf, stg, 'used_by'), E(tSp, sp, 'calls'), E(stg, sp, 'reads'), E(sheet, sp, 'reads'), E(sp, mart, 'writes'),
+        E(mart, view, 'reads'), E(mart, mv, 'reads'), E(view, fv, 'syncs'), E(fv, vp, 'reads'), E(img, vc, 'uses'), E(vc, vp, 'part_of'), E(tTrain, vp, 'triggers'), E(vp, mdl, 'produces'), E(mdl, ep, 'deploys')
+      );
+    });
+    return { types: this.defaultTypes(), datasets: assets, lineage: lin };
+  }
+
+  /* ---------- YAML parser (subset: maps, lists, scalars, flow lists) ---------- */
+  stripComment(line) {
+    var q = null;
+    for (var i = 0; i < line.length; i++) {
+      var ch = line[i];
+      if (q) { if (ch === q && !(q === '"' && line[i - 1] === '\\')) q = null; }
+      else if (ch === '"' || ch === "'") { if (i === 0 || /[\s:\[,\-]/.test(line[i - 1])) q = ch; }
+      else if (ch === '#' && (i === 0 || /\s/.test(line[i - 1]))) return line.slice(0, i);
+    }
+    return line;
+  }
+  splitFlow(s) {
+    var out = [], cur = '', q = null;
+    for (var i = 0; i < s.length; i++) {
+      var ch = s[i];
+      if (q) { cur += ch; if (ch === q) q = null; }
+      else if (ch === '"' || ch === "'") { q = ch; cur += ch; }
+      else if (ch === ',') { out.push(cur); cur = ''; }
+      else cur += ch;
+    }
+    if (cur.trim() !== '') out.push(cur);
+    return out;
+  }
+  scalar(s) {
+    s = s.trim();
+    if (s === '' || s === '~' || /^null$/i.test(s)) return null;
+    if (s[0] === '"') { try { return JSON.parse(s); } catch (e) { return s.slice(1, -1); } }
+    if (s[0] === "'") return s.slice(1, -1).replace(/''/g, "'");
+    if (s[0] === '[' && s[s.length - 1] === ']') { var self = this; return this.splitFlow(s.slice(1, -1)).map(function (x) { return self.scalar(x); }); }
+    if (s === '{}') return {};
+    if (/^(true|yes)$/i.test(s)) return true;
+    if (/^(false|no)$/i.test(s)) return false;
+    if (/^-?\d+(\.\d+)?$/.test(s)) return Number(s);
+    return s;
+  }
+  keyMatch(t) { return t.match(/^("(?:[^"\\]|\\.)*"|'[^']*'|[^\s"'#\[\]{},][^:]*?)\s*:(?=\s|$)/); }
+  isSeq(t) { return t === '-' || t.indexOf('- ') === 0; }
+  yParse(text) {
+    var L = [];
+    String(text).replace(/\r/g, '').split('\n').forEach(function (raw, n) {
+      if (/\t/.test(raw.match(/^\s*/)[0])) throw new Error('line ' + (n + 1) + ': use spaces, not tabs.');
+      var line = this.stripComment(raw).replace(/\s+$/, '');
+      var t = line.trim();
+      if (t === '' || t === '---' || t === '...') return;
+      L.push({ ind: line.length - line.replace(/^ +/, '').length, t: t, n: n + 1 });
+    }, this);
+    if (!L.length) return {};
+    var r = this.pBlock(L, 0);
+    if (r[1] < L.length) throw new Error('line ' + L[r[1]].n + ': invalid indentation.');
+    return r[0];
+  }
+  pBlock(L, p) { return this.isSeq(L[p].t) ? this.pSeq(L, p, L[p].ind) : this.pMap(L, p, L[p].ind); }
+  pSeq(L, p, ind) {
+    var arr = [];
+    while (p < L.length && L[p].ind === ind && this.isSeq(L[p].t)) {
+      var t = L[p].t, rest = t === '-' ? '' : t.slice(1).replace(/^ +/, '');
+      var off = ind + (t.length - rest.length);
+      if (rest === '') {
+        p++;
+        if (p < L.length && L[p].ind > ind) { var r = this.pBlock(L, p); arr.push(r[0]); p = r[1]; } else arr.push(null);
+      } else if (this.isSeq(rest)) {
+        L[p] = { ind: off, t: rest, n: L[p].n }; var r2 = this.pSeq(L, p, off); arr.push(r2[0]); p = r2[1];
+      } else if (rest[0] !== '[' && this.keyMatch(rest)) {
+        L[p] = { ind: off, t: rest, n: L[p].n }; var r3 = this.pMap(L, p, off); arr.push(r3[0]); p = r3[1];
+      } else { arr.push(this.scalar(rest)); p++; }
+    }
+    return [arr, p];
+  }
+  pMap(L, p, ind) {
+    var obj = {};
+    while (p < L.length && L[p].ind === ind && !this.isSeq(L[p].t)) {
+      var m = this.keyMatch(L[p].t);
+      if (!m) throw new Error('line ' + L[p].n + ': expected "key: value".');
+      var key = m[1];
+      if (key[0] === '"') key = JSON.parse(key); else if (key[0] === "'") key = key.slice(1, -1);
+      var rest = L[p].t.slice(m[0].length).trim();
+      p++;
+      if (rest === '') {
+        if (p < L.length && (L[p].ind > ind || (L[p].ind === ind && this.isSeq(L[p].t)))) { var r = this.pBlock(L, p); obj[key] = r[0]; p = r[1]; }
+        else obj[key] = null;
+      } else if (rest === '|' || rest === '>' || rest === '|-' || rest === '>-') {
+        throw new Error('line ' + (L[p - 1].n) + ': block scalars (| or >) are not supported yet — use a quoted string.');
+      } else obj[key] = this.scalar(rest);
+    }
+    return [obj, p];
+  }
+
+  /* ---------- YAML writer ---------- */
+  yStr(v) {
+    if (v === null || v === undefined) return 'null';
+    if (typeof v === 'boolean' || typeof v === 'number') return String(v);
+    var s = String(v);
+    if (s === '' || /^\s|\s$|^[-?:,\[\]{}#&*!|>'"%@`]|: | #|\n|:$/.test(s) || /^(true|false|yes|no|null|~)$/i.test(s) || /^-?\d+(\.\d+)?$/.test(s)) return JSON.stringify(s);
+    return s;
+  }
+  yKey(k) { return /^[A-Za-z0-9_][A-Za-z0-9_.\-]*$/.test(k) ? k : JSON.stringify(k); }
+  emit(v, ind, out) {
+    var pad = new Array(ind + 1).join(' '), self = this;
+    var isObj = function (x) { return x && typeof x === 'object' && !Array.isArray(x); };
+    var inl = function (x) { return Array.isArray(x) ? '[]' : isObj(x) ? '{}' : self.yStr(x); };
+    if (Array.isArray(v)) {
+      v.forEach(function (it) {
+        if (isObj(it) && Object.keys(it).length) { var sub = []; self.emit(it, ind + 2, sub); sub[0] = pad + '- ' + sub[0].slice(ind + 2); Array.prototype.push.apply(out, sub); }
+        else if (Array.isArray(it) && it.length) { out.push(pad + '-'); self.emit(it, ind + 2, out); }
+        else out.push(pad + '- ' + inl(it));
+      });
+    } else {
+      Object.keys(v).forEach(function (k) {
+        var val = v[k], kk = pad + self.yKey(k) + ':';
+        if (Array.isArray(val)) {
+          if (!val.length) out.push(kk + ' []');
+          else if (val.every(function (x) { return x === null || typeof x !== 'object'; }) && val.length <= 8) out.push(kk + ' [' + val.map(function (x) { return typeof x === 'string' && /[,\[\]{}]/.test(x) ? JSON.stringify(x) : self.yStr(x); }).join(', ') + ']');
+          else { out.push(kk); self.emit(val, ind + 2, out); }
+        } else if (isObj(val)) {
+          if (!Object.keys(val).length) out.push(kk + ' {}'); else { out.push(kk); self.emit(val, ind + 2, out); }
+        } else out.push(kk + ' ' + self.yStr(val));
+      });
+    }
+    return out;
+  }
+  cleanAsset(d) {
+    var o = { id: d.id, type: d.type, name: d.name };
+    ['parent', 'domain', 'owner', 'source', 'description'].forEach(function (k) { if (d[k]) o[k] = d[k]; });
+    if (d.tags && d.tags.length) o.tags = d.tags;
+    if (d.properties && Object.keys(d.properties).length) o.properties = d.properties;
+    if (d.fields && d.fields.length) o.fields = d.fields.map(function (f) {
+      var x = { name: f.name, type: f.type, nullable: f.nullable, pii: f.pii };
+      if (f.description) x.description = f.description;
+      if (f.expression) x.expression = f.expression;
+      if (f.sources && f.sources.length) x.sources = f.sources;
+      return x;
+    });
+    return o;
+  }
+  cleanEdge(e) { var o = { from: e.from, to: e.to }; if (e.type) o.type = e.type; if (e.process) o.process = e.process; if (e.properties && Object.keys(e.properties).length) o.properties = e.properties; return o; }
+  dump(doc, title) { return '# ' + title + '\n' + this.emit(doc, 0, []).join('\n') + '\n'; }
+  toYaml() {
+    var s = this.state, self = this;
+    var doc = { version: 2, generated_at: new Date().toISOString(), asset_types: s.types, assets: s.datasets.map(function (d) { return self.cleanAsset(d); }), lineage: s.lineage.map(function (e) { return self.cleanEdge(e); }) };
+    if (s.layoutPos && Object.keys(s.layoutPos).length) doc.layout = { nodes: s.layoutPos };
+    return this.dump(doc, 'Metadata Hub — data catalog, data dictionary, data lineage (schema v2, single file)');
+  }
+  toFiles() {
+    var s = this.state, self = this, files = {}, groups = {};
+    s.datasets.forEach(function (d) { var g = (d.type || 'dataset').split('.')[0].replace(/[^A-Za-z0-9_-]+/g, '-') || 'misc'; (groups[g] = groups[g] || []).push(self.cleanAsset(d)); });
+    var hasLayout = s.layoutPos && Object.keys(s.layoutPos).length > 0;
+    files['main.yaml'] = this.dump({ version: 2, generated_at: new Date().toISOString(), include: ['asset_types.yaml', 'assets/*.yaml', 'lineage.yaml'].concat(hasLayout ? ['layout.yaml'] : []) }, 'Metadata Hub — entry point. Every file listed under include is loaded in order.');
+    if (hasLayout) files['layout.yaml'] = this.dump({ layout: { nodes: s.layoutPos } }, 'Diagram layout from the Diagram Editor: x, y per asset; w, h for containers (canvas pixels).');
+    files['asset_types.yaml'] = this.dump({ asset_types: s.types }, 'Asset type registry — add your own types here.');
+    Object.keys(groups).sort().forEach(function (g) { files['assets/' + g + '.yaml'] = self.dump({ assets: groups[g] }, g + ' assets'); });
+    files['lineage.yaml'] = this.dump({ lineage: s.lineage.map(function (e) { return self.cleanEdge(e); }) }, 'Asset-level lineage. Column-level lineage lives in each field (expression + sources).');
+    return files;
+  }
+
+  /* ---------- zip ---------- */
+  crc32(u8) {
+    var t = this._crcT;
+    if (!t) { t = this._crcT = []; for (var n = 0; n < 256; n++) { var c = n; for (var k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } }
+    var crc = 0xFFFFFFFF;
+    for (var i = 0; i < u8.length; i++) crc = t[(crc ^ u8[i]) & 0xFF] ^ (crc >>> 8);
+    return (crc ^ 0xFFFFFFFF) >>> 0;
+  }
+  makeZip(files) {
+    var self = this, enc = new TextEncoder(), parts = [], central = [], offset = 0;
+    Object.keys(files).forEach(function (name) {
+      var nb = enc.encode(name), data = enc.encode(files[name]), crc = self.crc32(data);
+      var lh = new Uint8Array(30 + nb.length), v = new DataView(lh.buffer);
+      v.setUint32(0, 0x04034b50, true); v.setUint16(4, 20, true); v.setUint16(6, 0x0800, true); v.setUint16(12, 0x21, true);
+      v.setUint32(14, crc, true); v.setUint32(18, data.length, true); v.setUint32(22, data.length, true); v.setUint16(26, nb.length, true); lh.set(nb, 30);
+      var ch = new Uint8Array(46 + nb.length), c = new DataView(ch.buffer);
+      c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(14, 0x21, true);
+      c.setUint32(16, crc, true); c.setUint32(20, data.length, true); c.setUint32(24, data.length, true); c.setUint16(28, nb.length, true); c.setUint32(42, offset, true); ch.set(nb, 46);
+      parts.push(lh, data); central.push(ch); offset += lh.length + data.length;
+    });
+    var cs = central.reduce(function (a, b) { return a + b.length; }, 0), end = new Uint8Array(22), ev = new DataView(end.buffer);
+    ev.setUint32(0, 0x06054b50, true); ev.setUint16(8, central.length, true); ev.setUint16(10, central.length, true); ev.setUint32(12, cs, true); ev.setUint32(16, offset, true);
+    return new Blob(parts.concat(central, [end]), { type: 'application/zip' });
+  }
+  async readZip(buf) {
+    var dv = new DataView(buf), u8 = new Uint8Array(buf), e = -1, dec = new TextDecoder(), files = {};
+    for (var i = u8.length - 22; i >= Math.max(0, u8.length - 65557); i--) { if (dv.getUint32(i, true) === 0x06054b50) { e = i; break; } }
+    if (e < 0) throw new Error('Not a valid .zip file.');
+    var n = dv.getUint16(e + 10, true), off = dv.getUint32(e + 16, true);
+    for (var k = 0; k < n; k++) {
+      if (dv.getUint32(off, true) !== 0x02014b50) throw new Error('Corrupt .zip central directory.');
+      var method = dv.getUint16(off + 10, true), csize = dv.getUint32(off + 20, true);
+      var nlen = dv.getUint16(off + 28, true), elen = dv.getUint16(off + 30, true), clen = dv.getUint16(off + 32, true), lho = dv.getUint32(off + 42, true);
+      var name = dec.decode(u8.subarray(off + 46, off + 46 + nlen));
+      off += 46 + nlen + elen + clen;
+      if (/\/$/.test(name) || !/\.(ya?ml|json|jsonl|ndjson)$/i.test(name) || /(^|\/)(__MACOSX|\.)/.test(name)) continue;
+      var start = lho + 30 + dv.getUint16(lho + 26, true) + dv.getUint16(lho + 28, true), data = u8.subarray(start, start + csize), out;
+      if (method === 0) out = data;
+      else if (method === 8) {
+        if (typeof DecompressionStream === 'undefined') throw new Error('This browser cannot unzip — upload the .yaml files directly instead.');
+        out = new Uint8Array(await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+      } else throw new Error('Unsupported compression method in ' + name + '.');
+      files[name] = dec.decode(out);
+    }
+    return files;
+  }
+
+  /* ---------- multi-file project loader ---------- */
+  joinPath(dir, p) {
+    var parts = (p[0] === '/' ? p.slice(1) : dir + p).split('/'), out = [];
+    parts.forEach(function (s) { if (s === '..') out.pop(); else if (s && s !== '.') out.push(s); });
+    return out.join('/');
+  }
+  globRe(pat) {
+    var re = pat.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*\*\//g, '\u0001').replace(/\*\*/g, '\u0002').replace(/\*/g, '[^/]*').replace(/\?/g, '[^/]').replace(/\u0001/g, '(?:.*/)?').replace(/\u0002/g, '.*');
+    return new RegExp('^' + re + '$');
+  }
+  loadProject(raw) {
+    var self = this, files = {};
+    Object.keys(raw).forEach(function (k) { files[k.replace(/\\/g, '/').replace(/^\.\//, '')] = raw[k]; });
+    var paths = Object.keys(files);
+    if (!paths.length) throw new Error('No .yaml files found in the upload.');
+    var mains = paths.filter(function (p) { return /(^|\/)main\.ya?ml$/i.test(p); }).sort(function (a, b) { return a.split('/').length - b.split('/').length; });
+    var entry = mains[0] || (paths.length === 1 ? paths[0] : null);
+    if (!entry) throw new Error('main.yaml not found. With several files, main.yaml is the entry point that includes the others.');
+    var acc = { asset_types: [], assets: [], lineage: [], layout: {} }, loaded = [], stack = [];
+    var visit = function (path) {
+      if (stack.indexOf(path) >= 0) throw new Error('Include cycle: ' + stack.concat([path]).join(' → '));
+      if (loaded.indexOf(path) >= 0) return;
+      var doc;
+      try { doc = self.yParse(files[path]); } catch (e) { throw new Error(path + ', ' + e.message); }
+      if (!doc || typeof doc !== 'object' || Array.isArray(doc)) throw new Error(path + ': the root must be a mapping (keys such as include, assets, lineage).');
+      loaded.push(path); stack.push(path);
+      [['asset_types', 'asset_types'], ['assets', 'assets'], ['datasets', 'assets'], ['lineage', 'lineage']].forEach(function (kv) {
+        var v = doc[kv[0]]; if (v === null || v === undefined) return;
+        if (!Array.isArray(v)) throw new Error(path + ': "' + kv[0] + '" must be a list.');
+        acc[kv[1]] = acc[kv[1]].concat(v.map(function (x) { return x && typeof x === 'object' && !Array.isArray(x) && kv[1] === 'assets' ? Object.assign({ __file: path }, x) : x; }));
+      });
+      if (doc.layout && typeof doc.layout === 'object' && doc.layout.nodes && typeof doc.layout.nodes === 'object') Object.assign(acc.layout, doc.layout.nodes);
+      var inc = doc.include !== undefined ? doc.include : doc.includes;
+      var list = inc === null || inc === undefined ? [] : Array.isArray(inc) ? inc : [inc];
+      var dir = path.indexOf('/') >= 0 ? path.slice(0, path.lastIndexOf('/') + 1) : '';
+      list.forEach(function (pat) {
+        var full = self.joinPath(dir, String(pat));
+        var matches = /[*?]/.test(full) ? paths.filter(function (p) { return p !== path && self.globRe(full).test(p); }).sort() : (files[full] !== undefined ? [full] : []);
+        if (!matches.length) throw new Error(path + ': include "' + pat + '" matched no file.');
+        matches.forEach(visit);
+      });
+      stack.pop();
+    };
+    visit(entry);
+    var norm = this.normalize({ asset_types: acc.asset_types, assets: acc.assets, lineage: acc.lineage, layout: { nodes: acc.layout } });
+    norm.loaded = loaded; norm.unused = paths.filter(function (p) { return loaded.indexOf(p) < 0; });
+    return norm;
+  }
+
+  /* ---------- model ---------- */
+  normalize(doc) {
+    if (!doc || typeof doc !== 'object' || Array.isArray(doc)) throw new Error('The YAML root must be a mapping (version, assets, lineage).');
+    var str = function (x) { return x === null || x === undefined ? '' : String(x); };
+    var isObj = function (v) { return v && typeof v === 'object' && !Array.isArray(v); };
+    var list = function (v) { return Array.isArray(v) ? v.map(str) : (v ? str(v).split(',').map(function (s) { return s.trim(); }).filter(Boolean) : []); };
+    var types = (Array.isArray(doc.asset_types) ? doc.asset_types : []).filter(function (t) { return t && t.id; }).map(function (t) {
+      return { id: str(t.id), label: str(t.label || t.id), category: str(t.category || 'Other'), color: /^#[0-9a-fA-F]{6}$/.test(str(t.color)) ? str(t.color) : '#475569' };
+    });
+    var KNOWN = ['id', 'type', 'parent', 'name', 'domain', 'owner', 'source', 'description', 'tags', 'fields', 'columns', 'properties', '__file'];
+    var dsIn = Array.isArray(doc.assets) ? doc.assets : Array.isArray(doc.datasets) ? doc.datasets : [];
+    var seen = {};
+    var datasets = dsIn.map(function (d, i) {
+      var where = d && d.__file ? ' (' + d.__file + ')' : '';
+      if (!d || typeof d !== 'object' || !d.id) throw new Error('assets[' + i + ']' + where + ': "id" is required.');
+      var id = str(d.id);
+      if (seen[id]) throw new Error('Duplicate asset id "' + id + '" in ' + (d.__file || '?') + ' (first defined in ' + seen[id] + ').');
+      seen[id] = d.__file || 'the same file';
+      var props = Object.assign({}, isObj(d.properties) ? d.properties : {});
+      Object.keys(d).forEach(function (k) { if (KNOWN.indexOf(k) < 0) props[k] = d[k]; });
+      var fields = (Array.isArray(d.fields) ? d.fields : Array.isArray(d.columns) ? d.columns : []).map(function (f, j) {
+        if (!f || typeof f !== 'object' || !f.name) throw new Error(id + where + ': fields[' + j + '] needs a "name".');
+        return { name: str(f.name), type: str(f.type || 'STRING'), nullable: f.nullable !== false, pii: f.pii === true, description: str(f.description), expression: str(f.expression), sources: list(f.sources) };
+      });
+      return { id: id, type: str(d.type || 'dataset'), parent: str(d.parent), name: str(d.name || id), domain: str(d.domain), owner: str(d.owner), source: str(d.source), description: str(d.description), tags: list(d.tags), properties: props, fields: fields, file: str(d.__file) };
+    });
+    var lineage = (Array.isArray(doc.lineage) ? doc.lineage : []).map(function (e, i) {
+      if (!e || !e.from || !e.to) throw new Error('lineage[' + i + ']: "from" and "to" are required.');
+      var ep = Object.assign({}, isObj(e.properties) ? e.properties : {});
+      Object.keys(e).forEach(function (k) { if (['from', 'to', 'type', 'process', 'properties'].indexOf(k) < 0) ep[k] = e[k]; });
+      return { from: str(e.from), to: str(e.to), type: str(e.type), process: str(e.process), properties: ep };
+    });
+    var layoutPos = {}, ln = isObj(doc.layout) && isObj(doc.layout.nodes) ? doc.layout.nodes : {};
+    Object.keys(ln).forEach(function (k) {
+      var v = ln[k]; if (!isObj(v)) return;
+      var o = { x: Math.round(Number(v.x) || 0), y: Math.round(Number(v.y) || 0) };
+      if (Number(v.w) > 0 && Number(v.h) > 0) { o.w = Math.round(Number(v.w)); o.h = Math.round(Number(v.h)); }
+      layoutPos[k] = o;
+    });
+    return { types: types, datasets: datasets, lineage: lineage, layout: layoutPos };
+  }
+  applyLoaded(d, sourceName) {
+    var s = this.state, datasets, lineage;
+    var types = s.mode === 'replace' ? this.mergeTypes(this.defaultTypes(), d.types) : this.mergeTypes(s.types, d.types);
+    if (s.mode === 'replace') { datasets = d.datasets; lineage = d.lineage; }
+    else {
+      datasets = s.datasets.slice();
+      d.datasets.forEach(function (n) { var i = datasets.findIndex(function (x) { return x.id === n.id; }); if (i >= 0) datasets[i] = n; else datasets.push(n); });
+      lineage = s.lineage.slice();
+      d.lineage.forEach(function (n) { if (!lineage.some(function (x) { return x.from === n.from && x.to === n.to; })) lineage.push(n); });
+    }
+    var sel = datasets.some(function (x) { return x.id === s.sel; }) ? s.sel : (datasets[0] ? datasets[0].id : null);
+    var files = d.loaded || [];
+    this.setState({ types: types, datasets: datasets, lineage: lineage, sel: sel, linSel: null, linCol: null, importText: '', loaded: files, unused: d.unused || [], sourceName: sourceName,
+      layoutPos: s.mode === 'replace' ? (d.layout || {}) : Object.assign({}, s.layoutPos, d.layout || {}), layout: d.layout && Object.keys(d.layout).length ? 'custom' : (s.layout === 'custom' ? 'dag' : s.layout),
+      msg: 'Loaded ' + d.datasets.length + ' assets, ' + d.lineage.length + ' lineage relations and ' + d.types.length + ' custom types from ' + (files.length || 1) + ' file(s) (' + (s.mode === 'replace' ? 'replaced' : 'merged') + ').', msgKind: 'ok' });
+  }
+
+  renderVals() {
+    var self = this, s = this.state, ds = s.datasets, edges = s.lineage;
+    var set = function (p) { self.setState(p); };
+    var say = function (m, k) { self.setState({ msg: m, msgKind: k || 'ok' }); };
+    var form = function (name, key, chk) { return function (e) { var o = Object.assign({}, self.state[name]); o[key] = chk ? e.target.checked : e.target.value; var p = {}; p[name] = o; self.setState(p); }; };
+    var totalFields = ds.reduce(function (a, d) { return a + d.fields.length; }, 0);
+    var tmap = {}; s.types.forEach(function (t) { tmap[t.id] = t; });
+    var tinfo = function (id) { return tmap[id] || { id: id, label: id || 'dataset', category: 'Other', color: '#475569' }; };
+
+    var tabsDef = [['catalog', 'Data Catalog', ds.length], ['dictionary', 'Data Dictionary', totalFields], ['lineage', 'Data Lineage', edges.length], ['yaml', 'Import / Export', 'YAML']];
+    var tabs = tabsDef.map(function (t) { var on = s.tab === t[0]; return { label: t[1], count: String(t[2]), bg: on ? '#0F766E' : 'transparent', fg: on ? '#FFFFFF' : '#C9D3DD', go: function () { set({ tab: t[0], msg: '' }); } }; });
+    var titles = {
+      catalog: ['Data Catalog', 'Inventory of every data and pipeline asset — tables, views, stored procedures, DAGs, tasks, Vertex pipelines, models, images — with owners and properties.'],
+      dictionary: ['Data Dictionary', 'Column definitions: data type, nullability, PII flag, business meaning, and the expression and source columns behind each value.'],
+      lineage: ['Data Lineage', 'How data flows from source to consumption. Trace any asset or column upstream to its origin and downstream to its impact.'],
+      yaml: ['Import / Export YAML', 'YAML is the only store. Load one file or a .zip project with main.yaml, and export your changes back out.']
+    };
+    var fieldMap = {};
+    ds.forEach(function (d) { d.fields.forEach(function (f) { fieldMap[d.id + '.' + f.name] = { ds: d.id, f: f }; }); });
+    var refDs = function (r) { var i = r.lastIndexOf('.'); return i < 0 ? r : r.slice(0, i); };
+    var byId = {}; ds.forEach(function (d) { byId[d.id] = d; });
+    // column classification (dbt-style): Source / Passthrough / Rename / Transformed
+    var classify = function (f) {
+      var src = f.sources || [];
+      if (!src.length) return 'Source';
+      if (f.expression || src.length > 1) return 'Transformed';
+      return src[0].slice(src[0].lastIndexOf('.') + 1) === f.name ? 'Passthrough' : 'Rename';
+    };
+    var CLS = { Source: ['#EEF1F4', '#3B4856', 'src'], Passthrough: ['#E0F2FE', '#075985', 'pass'], Rename: ['#F3E8FF', '#6B21A8', 'ren'], Transformed: ['#E7F4F2', '#115E59', 'ƒx'] };
+    // description inherited through passthrough / rename columns
+    var inherit = function (ref) {
+      var seen = {}, cur = ref;
+      for (var i = 0; i < 25; i++) {
+        var fm = fieldMap[cur]; if (!fm || seen[cur]) return null; seen[cur] = 1;
+        if (cur !== ref && fm.f.description) return { text: fm.f.description, from: cur };
+        var c = classify(fm.f); if (c !== 'Passthrough' && c !== 'Rename') return null;
+        cur = fm.f.sources[0];
+      }
+      return null;
+    };
+    var allEdges = edges.slice();
+    ds.forEach(function (d) { d.fields.forEach(function (f) { (f.sources || []).forEach(function (src) { var sd = refDs(src); if (sd !== d.id && !allEdges.some(function (e) { return e.from === sd && e.to === d.id; })) allEdges.push({ from: sd, to: d.id, process: '(implied by columns)' }); }); }); });
+    var countUp = function (id) { return allEdges.filter(function (e) { return e.to === id; }).length; };
+    var countDown = function (id) { return allEdges.filter(function (e) { return e.from === id; }).length; };
+
+    // catalog
+    var q = s.q.trim().toLowerCase();
+    var filtered = ds.filter(function (d) { return (!s.tf || d.type === s.tf) && (!q || [d.id, d.name, d.type, tinfo(d.type).label, d.parent, d.domain, d.owner, d.description, d.tags.join(' '), JSON.stringify(d.properties || {})].join(' ').toLowerCase().indexOf(q) >= 0); });
+    var cards = filtered.map(function (d) {
+      return {
+        id: d.id, name: d.name, domain: d.domain || '—', owner: d.owner || '—', source: d.source || '—', description: d.description || 'No description yet.',
+        typeLabel: tinfo(d.type).label, tcolor: tinfo(d.type).color, parent: d.parent || '—', file: d.file || 'added in this session',
+        props: Object.keys(d.properties || {}).slice(0, 8).map(function (k) { var v = d.properties[k]; return { k: k, v: v !== null && typeof v === 'object' ? JSON.stringify(v) : String(v) }; }),
+        fieldCount: d.fields.length + ' columns', linkCount: countUp(d.id) + ' upstream, ' + countDown(d.id) + ' downstream',
+        tagList: d.tags.map(function (t) { return { t: t }; }),
+        toDict: function () { set({ tab: 'dictionary', sel: d.id, msg: '' }); },
+        toLin: function () { set({ tab: 'lineage', linSel: d.id, linCol: null, msg: '' }); },
+        del: function () {
+          var rest = self.state.datasets.filter(function (x) { return x.id !== d.id; });
+          set({ datasets: rest, lineage: self.state.lineage.filter(function (e) { return e.from !== d.id && e.to !== d.id; }), sel: self.state.sel === d.id ? (rest[0] ? rest[0].id : null) : self.state.sel, linSel: null, linCol: null, msg: 'Deleted ' + d.id + ' and its lineage relations. Export to keep this change.', msgKind: 'ok' });
+        }
+      };
+    });
+    var dsF = {};
+    ['id', 'type', 'parent', 'name', 'domain', 'owner', 'source', 'tags', 'description', 'properties'].forEach(function (k) { dsF[k] = form('dsForm', k); });
+    var addDataset = function () {
+      var f = self.state.dsForm, id = f.id.trim();
+      if (!id) return say('Asset id is required.', 'err');
+      if (self.state.datasets.some(function (x) { return x.id === id; })) return say('Id ' + id + ' is already in use.', 'err');
+      var props = {};
+      if (f.properties.trim()) {
+        try { props = self.yParse(f.properties); } catch (e) { return say('Invalid properties: ' + e.message, 'err'); }
+        if (!props || typeof props !== 'object' || Array.isArray(props)) return say('Properties must be "key: value" pairs.', 'err');
+      }
+      var d = { id: id, type: f.type || 'dataset', parent: f.parent.trim(), name: f.name.trim() || id, domain: f.domain.trim(), owner: f.owner.trim(), source: f.source.trim(), description: f.description.trim(), tags: f.tags.split(',').map(function (t) { return t.trim(); }).filter(Boolean), properties: props, fields: [], file: '' };
+      set({ datasets: self.state.datasets.concat([d]), dsForm: self.emptyDs(), sel: id, msg: 'Added ' + id + '. Add its columns in the Data Dictionary, then export to keep it.', msgKind: 'ok' });
+    };
+
+    // dictionary
+    var cur = ds.find(function (d) { return d.id === s.sel; }) || ds[0] || null;
+    var fq = s.fq.trim().toLowerCase();
+    var fieldRows = cur ? cur.fields.filter(function (f) { return !fq || [f.name, f.type, f.description, f.expression].join(' ').toLowerCase().indexOf(fq) >= 0; }).map(function (f) {
+      var cl = classify(f), inh = !f.description ? inherit(cur.id + '.' + f.name) : null;
+      return { name: f.name, type: f.type, cls: cl, clsBg: CLS[cl][0], clsFg: CLS[cl][1], description: f.description || (inh ? inh.text : '—'), hasInh: !!inh, inhNote: inh ? 'inherited from ' + inh.from : '', nullText: f.nullable ? 'Yes' : 'No', piiText: f.pii ? 'PII' : 'No', piiBg: f.pii ? '#FFEDD5' : '#EEF1F4', piiFg: f.pii ? '#9A3412' : '#4A5765',
+        hasExpr: !!f.expression, expr: f.expression || '', srcText: (f.sources || []).length ? '← ' + f.sources.join(', ') : 'source column',
+        trace: function () { set({ tab: 'lineage', linCol: cur.id + '.' + f.name, linSel: cur.id, focusOnly: false, msg: '' }); },
+        del: function () { self.updateFields(cur.id, function (fs) { return fs.filter(function (x) { return x.name !== f.name; }); }); } };
+    }) : [];
+    var addField = function () {
+      var f = self.state.fieldForm, n = f.name.trim();
+      if (!cur) return;
+      if (!n) return say('Column name is required.', 'err');
+      if (cur.fields.some(function (x) { return x.name === n; })) return say('Column ' + n + ' already exists in ' + cur.id + '.', 'err');
+      var srcs = f.sources.split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+      self.updateFields(cur.id, function (fs) { return fs.concat([{ name: n, type: f.type.trim() || 'STRING', nullable: f.nullable, pii: f.pii, description: f.description.trim(), expression: f.expression.trim(), sources: srcs }]); });
+      set({ fieldForm: self.emptyField(), msg: 'Added column ' + n + ' to ' + cur.id + '.', msgKind: 'ok' });
+    };
+
+    // lineage
+    var walk = function (start, dir) {
+      var out = [], stack = [start];
+      while (stack.length) { var x = stack.pop(); allEdges.forEach(function (e) { var a = dir === 'up' ? e.to : e.from, b = dir === 'up' ? e.from : e.to; if (a === x && out.indexOf(b) < 0 && b !== start) { out.push(b); stack.push(b); } }); }
+      return out;
+    };
+    var relOf = function (e) { return e.type || (e.process === '(implied by columns)' ? 'derived' : 'unspecified'); };
+    var gEdges = allEdges.filter(function (e) { return !s.fRel || relOf(e) === s.fRel; });
+    var idSet = {}, ids = [];
+    var addId = function (x) { if (!idSet[x]) { idSet[x] = 1; ids.push(x); } };
+    ds.forEach(function (d) { addId(d.id); });
+    allEdges.forEach(function (e) { addId(e.from); addId(e.to); });
+    var upMap = {}, downMap = {};
+    gEdges.forEach(function (e) { (upMap[e.to] = upMap[e.to] || []).push(e.from); (downMap[e.from] = downMap[e.from] || []).push(e.to); });
+    var memo = {};
+    var depth = function (id, seen) {
+      if (memo[id] !== undefined) return memo[id];
+      if (seen[id]) return 0;
+      seen[id] = 1;
+      var u = upMap[id] || [];
+      var dd = u.length ? 1 + Math.max.apply(null, u.map(function (x) { return depth(x, seen); })) : 0;
+      seen[id] = 0; memo[id] = dd; return dd;
+    };
+    var bfs = function (start, map) {
+      var dist = {}, queue = [start]; dist[start] = 0;
+      while (queue.length) { var x = queue.shift(); (map[x] || []).forEach(function (y) { if (dist[y] === undefined) { dist[y] = dist[x] + 1; queue.push(y); } }); }
+      delete dist[start]; return dist;
+    };
+    var consMap = {}, srcMap = {};
+    Object.keys(fieldMap).forEach(function (k) { srcMap[k] = fieldMap[k].f.sources || []; srcMap[k].forEach(function (r) { (consMap[r] = consMap[r] || []).push(k); }); });
+    var lc = s.linCol && fieldMap[s.linCol] ? s.linCol : null;
+    var colUpDist = lc ? bfs(lc, srcMap) : {}, colDownDist = lc ? bfs(lc, consMap) : {};
+    var colUp = Object.keys(colUpDist), colDown = Object.keys(colDownDist);
+    var ls = lc ? refDs(lc) : (s.linSel && idSet[s.linSel] ? s.linSel : null);
+    var upDist = {}, downDist = {};
+    if (lc) {
+      colUp.forEach(function (r) { var d0 = refDs(r); if (d0 !== ls && (upDist[d0] === undefined || colUpDist[r] < upDist[d0])) upDist[d0] = colUpDist[r]; });
+      colDown.forEach(function (r) { var d0 = refDs(r); if (d0 !== ls && (downDist[d0] === undefined || colDownDist[r] < downDist[d0])) downDist[d0] = colDownDist[r]; });
+    } else if (ls) { upDist = bfs(ls, upMap); downDist = bfs(ls, downMap); }
+    var ups = Object.keys(upDist), downs = Object.keys(downDist);
+    var kindOf = function (id) { return !ls ? 'all' : id === ls ? 'sel' : upDist[id] !== undefined ? 'up' : downDist[id] !== undefined ? 'down' : 'other'; };
+    var infoOf = function (id) { var d = byId[id]; return d ? { type: d.type, domain: d.domain } : { type: 'external', domain: '' }; };
+    var matchF = function (id) { var i = infoOf(id); return (!s.fType || i.type === s.fType) && (!s.fDomain || i.domain === s.fDomain); };
+    var filtering = !!(s.fType || s.fDomain);
+    var lq = s.lq.trim().toLowerCase();
+    var isDag = s.layout === 'dag';
+
+    // which assets are inside the depth window around the selection ("Related only")
+    var vis = {};
+    if (ls && s.focusOnly) {
+      vis[ls] = 1;
+      ups.forEach(function (id) { if (lc || upDist[id] <= s.depthUp) vis[id] = 1; });
+      downs.forEach(function (id) { if (lc || downDist[id] <= s.depthDown) vis[id] = 1; });
+    } else ids.forEach(function (id) { vis[id] = 1; });
+    if (s.layout === 'flat') {
+      for (var pass = 0; pass < 6; pass++) {
+        var grew = false;
+        Object.keys(s.expUp).forEach(function (id) { if (vis[id]) (upMap[id] || []).forEach(function (x) { if (!vis[x]) { vis[x] = 1; grew = true; } }); });
+        Object.keys(s.expDown).forEach(function (id) { if (vis[id]) (downMap[id] || []).forEach(function (x) { if (!vis[x]) { vis[x] = 1; grew = true; } }); });
+        if (!grew) break;
+      }
+    }
+    var showable = function (id) {
+      if (id === ls) return true;
+      if (!vis[id]) return false;
+      if (filtering && s.fMode === 'hide' && !matchF(id)) return false;
+      return true;
+    };
+
+    // colours
+    var domains = []; ds.forEach(function (d) { if (d.domain && domains.indexOf(d.domain) < 0) domains.push(d.domain); }); domains.sort();
+    var DPAL = ['#0F766E', '#1D4ED8', '#C2410C', '#7E22CE', '#A16207', '#BE123C', '#0E7490', '#4D7C0F', '#9333EA', '#475569'];
+    var domColor = function (dm) { var i = domains.indexOf(dm); return i < 0 ? '#94A3B8' : DPAL[i % DPAL.length]; };
+    var dotColor = function (id) { var d = byId[id]; if (!d) return '#94A3B8'; return s.colorBy === 'domain' ? domColor(d.domain) : tinfo(d.type).color; };
+    var pal = { all: ['#FFFFFF', '#15202B', '#C5CED8', 1], sel: ['#0F766E', '#FFFFFF', '#0F766E', 1], up: ['#DBEAFE', '#1E3A8A', '#1D4ED8', 1], down: ['#FFEDD5', '#7C2D12', '#C2410C', 1], other: ['#FFFFFF', '#15202B', '#DCE3EA', 0.4] };
+
+    var NW = 240, HEAD = 58, ROW = 26, PAD = 48;
+    var nodes = [], boxes = [], exps = [], mores = [], paths = [], inst = {}, firstPos = {}, allKeys = [];
+    var baseW = 400, baseH = 200;
+
+    var selectAsset = function (id) {
+      var st = self.state;
+      if (st.connect) {
+        if (!st.connectFrom) { set({ connectFrom: id, msg: 'Connect mode: ' + id + ' is the source. Now click the target asset.', msgKind: 'ok' }); return; }
+        if (st.connectFrom === id) { set({ connectFrom: null, msg: 'Connect mode: source cleared.', msgKind: 'ok' }); return; }
+        addRel(st.connectFrom, id, st.edgeForm.type.trim() || 'depends_on', st.edgeForm.process.trim()); return;
+      }
+      set({ linSel: st.linSel === id && !st.linCol ? null : id, linCol: null, selEdge: null });
+    };
+    var addRel = function (from, to, type, process) {
+      if (from === to) return say('Source and target must differ.', 'err');
+      if (self.state.lineage.some(function (e) { return e.from === from && e.to === to; })) return say('That relation already exists.', 'err');
+      if (walk(from, 'up').indexOf(to) >= 0) return say('This would create a cycle (' + to + ' is already upstream of ' + from + ').', 'err');
+      set({ lineage: self.state.lineage.concat([{ from: from, to: to, type: type, process: process, properties: {} }]), connectFrom: null, linSel: to, linCol: null, msg: 'Added relation ' + from + ' → ' + to + (type ? ' (' + type + ')' : '') + '. Export to keep it.', msgKind: 'ok' });
+    };
+
+    // one asset card (leaf), placed at x,y inside block `bk`
+    var placeNode = function (bk, id, x, y) {
+      var d = byId[id], fields = d ? d.fields : [];
+      var showC = s.showCols && fields.length > 0;
+      var h = 4 + HEAD + (showC ? 9 + fields.length * ROW : 0);
+      var rows = {}, k = kindOf(id), p = pal[k];
+      var hit = lq && (id + ' ' + (d ? d.name : '')).toLowerCase().indexOf(lq) >= 0;
+      var cols = fields.map(function (f, i) {
+        var ref = id + '.' + f.name, cl = classify(f);
+        rows[f.name] = y + 2 + HEAD + 5 + i * ROW + ROW / 2;
+        var ck = !lc ? 'none' : ref === lc ? 'sel' : colUpDist[ref] !== undefined ? 'up' : colDownDist[ref] !== undefined ? 'down' : 'dim';
+        var chit = lq && (ref + ' ' + (f.expression || '') + ' ' + f.description).toLowerCase().indexOf(lq) >= 0;
+        var cp = { none: [chit ? '#FEF08A' : 'transparent', '#15202B', 400], sel: ['#0F766E', '#FFFFFF', 600], up: ['#DBEAFE', '#1E3A8A', 500], down: ['#FFEDD5', '#7C2D12', 500], dim: [chit ? '#FEF08A' : 'transparent', '#6B7785', 400] }[ck];
+        return { name: f.name, badge: cl === 'Source' ? f.type : CLS[cl][2], title: ref + ' · ' + cl + (f.expression ? ' = ' + f.expression : ''), bg: cp[0], fg: cp[1], fw: cp[2],
+          pick: function () { set({ linCol: self.state.linCol === ref ? null : ref, linSel: id, selEdge: null }); } };
+      });
+      var op = p[3]; if (filtering && s.fMode === 'highlight' && !matchF(id) && id !== ls) op = 0.25;
+      var isFrom = s.connect && s.connectFrom === id;
+      nodes.push({ id: id, name: d ? d.name : 'not in catalog', typeLabel: d ? tinfo(d.type).label : 'External', tcolor: dotColor(id), x: x, y: y, h: h, bg: p[0], fg: p[1], bd: isFrom || hit ? '#CA8A04' : p[2], op: op, showCols: showC, cols: cols,
+        pick: function () { selectAsset(id); } });
+      (inst[bk] = inst[bk] || {})[id] = { key: bk + '|' + id, x: x, y: y, w: NW, ay: y + 31, showC: showC, rows: rows };
+      if (!firstPos[id]) firstPos[id] = { x: x, y: y };
+      return h;
+    };
+
+    if (isDag) {
+      // ---------- DAG view: nested, collapsible containers ----------
+      var LANES = [['config', 'Variables & connections'], ['source', 'Sources & storage'], ['airflow', 'Airflow task groups & tasks'], ['bigquery', 'BigQuery'], ['ml', 'ML & artifacts']];
+      var laneOf = function (type) {
+        if (type === 'airflow.variable' || type === 'airflow.connection') return 'config';
+        var c = tinfo(type).category;
+        if (c === 'Airflow') return 'airflow';
+        if (c === 'BigQuery') return 'bigquery';
+        if (c === 'Vertex AI' || c === 'Artifact Registry') return 'ml';
+        return 'source';
+      };
+      var dagMemo = {};
+      var dagOf = function (id) {
+        if (dagMemo[id] !== undefined) return dagMemo[id];
+        var cur = byId[id], g = 0, res = null;
+        while (cur && g++ < 30) { if (cur.type === 'airflow.dag') { res = cur.id; break; } cur = cur.parent ? byId[cur.parent] : null; }
+        dagMemo[id] = res; return res;
+      };
+      var nbr = {};
+      // DAG membership follows declared relations only (column-implied links would pull in every upstream table)
+      allEdges.forEach(function (e) { if (e.process === '(implied by columns)') return; (nbr[e.from] = nbr[e.from] || []).push(e.to); (nbr[e.to] = nbr[e.to] || []).push(e.from); });
+      var blocks = ds.filter(function (d) { return d.type === 'airflow.dag'; }).map(function (dg) {
+        var mem = {}, queue = [];
+        ds.forEach(function (d) { if (dagOf(d.id) === dg.id) { mem[d.id] = 1; queue.push(d.id); } });
+        while (queue.length) {
+          var x = queue.shift();
+          (nbr[x] || []).forEach(function (y) { if (mem[y]) return; var od = dagOf(y); if (od && od !== dg.id) return; mem[y] = 1; queue.push(y); });
+        }
+        return { id: dg.id, dag: dg, members: mem };
+      });
+      var assigned = {}, hasChild = {};
+      blocks.forEach(function (b) { Object.keys(b.members).forEach(function (k) { assigned[k] = 1; }); });
+      ds.forEach(function (d) { if (d.parent) hasChild[d.parent] = 1; });
+      var rest = {}, restN = 0;
+      ids.forEach(function (x) { if (!assigned[x] && !(hasChild[x] && !nbr[x])) { rest[x] = 1; restN++; } });
+      if (restN) blocks.push({ id: '__none', dag: null, members: rest });
+
+      var buildLane = function (blk, lane) {
+        var tn = {}, isChild = {}, order = [];
+        var get = function (id) { if (!tn[id]) { tn[id] = { id: id, children: [], member: false }; order.push(id); } return tn[id]; };
+        Object.keys(blk.members).forEach(function (id) {
+          if (id === blk.id || laneOf(infoOf(id).type) !== lane) return;
+          get(id).member = true;
+          var cur = id, g = 0;
+          while (g++ < 1) { // one container level (task group, dataset, bucket, repository, pipeline) keeps lines running sideways
+            var d = byId[cur]; if (!d || !d.parent || d.parent === blk.id) break;
+            var p = byId[d.parent]; if (!p || laneOf(p.type) !== lane) break;
+            var pn = get(p.id); if (pn.children.indexOf(cur) < 0) pn.children.push(cur);
+            isChild[cur] = 1; cur = p.id;
+          }
+        });
+        var sortIds = function (a, b) { return (depth(a, {}) - depth(b, {})) || (a < b ? -1 : a > b ? 1 : 0); };
+        var toTree = function (id) { var n = tn[id]; return { id: id, member: n.member, children: n.children.slice().sort(sortIds).map(toTree) }; };
+        var roots = order.filter(function (id) { return !isChild[id]; }).sort(sortIds).map(toTree);
+        var collectKeys = function (n) { if (n.children.length) { allKeys.push(blk.id + '|' + n.id); n.children.forEach(collectKeys); } };
+        roots.forEach(collectKeys);
+        return roots;
+      };
+      var prune = function (n) {
+        var kids = n.children.map(prune).filter(Boolean);
+        if (!kids.length && !(n.member && showable(n.id))) return null;
+        if (!kids.length && n.children.length && !(n.member && showable(n.id))) return null;
+        return { id: n.id, member: n.member, children: kids, wasContainer: n.children.length > 0 };
+      };
+      // Horizontal bands (one per lane) inside each DAG; within a band every asset sits in the
+      // column of its lineage depth, so lines run sideways (left -> right).
+      var PADC = 12, HH = 36, GXD = 120, RG = 14;
+      var boxStyle = function (id, lvl) {
+        var k = kindOf(id), hit = lq && (id + ' ' + (byId[id] ? byId[id].name : '')).toLowerCase().indexOf(lq) >= 0;
+        var bd = k === 'sel' ? '#0F766E' : k === 'up' ? '#1D4ED8' : k === 'down' ? '#C2410C' : hit ? '#CA8A04' : '#B8C2CC';
+        var bg = k === 'sel' ? '#E7F4F2' : k === 'up' ? '#EFF6FF' : k === 'down' ? '#FFF7ED' : (lvl % 2 ? '#F6F8FA' : '#FFFFFF');
+        return { bd: bd, bg: bg, bw: k === 'all' || k === 'other' ? 1 : 2 };
+      };
+      var regHidden = function (bk, n, anchor) { (inst[bk] = inst[bk] || {})[n.id] = anchor; n.children.forEach(function (c) { regHidden(bk, c, anchor); }); };
+      var nodeH = function (id) { var d = byId[id], nf = d ? d.fields.length : 0; return 4 + HEAD + (s.showCols && nf ? 9 + nf * ROW : 0); };
+      var pack = function (items) {
+        var rows = [];
+        items.slice().sort(function (a, b) { return a.x0 - b.x0; }).forEach(function (it) {
+          var r = null;
+          for (var i = 0; i < rows.length; i++) { if (rows[i].end + 24 <= it.x0) { r = rows[i]; break; } }
+          if (!r) { r = { end: -1e9, h: 0, items: [] }; rows.push(r); }
+          r.items.push(it); r.end = it.x1; r.h = Math.max(r.h, it.h);
+        });
+        return rows;
+      };
+      var by = PAD;
+      blocks.forEach(function (blk) {
+        var bkey = blk.id + '|' + blk.id; allKeys.push(bkey);
+        var lanes = LANES.map(function (L) { return { L: L, roots: buildLane(blk, L[0]).map(prune).filter(Boolean) }; }).filter(function (l) { return l.roots.length; });
+        var dagShow = blk.dag ? showable(blk.id) : false;
+        if (!lanes.length && !dagShow) return;
+        var closed = !!s.collapsed[bkey], dg = blk.dag;
+        var st = dg ? boxStyle(dg.id, 0) : { bd: '#B8C2CC', bg: '#F6F8FA', bw: 1 };
+        var props = dg ? dg.properties || {} : {};
+        var nTasks = Object.keys(blk.members).filter(function (m) { return byId[m] && byId[m].type === 'airflow.task'; }).length;
+        var b = { x: PAD, y: by, w: 600, h: 52, hh: 52, fs: 15, title: dg ? dg.name + '  (' + dg.id + ')' : 'Not in any DAG', sub: dg ? 'Airflow DAG' + (props.schedule ? ' · schedule ' + props.schedule : '') + ' · ' + nTasks + ' tasks · ' + (Object.keys(blk.members).length - 1) + ' assets' : restN + ' assets with no DAG',
+          bg: st.bg === '#F6F8FA' ? '#FFFFFF' : st.bg, bd: dg ? (st.bd === '#B8C2CC' ? '#8996A3' : st.bd) : '#B8C2CC', bw: 2, bs: dg ? 'solid' : 'dashed', op: 1, dot: dg ? dotColor(dg.id) : '#94A3B8', canToggle: true, open: !closed, chev: closed ? '▸' : '▾',
+          toggleLabel: (closed ? 'Open ' : 'Close ') + (dg ? dg.id : 'unassigned assets'), toggle: function () { var c = Object.assign({}, self.state.collapsed); if (c[bkey]) delete c[bkey]; else c[bkey] = 1; set({ collapsed: c }); },
+          pick: function () { if (dg) selectAsset(dg.id); }, hasPick: !!dg };
+        boxes.push(b);
+        if (dg) { (inst[blk.id] = inst[blk.id] || {})[dg.id] = { key: bkey, x: PAD, y: by, w: 600, ay: by + 26, showC: false, rows: {} }; if (!firstPos[dg.id]) firstPos[dg.id] = { x: PAD, y: by }; }
+        if (closed) { by += 52 + 32; baseW = Math.max(baseW, PAD + 600 + PAD); return; }
+
+        // lineage depth of each member, counted only inside this DAG
+        var mem = blk.members, cd = {};
+        var colOf = function (id, seen) {
+          if (cd[id] !== undefined) return cd[id];
+          if (seen[id]) return 0;
+          seen[id] = 1;
+          var u = (upMap[id] || []).filter(function (x) { return mem[x] && x !== blk.id; });
+          var v = u.length ? 1 + Math.max.apply(null, u.map(function (x) { return colOf(x, seen); })) : 0;
+          seen[id] = 0; cd[id] = v; return v;
+        };
+        // sources with no upstream inside the DAG sit right before their first consumer
+        var hasCfg = Object.keys(mem).some(function (x) { return laneOf(infoOf(x).type) === 'config'; });
+        var colF = function (id) {
+          if (laneOf(infoOf(id).type) === 'config') return -1; // variables & connections: first column, left of everything they configure
+          var u = (upMap[id] || []).filter(function (x) { return mem[x] && x !== blk.id; });
+          if (u.length) return colOf(id, {});
+          var dn = (downMap[id] || []).filter(function (x) { return mem[x] && x !== blk.id; });
+          return dn.length ? Math.max(0, Math.min.apply(null, dn.map(function (x) { return colOf(x, {}); })) - 1) : 0;
+        };
+        var x0b = PAD + 16 + 2 * PADC;
+        var colX = function (c) { return x0b + (c + (hasCfg ? 1 : 0)) * (NW + GXD); };
+        var measure = function (n) {
+          var key = blk.id + '|' + n.id;
+          if (!n.children.length && !n.wasContainer) { var lx = colX(colF(n.id)); return { n: n, leaf: true, key: key, x0: lx, x1: lx + NW, h: nodeH(n.id) }; }
+          var kids = n.children.map(measure), isClosed = !!s.collapsed[key];
+          var own = n.member && (upMap[n.id] || downMap[n.id]) ? colX(colF(n.id)) : null;
+          var xs0 = kids.map(function (k) { return k.x0; }), xs1 = kids.map(function (k) { return k.x1; });
+          if (!kids.length) { var ox = own !== null ? own : colX(colF(n.id)); xs0.push(ox); xs1.push(ox + NW); }
+          var x0 = Math.min.apply(null, xs0) - PADC, x1 = Math.max.apply(null, xs1) + PADC;
+          if (x1 - x0 < NW + 2 * PADC) x1 = x0 + NW + 2 * PADC;
+          var rows = isClosed ? [] : pack(kids);
+          var h = isClosed ? HH : HH + 4 + rows.reduce(function (a, r) { return a + r.h + RG; }, 0) - (rows.length ? RG : 0) + PADC;
+          return { n: n, leaf: false, key: key, closed: isClosed, kids: kids, rows: rows, x0: x0, x1: x1, h: h };
+        };
+        var render = function (m, y, lvl) {
+          if (m.leaf) { placeNode(blk.id, m.n.id, m.x0, y); return; }
+          var n = m.n, d = byId[n.id], sty = boxStyle(n.id, lvl), cnt = 0;
+          var countLeaves = function (q) { if (!q.children.length) cnt++; q.children.forEach(countLeaves); };
+          n.children.forEach(countLeaves);
+          var key = m.key, bx = { x: m.x0, y: y, w: m.x1 - m.x0, h: m.h, hh: HH, fs: 12, title: d ? d.name : n.id, sub: (d ? tinfo(d.type).label : 'Group') + ' · ' + cnt + ' inside', bg: sty.bg, bd: sty.bd, bw: sty.bw, bs: 'solid', op: 1, dot: dotColor(n.id), canToggle: true, open: !m.closed, chev: m.closed ? '▸' : '▾',
+            toggleLabel: (m.closed ? 'Open ' : 'Close ') + n.id, toggle: function () { var c = Object.assign({}, self.state.collapsed); if (c[key]) delete c[key]; else c[key] = 1; set({ collapsed: c }); }, pick: function () { selectAsset(n.id); }, hasPick: true };
+          boxes.push(bx);
+          var anchor = { key: key, x: m.x0, y: y, w: bx.w, ay: y + HH / 2, showC: false, rows: {} };
+          (inst[blk.id] = inst[blk.id] || {})[n.id] = anchor;
+          if (!firstPos[n.id]) firstPos[n.id] = { x: m.x0, y: y };
+          if (m.closed) { n.children.forEach(function (c) { regHidden(blk.id, c, anchor); }); return; }
+          var ry = y + HH + 4;
+          m.rows.forEach(function (r) { r.items.forEach(function (it) { render(it, ry, lvl + 1); }); ry += r.h + RG; });
+        };
+        // one plane per DAG: everything ordered by lineage depth, packed into rows
+        var cy = by + 64, maxX = PAD + 600, all = [];
+        lanes.forEach(function (l, li) { l.roots.forEach(function (r) { var m = measure(r); m.lane = li; all.push(m); }); });
+        all.sort(function (a, c) { return (a.x0 - c.x0) || (a.lane - c.lane); });
+        var rowsAll = [];
+        all.forEach(function (it) {
+          var r = null;
+          for (var i = 0; i < rowsAll.length; i++) { if (rowsAll[i].end + 24 <= it.x0) { r = rowsAll[i]; break; } }
+          if (!r) { r = { end: -1e9, h: 0, items: [] }; rowsAll.push(r); }
+          r.items.push(it); r.end = it.x1; r.h = Math.max(r.h, it.h);
+        });
+        rowsAll.forEach(function (r) { r.items.forEach(function (it) { render(it, cy, 1); }); cy += r.h + RG + 6; });
+        all.forEach(function (m) { maxX = Math.max(maxX, m.x1); });
+        cy += 6;
+        b.w = maxX + 26 - PAD;
+        if (inst[blk.id] && dg) inst[blk.id][dg.id].w = b.w;
+        b.h = cy - by + 2;
+        by += b.h + 32;
+        baseW = Math.max(baseW, PAD + b.w + PAD);
+      });
+      baseH = Math.max(by + PAD - 32, 200);
+    } else if (s.layout === 'custom') {
+      // ---------- Editor layout: positions and container sizes saved by the Diagram Editor (layout.yaml) ----------
+      var LP = s.layoutPos, HHc = 36;
+      var isContC = function (id) { var p = LP[id]; return !!(p && p.w && p.h); };
+      var chainOf = function (id) { var out = [], cur = byId[id], g = 0; while (cur && cur.parent && g++ < 30) { out.push(cur.parent); cur = byId[cur.parent]; } return out; };
+      var hiddenBy = function (id) { var ch = chainOf(id); for (var i = ch.length - 1; i >= 0; i--) { if (s.collapsed['custom|' + ch[i]] && isContC(ch[i])) return ch[i]; } return null; };
+      inst.custom = {};
+      var conts = ds.filter(function (d) { return isContC(d.id); }).sort(function (a, b) { return chainOf(a.id).length - chainOf(b.id).length; });
+      var maxX = 400, maxY = 120;
+      conts.forEach(function (c) {
+        var key = 'custom|' + c.id; allKeys.push(key);
+        if (hiddenBy(c.id)) return;
+        var p = LP[c.id], closed = !!s.collapsed[key], k = kindOf(c.id), lvl = chainOf(c.id).length;
+        var hit = lq && (c.id + ' ' + c.name).toLowerCase().indexOf(lq) >= 0;
+        var bd = k === 'sel' ? '#0F766E' : k === 'up' ? '#1D4ED8' : k === 'down' ? '#C2410C' : hit ? '#CA8A04' : (c.type === 'airflow.dag' ? '#8996A3' : '#B8C2CC');
+        var bg = k === 'sel' ? '#E7F4F2' : k === 'up' ? '#EFF6FF' : k === 'down' ? '#FFF7ED' : (lvl % 2 ? '#F6F8FA' : '#FFFFFF');
+        boxes.push({ x: p.x, y: p.y, w: p.w, h: closed ? HHc : p.h, hh: HHc, fs: c.type === 'airflow.dag' ? 14 : 12, title: c.name, sub: tinfo(c.type).label + ' · ' + c.id, bg: bg, bd: bd, bw: k === 'all' || k === 'other' ? (c.type === 'airflow.dag' ? 2 : 1) : 2, bs: 'solid', op: 1, dot: dotColor(c.id), canToggle: true, open: !closed, chev: closed ? '▸' : '▾',
+          toggleLabel: (closed ? 'Open ' : 'Close ') + c.id, toggle: function () { var cc = Object.assign({}, self.state.collapsed); if (cc[key]) delete cc[key]; else cc[key] = 1; set({ collapsed: cc }); }, pick: function () { selectAsset(c.id); }, hasPick: true });
+        inst.custom[c.id] = { key: key, x: p.x, y: p.y, w: p.w, ay: p.y + HHc / 2, showC: false, rows: {} };
+        if (!firstPos[c.id]) firstPos[c.id] = { x: p.x, y: p.y };
+        maxX = Math.max(maxX, p.x + p.w); maxY = Math.max(maxY, p.y + (closed ? HHc : p.h));
+      });
+      var unplaced = [];
+      ids.forEach(function (id) {
+        if (isContC(id)) return;
+        var hb = hiddenBy(id);
+        if (hb) return;
+        if (!showable(id)) return;
+        var p = LP[id]; if (!p) { unplaced.push(id); return; }
+        var h = placeNode('custom', id, p.x, p.y); maxX = Math.max(maxX, p.x + NW); maxY = Math.max(maxY, p.y + h);
+      });
+      ids.forEach(function (id) { var hb = hiddenBy(id); if (hb && inst.custom[hb]) inst.custom[id] = inst.custom[hb]; });
+      if (unplaced.length) {
+        var uy = maxY + 60;
+        boxes.push({ x: PAD, y: uy, w: 6 * (NW + 40), h: 24, hh: 24, fs: 11, title: 'NOT PLACED IN THE DIAGRAM EDITOR YET (' + unplaced.length + ')', sub: '', bg: 'transparent', bd: 'transparent', bw: 0, bs: 'solid', op: 1, dot: 'transparent', canToggle: false, open: true, chev: '', toggleLabel: '', toggle: function () {}, pick: function () {}, hasPick: false, lane: true });
+        unplaced.forEach(function (id, i) { var hh = placeNode('custom', id, PAD + (i % 6) * (NW + 40), uy + 32 + Math.floor(i / 6) * 120); maxY = Math.max(maxY, uy + 32 + Math.floor(i / 6) * 120 + hh); });
+        maxX = Math.max(maxX, PAD + 6 * (NW + 40));
+      }
+      baseW = maxX + PAD; baseH = maxY + PAD;
+    } else {
+      // ---------- Flat graph: layered left to right ----------
+      var GX = 130, GY = 28, MOREH = 36;
+      var visible = ids.filter(function (id) { if (!showable(id)) return false; if (id !== ls && s.hideIso && !(upMap[id] || downMap[id])) return false; return true; });
+      var visSet = {}; visible.forEach(function (id) { visSet[id] = 1; });
+      var lvOf = {}; visible.forEach(function (id) { lvOf[id] = depth(id, {}); });
+      var usedLv = []; visible.forEach(function (id) { if (usedLv.indexOf(lvOf[id]) < 0) usedLv.push(lvOf[id]); });
+      usedLv.sort(function (a, b) { return a - b; });
+      var rank = { sel: 0, up: 1, down: 1, all: 2, other: 3 };
+      var colY = usedLv.map(function () { return PAD; });
+      usedLv.forEach(function (lv, li) {
+        var list = visible.filter(function (id) { return lvOf[id] === lv; }).sort(function (a, b) { return (rank[kindOf(a)] - rank[kindOf(b)]) || (a < b ? -1 : a > b ? 1 : 0); });
+        var limit = s.layerLimit + (s.layerMore[lv] || 0), x = PAD + li * (NW + GX);
+        list.slice(0, limit).forEach(function (id) {
+          var y = colY[li], h = placeNode('flat', id, x, y);
+          colY[li] += h + GY; baseH = Math.max(baseH, colY[li]);
+          var hu = (upMap[id] || []).filter(function (x2) { return !visSet[x2]; }).length, hd = (downMap[id] || []).filter(function (x2) { return !visSet[x2]; }).length;
+          if (hu) exps.push({ x: x - 44, y: y + 17, label: '+' + hu, title: 'Show ' + hu + ' hidden upstream of ' + id, pick: function () { var m = Object.assign({}, self.state.expUp); m[id] = 1; set({ expUp: m }); } });
+          if (hd) exps.push({ x: x + NW + 8, y: y + 17, label: '+' + hd, title: 'Show ' + hd + ' hidden downstream of ' + id, pick: function () { var m = Object.assign({}, self.state.expDown); m[id] = 1; set({ expDown: m }); } });
+        });
+        if (list.length > limit) {
+          var hiddenN = list.length - limit;
+          mores.push({ x: x, y: colY[li], label: '+ ' + Math.min(hiddenN, 20) + ' more (' + hiddenN + ' hidden in this layer)', pick: function () { var m = Object.assign({}, self.state.layerMore); m[lv] = (m[lv] || 0) + 20; set({ layerMore: m }); } });
+          colY[li] += MOREH + GY; baseH = Math.max(baseH, colY[li]);
+        }
+      });
+      baseW = usedLv.length ? PAD * 2 + usedLv.length * NW + (usedLv.length - 1) * GX : 400;
+      baseH = Math.max(baseH + PAD - GY, 200);
+    }
+
+    // ---------- lines ----------
+    var se = s.selEdge;
+    var addPath = function (d, hx, hy, dir, color, w, op, pick) {
+      paths.push({ d: d, head: 'M' + hx + ' ' + hy + ' L' + (hx - 10 * dir) + ' ' + (hy - 5) + ' L' + (hx - 10 * dir) + ' ' + (hy + 5) + ' Z', color: color, w: w, op: op, pick: pick });
+    };
+    var link = function (a, ay, b, by2, color, w, op, pick) {
+      var x1, x2, dx;
+      if (b.x >= a.x + a.w + 8) { x1 = a.x + a.w; x2 = b.x; dx = Math.max(40, (x2 - x1) / 2); addPath('M' + x1 + ' ' + ay + ' C' + (x1 + dx) + ' ' + ay + ' ' + (x2 - 8 - dx) + ' ' + by2 + ' ' + (x2 - 8) + ' ' + by2, x2, by2, 1, color, w, op, pick); }
+      else if (b.x + b.w <= a.x - 8) { x1 = a.x; x2 = b.x + b.w; dx = Math.max(40, (x1 - x2) / 2); addPath('M' + x1 + ' ' + ay + ' C' + (x1 - dx) + ' ' + ay + ' ' + (x2 + 8 + dx) + ' ' + by2 + ' ' + (x2 + 8) + ' ' + by2, x2, by2, -1, color, w, op, pick); }
+      else { var xr = Math.max(a.x + a.w, b.x + b.w); x1 = a.x + a.w; x2 = b.x + b.w; addPath('M' + x1 + ' ' + ay + ' C' + (xr + 60) + ' ' + ay + ' ' + (xr + 60) + ' ' + by2 + ' ' + (x2 + 8) + ' ' + by2, x2, by2, -1, color, w, op, pick); }
+    };
+    Object.keys(inst).forEach(function (bk) {
+      var I = inst[bk], seenK = {};
+      gEdges.forEach(function (e) {
+        var a = I[e.from], b = I[e.to]; if (!a || !b || a === b || a.key === b.key) return;
+        var k = a.key + '>' + b.key; if (seenK[k]) return; seenK[k] = 1;
+        var color = '#A3AFBB', w = 1.5, op = lc ? 0.3 : 1;
+        if (!lc && ls) {
+          var inUp = (e.to === ls || upDist[e.to] !== undefined) && upDist[e.from] !== undefined;
+          var inDown = (e.from === ls || downDist[e.from] !== undefined) && downDist[e.to] !== undefined;
+          if (inUp) { color = '#1D4ED8'; w = 2.5; } else if (inDown) { color = '#C2410C'; w = 2.5; } else op = 0.25;
+        }
+        if (se && se.from === e.from && se.to === e.to) { color = '#0F766E'; w = 3.5; op = 1; }
+        link(a, a.ay, b, b.ay, color, w, op, function () { set({ selEdge: { from: e.from, to: e.to } }); });
+      });
+      if (lc) {
+        var inTrace = [lc].concat(colUp, colDown), inSet = {};
+        inTrace.forEach(function (r) { inSet[r] = 1; });
+        inTrace.forEach(function (ref) {
+          var fm = fieldMap[ref]; if (!fm) return;
+          var td = refDs(ref), tc = ref.slice(td.length + 1);
+          fm.f.sources.forEach(function (src) {
+            if (!inSet[src]) return;
+            var sd = refDs(src), sc = src.slice(sd.length + 1), a = I[sd], b = I[td];
+            if (!a || !b || a.key === b.key) return;
+            var y1 = a.showC && a.rows[sc] ? a.rows[sc] : a.ay, y2 = b.showC && b.rows[tc] ? b.rows[tc] : b.ay;
+            var isUp = ref === lc || colUpDist[ref] !== undefined;
+            link(a, y1, b, y2, isUp ? '#1D4ED8' : '#C2410C', 2.5, 1, function () { set({ linCol: src, linSel: sd, selEdge: null }); });
+          });
+        });
+      }
+    });
+    var z = s.zoom;
+    self._layout = { nodes: nodes, boxes: boxes, paths: paths, baseW: baseW, baseH: baseH, first: firstPos };
+
+    // ---------- column trace ----------
+    var goCol = function (ref) { return function () { set({ linCol: ref, linSel: refDs(ref), selEdge: null }); }; };
+    var exprOf = function (ref) { var fm = fieldMap[ref]; if (!fm) return 'Not defined in the data dictionary'; if (fm.f.expression) return fm.f.expression; return fm.f.sources.length ? 'Copied as-is from ' + fm.f.sources.join(', ') : 'Source column — original data from the system'; };
+    var mkItem = function (ref, dep, cyc, root) { var fm = fieldMap[ref], he = !cyc && !!(fm && fm.f.expression); return { ref: ref, indent: Math.min(dep, 8) * 22, line: cyc ? '(cycle detected — stopping)' : exprOf(ref), type: fm ? fm.f.type + ' · ' + classify(fm.f) : '?', hasExpr: he, noExpr: !he, pick: goCol(ref), arrow: dep === 0 ? '●' : '↳', bg: root ? '#E7F4F2' : '#F5F9FF', bd: root ? '#0F766E' : '#C7D7F5' }; };
+    var traceUp = [], traceDown = [];
+    var visitUp = function (ref, dep, path) { var cyc = path.indexOf(ref) >= 0; traceUp.push(mkItem(ref, dep, cyc, dep === 0)); if (cyc || dep > 15) return; (srcMap[ref] || []).forEach(function (r) { visitUp(r, dep + 1, path.concat([ref])); }); };
+    var visitDown = function (ref, dep, path) { var cyc = path.indexOf(ref) >= 0; traceDown.push(mkItem(ref, dep - 1, cyc, false)); if (cyc || dep > 15) return; (consMap[ref] || []).forEach(function (r) { visitDown(r, dep + 1, path.concat([ref])); }); };
+    var summary = '';
+    if (lc) {
+      visitUp(lc, 0, []); (consMap[lc] || []).forEach(function (r) { visitDown(r, 1, [lc]); });
+      var roots0 = colUp.filter(function (r) { return !fieldMap[r] || !fieldMap[r].f.sources.length; });
+      summary = 'Depends on ' + colUp.length + ' upstream columns across ' + ups.length + ' assets; ' + roots0.length + ' of them are original source columns. Feeds ' + colDown.length + ' downstream columns.';
+    }
+
+    // ---------- detail panel ----------
+    var propList = function (o) { return Object.keys(o || {}).map(function (k) { var v = o[k]; return { k: k, v: v !== null && typeof v === 'object' ? JSON.stringify(v) : String(v) }; }); };
+    var panel = null;
+    if (se) {
+      var under = allEdges.filter(function (e) { return e.from === se.from && e.to === se.to; });
+      var e0 = under[0] || {};
+      panel = { kind: 'Relation', title: se.from + ' → ' + se.to, rows: [{ k: 'Relation', v: relOf(e0) }, { k: 'Process', v: e0.process || '—' }].concat(propList(e0.properties)), code: (e0.properties && (e0.properties.sql || e0.properties.query)) || '',
+        l1t: 'Endpoints', l1: [se.from, se.to].map(function (x) { return { t: x, s: byId[x] ? tinfo(byId[x].type).label : 'External', pick: function () { set({ linSel: x, linCol: null, selEdge: null }); } }; }), l2t: '', l2: [] };
+    } else if (lc) {
+      var fm0 = fieldMap[lc].f, cl0 = classify(fm0), inh0 = !fm0.description ? inherit(lc) : null;
+      panel = { kind: 'Column · ' + cl0, title: lc, rows: [{ k: 'Type', v: fm0.type }, { k: 'Nullable', v: fm0.nullable ? 'Yes' : 'No' }, { k: 'PII', v: fm0.pii ? 'Yes' : 'No' }, { k: 'Description', v: fm0.description || (inh0 ? inh0.text + ' (inherited from ' + inh0.from + ')' : '—') }, { k: 'Upstream', v: colUp.length + ' columns' }, { k: 'Downstream', v: colDown.length + ' columns' }],
+        code: fm0.expression || '', l1t: 'Direct sources', l1: fm0.sources.map(function (r) { return { t: r, s: fieldMap[r] ? classify(fieldMap[r].f) : 'not found in the dictionary', pick: goCol(r) }; }),
+        l2t: 'Used by', l2: (consMap[lc] || []).map(function (r) { return { t: r, s: classify(fieldMap[r].f), pick: goCol(r) }; }) };
+    } else if (ls) {
+      var d0 = byId[ls], pathsTo = [];
+      var dfs = function (id, chain) { if (pathsTo.length >= 6 || chain.length > 15) return; var u = upMap[id] || []; if (!u.length) { if (chain.length > 1) pathsTo.push(chain.slice()); return; } u.forEach(function (x) { if (chain.indexOf(x) < 0) { chain.push(x); dfs(x, chain); chain.pop(); } }); };
+      dfs(ls, [ls]);
+      panel = { kind: d0 ? tinfo(d0.type).label : 'External asset', title: ls,
+        rows: (d0 ? [{ k: 'Name', v: d0.name }, { k: 'Owner', v: d0.owner || '—' }, { k: 'Domain', v: d0.domain || '—' }, { k: 'Parent', v: d0.parent || '—' }, { k: 'Columns', v: String(d0.fields.length) }, { k: 'Description', v: d0.description || '—' }] : []).concat([{ k: 'Upstream', v: ups.length + ' assets' }, { k: 'Downstream', v: downs.length + ' assets' }]).concat(d0 ? propList(d0.properties) : []),
+        code: '', l1t: 'Paths to source', l1: pathsTo.map(function (c) { return { t: c.join(' ← '), s: (c.length - 1) + ' hops', pick: function () { set({ linSel: c[c.length - 1], linCol: null, selEdge: null }); } }; }),
+        l2t: 'Direct neighbours', l2: (upMap[ls] || []).map(function (x) { return { t: x, s: 'upstream', pick: function () { set({ linSel: x, linCol: null, selEdge: null }); } }; }).concat((downMap[ls] || []).map(function (x) { return { t: x, s: 'downstream', pick: function () { set({ linSel: x, linCol: null, selEdge: null }); } }; })) };
+    }
+    if (panel) { panel.hasCode = !!panel.code; panel.hasL1 = panel.l1.length > 0; panel.hasL2 = panel.l2.length > 0; }
+
+    // ---------- impact table ----------
+    var impRows = [];
+    var mkImp = function (dir, dist, id, isCol) {
+      var aid = isCol ? refDs(id) : id, d = byId[aid];
+      impRows.push({ dir: dir, depth: dist, id: id, type: isCol ? (fieldMap[id] ? fieldMap[id].f.type + ' · ' + classify(fieldMap[id].f) : 'not found') : (d ? tinfo(d.type).label : 'External'), owner: d ? d.owner || '—' : '—', domain: d ? d.domain || '—' : '—',
+        bg: dir === 'Upstream' ? '#DBEAFE' : '#FFEDD5', fg: dir === 'Upstream' ? '#1E3A8A' : '#7C2D12',
+        pick: function () { set(isCol ? { linCol: id, linSel: aid, linView: 'graph', selEdge: null } : { linSel: id, linCol: null, linView: 'graph', selEdge: null }); } });
+    };
+    if (lc) { if (s.impDir !== 'down') colUp.forEach(function (r) { mkImp('Upstream', colUpDist[r], r, true); }); if (s.impDir !== 'up') colDown.forEach(function (r) { mkImp('Downstream', colDownDist[r], r, true); }); }
+    else if (ls) { if (s.impDir !== 'down') ups.forEach(function (id) { mkImp('Upstream', upDist[id], id, false); }); if (s.impDir !== 'up') downs.forEach(function (id) { mkImp('Downstream', downDist[id], id, false); }); }
+    impRows.sort(function (a, b) { return a.dir === b.dir ? (a.depth - b.depth) || (a.id < b.id ? -1 : 1) : (a.dir === 'Upstream' ? -1 : 1); });
+
+    // ---------- search ----------
+    var sugg = [];
+    if (lq) {
+      ds.forEach(function (d) {
+        if ((d.id + ' ' + d.name + ' ' + d.domain + ' ' + tinfo(d.type).label).toLowerCase().indexOf(lq) >= 0) sugg.push({ kind: tinfo(d.type).label, kbg: '#E7F4F2', kfg: '#115E59', ref: d.id, sub: d.name, pick: function () { set({ linSel: d.id, linCol: null, selEdge: null, lq: '' }); } });
+        d.fields.forEach(function (f) {
+          var r = d.id + '.' + f.name;
+          if ((r + ' ' + f.description + ' ' + (f.expression || '')).toLowerCase().indexOf(lq) >= 0) sugg.push({ kind: 'Column · ' + classify(f), kbg: '#DBEAFE', kfg: '#1E3A8A', ref: r, sub: f.expression ? '= ' + f.expression : (f.description || f.type), pick: function () { set({ linCol: r, linSel: d.id, selEdge: null, lq: '' }); } });
+        });
+      });
+      sugg = sugg.slice(0, 12);
+    }
+
+    // ---------- minimap ----------
+    var ms = Math.min(180 / baseW, 140 / baseH, 0.25), scr = s.scr;
+    var mini = { w: Math.max(40, Math.round(baseW * ms)), h: Math.max(30, Math.round(baseH * ms)),
+      nodes: boxes.filter(function (b) { return !b.lane && b.fs === 15; }).map(function (b) { return { x: Math.round(b.x * ms), y: Math.round(b.y * ms), w: Math.max(2, Math.round(b.w * ms)), h: Math.max(2, Math.round(b.h * ms)), c: '#EEF1F4' }; })
+        .concat(nodes.map(function (n) { return { x: Math.round(n.x * ms), y: Math.round(n.y * ms), w: Math.max(2, Math.round(NW * ms)), h: Math.max(2, Math.round(n.h * ms)), c: n.bg === '#FFFFFF' ? '#B8C2CC' : n.bd }; })),
+      vx: Math.round(scr.l / z * ms), vy: Math.round(scr.t / z * ms), vw: Math.max(8, Math.round((scr.w || 600) / z * ms)), vh: Math.max(8, Math.round((scr.h || 400) / z * ms)) };
+    var onMini = function (e) {
+      var el = self._diag; if (!el) return;
+      var r = e.currentTarget.getBoundingClientRect(), zz = self.state.zoom;
+      el.scrollLeft = (e.clientX - r.left) / ms * zz - el.clientWidth / 2;
+      el.scrollTop = (e.clientY - r.top) / ms * zz - el.clientHeight / 2;
+    };
+    var legend = s.colorBy === 'domain' ? domains.map(function (dm) { return { name: dm, color: domColor(dm) }; })
+      : (function () { var seenT = {}, out = []; nodes.forEach(function (n) { var d = byId[n.id], t = d ? d.type : 'external'; if (!seenT[t] && out.length < 14) { seenT[t] = 1; out.push({ name: tinfo(t).label, color: n.tcolor }); } }); return out; })();
+
+    var edgeRows = edges.map(function (e, i) { return { from: e.from, to: e.to, type: e.type || '—', process: e.process || '—', del: function () { set({ lineage: self.state.lineage.filter(function (_, j) { return j !== i; }), msg: 'Deleted relation ' + e.from + ' → ' + e.to + '.', msgKind: 'ok' }); } }; });
+    var addEdge = function () {
+      var f = self.state.edgeForm;
+      if (!f.from || !f.to) return say('Choose a source and a target asset.', 'err');
+      if (f.from === f.to) return say('Source and target must differ.', 'err');
+      if (self.state.lineage.some(function (e) { return e.from === f.from && e.to === f.to; })) return say('That relation already exists.', 'err');
+      if (walk(f.from, 'up').indexOf(f.to) >= 0) return say('This would create a cycle (' + f.to + ' is already upstream of ' + f.from + ').', 'err');
+      set({ lineage: self.state.lineage.concat([{ from: f.from, to: f.to, type: f.type.trim(), process: f.process.trim(), properties: {} }]), edgeForm: { from: '', to: '', type: '', process: '' }, linSel: f.to, linCol: null, msg: 'Added relation ' + f.from + ' → ' + f.to + '.', msgKind: 'ok' });
+    };
+
+    // yaml
+    var save = function (blob, name, okMsg) {
+      try {
+        var u = URL.createObjectURL(blob), a = document.createElement('a');
+        a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function () { URL.revokeObjectURL(u); }, 2000);
+        say(okMsg + ' If nothing downloads in this view, use "Copy text".');
+      } catch (e) { say('Download is blocked in this view — use "Copy text".', 'err'); }
+    };
+    var stamp = new Date().toISOString().slice(0, 10);
+    var download = function () { save(new Blob([self.toYaml()], { type: 'application/x-yaml' }), 'metadata-hub-' + stamp + '.yaml', 'Single YAML file downloaded.'); };
+    var downloadZip = function () { var f = self.toFiles(); save(self.makeZip(f), 'metadata-hub-' + stamp + '.zip', 'Zip downloaded with ' + Object.keys(f).length + ' files (main.yaml is the entry point).'); };
+    var copy = function () {
+      try { navigator.clipboard.writeText(self.toYaml()).then(function () { say('YAML copied to the clipboard.'); }, function () { say('Could not copy automatically — select the text in the box and copy it.', 'err'); }); }
+      catch (e) { say('Could not copy automatically — select the text in the box and copy it.', 'err'); }
+    };
+    var readList = function (list, input) {
+      if (!list.length) return;
+      if (self._busy) return; self._busy = true;
+      say('Reading ' + list.length + ' file(s)…');
+      var raw = {};
+      Promise.all(list.map(function (file) {
+        if (/\.zip$/i.test(file.name)) return file.arrayBuffer().then(function (b) { return self.readZip(b); }).then(function (fs) { Object.assign(raw, fs); });
+        return file.text().then(function (t) { raw[file.webkitRelativePath || file.name] = t; });
+      })).then(function () {
+        var yamlRaw = {}, ol = [], olNames = [];
+        Object.keys(raw).forEach(function (k) { if (/\.(json|jsonl|ndjson)$/i.test(k)) { ol.push(raw[k]); olNames.push(k); } else yamlRaw[k] = raw[k]; });
+        var d = Object.keys(yamlRaw).length ? self.loadProject(yamlRaw) : { types: [], datasets: [], lineage: [], loaded: [], unused: [] };
+        if (ol.length) { var o = self.normalize(self.convertOpenLineage(ol)); o.loaded = olNames.map(function (n) { return n + ' (OpenLineage)'; }); d = self.mergeLoaded(d, o); }
+        self.applyLoaded(d, list.map(function (f) { return f.name; }).join(', '));
+      }).catch(function (err) { say('Import failed — ' + (err && err.message ? err.message : String(err)), 'err'); }).then(function () { self._busy = false; if (input) { try { input.value = ''; } catch (x) {} } });
+    };
+    var onFile = function (e) { readList(Array.prototype.slice.call((e.target && e.target.files) || []), e.target); };
+    var onDragOver = function (e) { e.preventDefault(); };
+    var onDrop = function (e) { e.preventDefault(); readList(Array.prototype.slice.call((e.dataTransfer && e.dataTransfer.files) || []), null); };
+    // validation
+    var issues = [];
+    var addI = function (sev, item, msg, target) {
+      issues.push({ sev: sev, item: item, msg: msg, bg: sev === 'Error' ? '#FEF3F2' : sev === 'Warning' ? '#FFFAEB' : '#EEF1F4', fg: sev === 'Error' ? '#912018' : sev === 'Warning' ? '#93370D' : '#3B4856', hasPick: !!(byId[target] || fieldMap[target]),
+        pick: function () { var isCol = !byId[target] && !!fieldMap[target]; set(isCol ? { tab: 'lineage', linCol: target, linSel: refDs(target), linView: 'graph', selEdge: null } : { tab: 'lineage', linSel: target, linCol: null, linView: 'graph', selEdge: null }); } });
+    };
+    ds.forEach(function (d) {
+      if (!d.owner) addI('Info', d.id, 'No owner', d.id);
+      if (d.parent && !byId[d.parent]) addI('Warning', d.id, 'Parent "' + d.parent + '" is not defined as an asset', d.id);
+      if (!tmap[d.type]) addI('Info', d.id, 'Type "' + d.type + '" is not in asset_types', d.id);
+      var names = {};
+      d.fields.forEach(function (f) {
+        var ref = d.id + '.' + f.name;
+        if (names[f.name]) addI('Error', ref, 'Duplicate column name', d.id);
+        names[f.name] = 1;
+        (f.sources || []).forEach(function (r) { if (!fieldMap[r]) addI('Error', ref, 'Source column "' + r + '" is not defined', ref); });
+        if (f.expression && !(f.sources || []).length) addI('Warning', ref, 'Has an expression but no source columns', ref);
+      });
+    });
+    edges.forEach(function (e) { [e.from, e.to].forEach(function (x) { if (!byId[x]) addI('Warning', e.from + ' → ' + e.to, '"' + x + '" is not defined as an asset', x); }); });
+    var downAll = {}, vColor = {}, nCyc = 0;
+    allEdges.forEach(function (e) { (downAll[e.from] = downAll[e.from] || []).push(e.to); });
+    var dfsC = function (x, stack) {
+      vColor[x] = 1; stack.push(x);
+      (downAll[x] || []).forEach(function (y) { if (nCyc >= 5) return; if (vColor[y] === 1) { nCyc++; addI('Error', stack.slice(stack.indexOf(y)).concat([y]).join(' → '), 'Lineage cycle', y); } else if (!vColor[y]) dfsC(y, stack); });
+      stack.pop(); vColor[x] = 2;
+    };
+    Object.keys(downAll).forEach(function (x) { if (!vColor[x]) dfsC(x, []); });
+    var sevRank = { Error: 0, Warning: 1, Info: 2 };
+    issues.sort(function (a, b) { return sevRank[a.sev] - sevRank[b.sev]; });
+    var nErr = issues.filter(function (i) { return i.sev === 'Error'; }).length, nWarn = issues.filter(function (i) { return i.sev === 'Warning'; }).length;
+    var valRows = issues.filter(function (i) { return !s.vSev || i.sev === s.vSev; }).slice(0, 300);
+    var msgPal = s.msgKind === 'err' ? ['#FEF3F2', '#912018', '#F3C1BC'] : ['#ECFDF3', '#05603A', '#A6E9C5'];
+
+    return {
+      tabs: tabs, pageTitle: titles[s.tab][0], pageDesc: titles[s.tab][1],
+      hasMsg: !!s.msg, msg: s.msg, msgBg: msgPal[0], msgFg: msgPal[1], msgBd: msgPal[2],
+      showEmpty: ds.length === 0 && s.tab !== 'yaml', goImport: function () { set({ tab: 'yaml', msg: '' }); },
+      sourceText: s.sourceName ? 'Loaded from: ' + s.sourceName : (ds.length ? '' : 'Nothing loaded.'),
+      isCatalog: s.tab === 'catalog', isDict: s.tab === 'dictionary', isLin: s.tab === 'lineage', isYaml: s.tab === 'yaml',
+      q: s.q, onQ: function (e) { set({ q: e.target.value }); }, catalogCount: filtered.length + ' of ' + ds.length + ' assets',
+      tf: s.tf, onTf: function (e) { set({ tf: e.target.value }); },
+      tfOptions: s.types.filter(function (t) { return ds.some(function (d) { return d.type === t.id; }); }).concat(ds.filter(function (d) { return !tmap[d.type]; }).map(function (d) { return tinfo(d.type); }).filter(function (t, i, a) { return a.findIndex(function (x) { return x.id === t.id; }) === i; })).map(function (t) { return { id: t.id, label: t.label + ' (' + ds.filter(function (d) { return d.type === t.id; }).length + ')' }; }),
+      typeOptions: s.types.slice().sort(function (a, b) { return a.category === b.category ? 0 : a.category < b.category ? -1 : 1; }).map(function (t) { return { id: t.id, label: t.category + ' — ' + t.label }; }),
+      assetIds: ds.map(function (d) { return { id: d.id }; }),
+      cards: cards, noCards: cards.length === 0 && ds.length > 0, dsForm: s.dsForm, dsF: dsF, addDataset: addDataset,
+      hasDatasets: ds.length > 0,
+      sel: cur ? cur.id : '', onSel: function (e) { set({ sel: e.target.value }); },
+      dsOptions: ds.map(function (d) { return { id: d.id, label: d.id + ' — ' + d.name }; }),
+      fq: s.fq, onFq: function (e) { set({ fq: e.target.value }); },
+      cur: cur ? { id: cur.id, name: cur.name, description: cur.description || 'No description yet.', meta: tinfo(cur.type).label + ' · Parent: ' + (cur.parent || '—') + ' · Domain: ' + (cur.domain || '—') + ' · Owner: ' + (cur.owner || '—') + ' · ' + cur.fields.length + ' columns · ' + cur.fields.filter(function (f) { return f.pii; }).length + ' PII' } : { id: '', name: '', description: '', meta: '' },
+      fieldRows: fieldRows, noFields: fieldRows.length === 0,
+      fieldForm: s.fieldForm, ffName: form('fieldForm', 'name'), ffType: form('fieldForm', 'type'), ffNull: form('fieldForm', 'nullable', true), ffPii: form('fieldForm', 'pii', true), ffDesc: form('fieldForm', 'description'), ffExpr: form('fieldForm', 'expression'), ffSrc: form('fieldForm', 'sources'),
+      types: ['STRING', 'INT64', 'NUMERIC', 'BIGNUMERIC', 'FLOAT64', 'BOOL', 'DATE', 'DATETIME', 'TIMESTAMP', 'TIME', 'JSON', 'BYTES', 'GEOGRAPHY', 'ARRAY', 'STRUCT'].map(function (v) { return { v: v }; }),
+      addField: addField,
+      nodes: nodes, boxes: boxes, paths: paths, exps: exps, mores: mores, noNodes: nodes.length === 0 && boxes.length === 0,
+      isDag: isDag, isFlat: s.layout === 'flat', isCustom: s.layout === 'custom', showOC: s.layout !== 'flat', hasLayoutPos: Object.keys(s.layoutPos).length > 0,
+      dagBg: isDag ? '#0F766E' : '#FFFFFF', dagFg: isDag ? '#FFFFFF' : '#15202B', flatBg: s.layout === 'flat' ? '#0F766E' : '#FFFFFF', flatFg: s.layout === 'flat' ? '#FFFFFF' : '#15202B',
+      cusBg: s.layout === 'custom' ? '#0F766E' : '#FFFFFF', cusFg: s.layout === 'custom' ? '#FFFFFF' : '#15202B', viewCustom: function () { set({ layout: 'custom' }); },
+      hasEditor: typeof window !== 'undefined' && !!window.MH_STANDALONE,
+      noLayoutPos: Object.keys(s.layoutPos).length === 0,
+      viewDag: function () { set({ layout: 'dag' }); }, viewFlat: function () { set({ layout: 'flat' }); },
+      openAll: function () { set({ collapsed: {} }); },
+      closeAll: function () { var c = {}; allKeys.forEach(function (k) { c[k] = 1; }); set({ collapsed: c }); },
+      baseW: baseW, baseH: baseH, cw: Math.round(baseW * z), chh: Math.round(baseH * z), zoom: z, zoomText: Math.round(z * 100) + '%',
+      zoomIn: function () { self.zoomTo(self.state.zoom * 1.2); },
+      zoomOut: function () { self.zoomTo(self.state.zoom / 1.2); },
+      zoomReset: function () { self.zoomTo(1); },
+      zoomPct: Math.round(z * 100), onZoomRange: function (e) { self.zoomTo(Number(e.target.value) / 100); },
+      zoomFit: function () {
+        var el = self._diag; if (!el) return;
+        var fz = Math.min((el.clientWidth - 8) / baseW, (el.clientHeight - 8) / baseH, 1.6);
+        self.setState({ zoom: Math.max(0.2, Math.floor(fz * 100) / 100) }, function () { el.scrollLeft = 0; el.scrollTop = 0; });
+      },
+      diagRef: this.diagRef,
+      colsLabel: s.showCols ? 'Hide columns' : 'Show columns', toggleCols: function () { set({ showCols: !self.state.showCols }); },
+      isoLabel: s.hideIso ? 'Show unlinked assets' : 'Hide unlinked assets', toggleIso: function () { set({ hideIso: !self.state.hideIso }); },
+      focusOnly: s.focusOnly, focusBg: s.focusOnly ? '#0F766E' : '#FFFFFF', focusFg: s.focusOnly ? '#FFFFFF' : '#15202B', toggleFocus: function () { set({ focusOnly: !self.state.focusOnly }); },
+      depthUp: s.depthUp, depthDown: s.depthDown,
+      onDepthUp: function (e) { set({ depthUp: Math.max(0, Math.min(20, parseInt(e.target.value, 10) || 0)) }); },
+      onDepthDown: function (e) { set({ depthDown: Math.max(0, Math.min(20, parseInt(e.target.value, 10) || 0)) }); },
+      fType: s.fType, fDomain: s.fDomain, fRel: s.fRel, fMode: s.fMode, colorBy: s.colorBy,
+      onFType: function (e) { set({ fType: e.target.value }); }, onFDomain: function (e) { set({ fDomain: e.target.value }); }, onFRel: function (e) { set({ fRel: e.target.value }); },
+      onFMode: function (e) { set({ fMode: e.target.value }); }, onColorBy: function (e) { set({ colorBy: e.target.value }); },
+      fTypeOpts: s.types.filter(function (t) { return ds.some(function (d) { return d.type === t.id; }); }).map(function (t) { return { id: t.id, label: t.label }; }),
+      fDomainOpts: domains.map(function (dm) { return { id: dm }; }),
+      fRelOpts: allEdges.map(relOf).filter(function (v, i, a) { return a.indexOf(v) === i; }).sort().map(function (v) { return { id: v }; }),
+      legend: legend,
+      showMini: s.showMini && nodes.length > 0, miniLabel: s.showMini ? 'Hide minimap' : 'Show minimap', toggleMini: function () { set({ showMini: !self.state.showMini }); }, mini: mini, onMini: onMini,
+      connect: s.connect, connectBg: s.connect ? '#CA8A04' : '#FFFFFF', connectFg: s.connect ? '#FFFFFF' : '#15202B',
+      toggleConnect: function () { var on = !self.state.connect; set({ connect: on, connectFrom: null, msg: on ? 'Connect mode on: click a source asset, then a target asset. The relation type and process come from the "Add lineage relation" form (default depends_on).' : 'Connect mode off.', msgKind: 'ok' }); },
+      exportSvg: function () { save(new Blob([self.buildSvg()], { type: 'image/svg+xml' }), 'lineage-' + stamp + '.svg', 'SVG downloaded.'); },
+      exportPng: function () {
+        var L = self._layout; if (!L) return;
+        var url = URL.createObjectURL(new Blob([self.buildSvg()], { type: 'image/svg+xml' })), img = new Image();
+        img.onload = function () {
+          var sc = Math.min(2, 8000 / Math.max(L.baseW, L.baseH)), c = document.createElement('canvas');
+          c.width = Math.round(L.baseW * sc); c.height = Math.round(L.baseH * sc);
+          var g = c.getContext('2d'); g.scale(sc, sc); g.drawImage(img, 0, 0); URL.revokeObjectURL(url);
+          c.toBlob(function (b) { if (b) save(b, 'lineage-' + stamp + '.png', 'PNG downloaded.'); else say('Could not render the PNG.', 'err'); });
+        };
+        img.onerror = function () { say('Could not render the PNG.', 'err'); };
+        img.src = url;
+      },
+      isGraph: s.linView === 'graph', isImpact: s.linView === 'impact',
+      gTabBg: s.linView === 'graph' ? '#15202B' : '#FFFFFF', gTabFg: s.linView === 'graph' ? '#FFFFFF' : '#15202B', iTabBg: s.linView === 'impact' ? '#15202B' : '#FFFFFF', iTabFg: s.linView === 'impact' ? '#FFFFFF' : '#15202B',
+      viewGraph: function () { set({ linView: 'graph' }); }, viewImpact: function () { set({ linView: 'impact' }); },
+      impRows: impRows, noImp: impRows.length === 0, impCount: impRows.length + ' rows', impDir: s.impDir, onImpDir: function (e) { set({ impDir: e.target.value }); },
+      impTitle: lc ? 'Impact of column ' + lc : ls ? 'Impact of ' + ls : 'Impact analysis',
+      impCsv: function () {
+        if (!impRows.length) return say('Select an asset or a column first.', 'err');
+        var q2 = function (v) { return '"' + String(v).replace(/"/g, '""') + '"'; };
+        var lines = [['Direction', 'Depth', 'Id', 'Type', 'Owner', 'Domain'].join(',')].concat(impRows.map(function (r) { return [r.dir, r.depth, r.id, r.type, r.owner, r.domain].map(q2).join(','); }));
+        save(new Blob([lines.join('\n')], { type: 'text/csv' }), 'impact-' + String(lc || ls).replace(/[^A-Za-z0-9_.-]+/g, '_') + '.csv', 'Impact CSV downloaded.');
+      },
+      hasPanel: !!panel, noPanel: !panel, showPanel: !!panel || s.panelPinned, panelKind: panel ? panel.kind.toUpperCase() : 'DETAILS',
+      panel: panel || { title: '', rows: [], code: '', hasCode: false, l1t: '', l1: [], hasL1: false, l2t: '', l2: [], hasL2: false },
+      pinLabel: s.panelPinned ? 'Unpin' : 'Pin', togglePin: function () { set({ panelPinned: !self.state.panelPinned }); },
+      closePanel: function () { set({ linSel: null, linCol: null, selEdge: null }); },
+      resetView: function () { set({ linSel: null, linCol: null, selEdge: null, zoom: 0.9, focusOnly: false, lq: '', expUp: {}, expDown: {}, layerMore: {}, fType: '', fDomain: '', fRel: '', connect: false, connectFrom: null, collapsed: {} }); },
+      lq: s.lq, onLq: function (e) { set({ lq: e.target.value }); },
+      onLqKey: function (e) { if (e.key === 'Enter' && sugg[0]) { e.preventDefault(); sugg[0].pick(); } else if (e.key === 'Escape') set({ lq: '' }); },
+      sugg: sugg, hasSugg: sugg.length > 0, noSugg: !!lq && sugg.length === 0,
+      hasColTrace: !!lc, ct: { ref: lc || '', summary: summary }, traceUp: traceUp, traceDown: traceDown, noDown: traceDown.length === 0,
+      edgeRows: edgeRows, edgeForm: s.edgeForm, efFrom: form('edgeForm', 'from'), efTo: form('edgeForm', 'to'), efProc: form('edgeForm', 'process'), efType: form('edgeForm', 'type'), addEdge: addEdge,
+      relTypes: ['reads', 'writes', 'calls', 'triggers', 'uses', 'produces', 'configures', 'deploys', 'depends_on'].map(function (v) { return { v: v }; }),
+      loadSample: function () { var d = self.sample(); set({ types: d.types, datasets: d.datasets, lineage: d.lineage, sel: 'acme-sales.mart.sales_daily', linSel: null, linCol: 'acme-sales.mart.sales_daily.total_sales', focusOnly: false, layout: 'dag', collapsed: {}, selEdge: null, tf: '', loaded: [], unused: [], sourceName: 'built-in example', layoutPos: {}, tab: 'lineage', msg: 'Loaded the example: 5 domains, ' + d.datasets.length + ' assets, at least 5 of every asset type (replaced the current data). Showing the trace of total_sales — press Reset to see everything.', msgKind: 'ok' }); },
+      yaml: this.toYaml(), download: download, downloadZip: downloadZip, copy: copy, onFile: onFile, onDragOver: onDragOver, onDrop: onDrop,
+      importText: s.importText, onImportText: function (e) { set({ importText: e.target.value }); },
+      applyPaste: function () {
+        if (!self.state.importText.trim()) return say('Paste some YAML first.', 'err');
+        try { self.applyLoaded(self.loadProject({ 'main.yaml': self.state.importText }), 'pasted text'); } catch (err) { say('Import failed — ' + err.message, 'err'); }
+      },
+      valRows: valRows, noVal: valRows.length === 0, vSev: s.vSev, onVSev: function (e) { set({ vSev: e.target.value }); },
+      valSummary: ds.length ? nErr + ' errors · ' + nWarn + ' warnings · ' + (issues.length - nErr - nWarn) + ' info' + (valRows.length === 300 ? ' (first 300 shown)' : '') : 'Load data to validate it.',
+      modeMerge: s.mode === 'merge', modeReplace: s.mode === 'replace',
+      setMerge: function () { set({ mode: 'merge' }); }, setReplace: function () { set({ mode: 'replace' }); },
+      hasLoaded: s.loaded.length > 0, loadedFiles: s.loaded.map(function (p) { return { p: p }; }), hasUnused: s.unused.length > 0, unusedText: s.unused.join(', '),
+      schemaHint: '# main.yaml  (entry point of a .zip)\nversion: 2\ninclude:                     # paths relative to this file\n  - asset_types.yaml\n  - airflow/**/*.yaml          # * and ** globs\n  - bigquery/*.yaml\n  - lineage.yaml\n\n# any included file may hold any of:\nasset_types:                 # optional — your own types\n  - id: dbt.model\n    label: dbt Model\n    category: dbt\n    color: "#B45309"\nassets:                      # (legacy alias: datasets)\n  - id: proj.mart.sales_daily  # required, unique\n    type: bigquery.table       # any type id\n    name: Daily sales\n    parent: proj.mart          # hierarchy (DAG > group > task)\n    owner: bi-team\n    properties:                # free-form, may be nested\n      partition_by: order_date\n    retention_days: 400        # unknown keys -> properties\n    fields:                    # (alias: columns)\n      - name: total_sales\n        type: NUMERIC\n        expression: SUM(net_amount)\n        sources: [proj.staging.orders.net_amount]\nlineage:\n  - from: airflow.dag_x.task_y\n    to: proj.mart.sales_daily\n    type: writes               # reads, writes, calls, triggers…\n    process: Daily MERGE\ninclude: [more/*.yaml]       # nested includes are allowed\n\n# OpenLineage RunEvents (.json array, one object, or .jsonl)\n# can be uploaded alongside: jobs, datasets, schema and\n# columnLineage facets become assets, fields and sources.'
+    };
+  }
+
+  updateFields(id, fn) {
+    this.setState({ datasets: this.state.datasets.map(function (d) { return d.id === id ? Object.assign({}, d, { fields: fn(d.fields) }) : d; }) });
+  }
+}
+
+window.MHCore = Component;
+})();
+</script>
+<script>
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    var core = typeof window !== 'undefined' && window.MHCore ? window.MHCore.prototype : null, self = this;
+    ['stripComment', 'splitFlow', 'scalar', 'keyMatch', 'isSeq', 'yParse', 'pBlock', 'pSeq', 'pMap', 'yStr', 'yKey', 'emit', 'cleanAsset', 'cleanEdge', 'dump', 'toYaml', 'toFiles', 'crc32', 'makeZip', 'readZip', 'joinPath', 'globRe', 'loadProject', 'normalize', 'mergeTypes', 'defaultTypes', 'convertOpenLineage', 'mergeLoaded']
+      .forEach(function (n) { if (core && core[n]) self[n] = core[n].bind(self); });
+    this.state = {
+      types: this.defaultTypes ? this.defaultTypes() : [], datasets: [], lineage: [], layoutPos: {},
+      sel: null, zoom: 0.8, showCols: true, snap: true, hist: [], fut: [], msg: core ? '' : 'Core library not loaded — open editor.html from the Metadata Hub site.', msgKind: core ? 'ok' : 'err',
+      drag: null, tq: '', oq: '', relType: 'depends_on', idBuf: '', tagsBuf: '', propBuf: '', srcBuf: {}, sourceName: ''
+    };
+    this.canvasRef = this.attachCanvas.bind(this);
+  }
+
+  /* ---------- helpers ---------- */
+  CONT() { return { 'airflow.dag': 1, 'airflow.task_group': 1, 'bigquery.project': 1, 'bigquery.dataset': 1, 'gcs.bucket': 1, 'artifact_registry.repository': 1, 'vertex.pipeline': 1 }; }
+  byIdMap() { var m = {}; this.state.datasets.forEach(function (d) { m[d.id] = d; }); return m; }
+  hasChildMap() { var m = {}; this.state.datasets.forEach(function (d) { if (d.parent) m[d.parent] = 1; }); return m; }
+  isCont(d, hc) { return !!(this.CONT()[d.type] || hc[d.id]); }
+  descendantsOf(id) {
+    var out = [], ds = this.state.datasets, frontier = [id];
+    while (frontier.length) { var x = frontier.pop(); ds.forEach(function (d) { if (d.parent === x && out.indexOf(d.id) < 0 && d.id !== id) { out.push(d.id); frontier.push(d.id); } }); }
+    return out;
+  }
+  nodeH(id, m) { var d = (m || this.byIdMap())[id], nf = d ? d.fields.length : 0; return 4 + 58 + (this.state.showCols && nf ? 9 + nf * 26 : 0); }
+  rectOf(id, m, hc) { var p = this.state.layoutPos[id]; if (!p) return null; var d = m[id]; if (d && this.isCont(d, hc) && p.w) return { x: p.x, y: p.y, w: p.w, h: p.h }; return { x: p.x, y: p.y, w: 240, h: this.nodeH(id, m) }; }
+  snapV(v) { return this.state.snap ? Math.round(v / 8) * 8 : Math.round(v); }
+  snapshot() { return { datasets: this.state.datasets, lineage: this.state.lineage, layoutPos: this.state.layoutPos }; }
+  pushHist(force) {
+    var now = Date.now();
+    if (!force && now - (this._lastHist || 0) < 800) return;
+    this._lastHist = now;
+    this.setState({ hist: this.state.hist.concat([this.snapshot()]).slice(-80), fut: [] });
+  }
+  say(m, k) { this.setState({ msg: m, msgKind: k || 'ok' }); }
+  select(sel) {
+    var st = { sel: sel, srcBuf: {} };
+    var aid = sel && sel.kind === 'asset' ? sel.id : sel && sel.kind === 'col' ? sel.ref.slice(0, sel.ref.lastIndexOf('.')) : null;
+    if (aid) {
+      var d = this.byIdMap()[aid];
+      st.idBuf = aid; st.tagsBuf = d ? d.tags.join(', ') : ''; st.propBuf = d && Object.keys(d.properties || {}).length ? this.emit(d.properties, 0, []).join('\n') : '';
+    }
+    this.setState(st);
+  }
+  updAsset(id, fn, force) {
+    this.pushHist(force);
+    this.setState({ datasets: this.state.datasets.map(function (d) { return d.id === id ? fn(Object.assign({}, d)) : d; }) });
+  }
+  updField(id, idx, patch, force) { this.updAsset(id, function (d) { d.fields = d.fields.map(function (f, i) { return i === idx ? Object.assign({}, f, patch) : f; }); return d; }, force); }
+
+  /* grow every container on the parent chain so it encloses its children */
+  fitAncestors(id, LP0, ds0) {
+    var LP = Object.assign({}, LP0 || this.state.layoutPos), ds = ds0 || this.state.datasets, m = {}, hc = {}, self = this;
+    ds.forEach(function (d) { m[d.id] = d; if (d.parent) hc[d.parent] = 1; });
+    var cur = m[id], g = 0;
+    while (cur && cur.parent && g++ < 30) {
+      var pid = cur.parent, pp = LP[pid];
+      if (!pp || !pp.w) break;
+      var kids = ds.filter(function (d) { return d.parent === pid && LP[d.id]; });
+      var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      kids.forEach(function (k) { var p = LP[k.id], w = p.w && self.isCont(k, hc) ? p.w : 240, h = p.h && self.isCont(k, hc) ? p.h : self.nodeH(k.id, m); x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y); x1 = Math.max(x1, p.x + w); y1 = Math.max(y1, p.y + h); });
+      if (kids.length) {
+        var nx = Math.min(pp.x, x0 - 16), ny = Math.min(pp.y, y0 - 48);
+        LP[pid] = { x: nx, y: ny, w: Math.max(pp.x + pp.w, x1 + 16) - nx, h: Math.max(pp.y + pp.h, y1 + 16) - ny };
+      }
+      cur = m[pid];
+    }
+    return LP;
+  }
+  containerAt(x, y, excl) {
+    var m = this.byIdMap(), hc = this.hasChildMap(), LP = this.state.layoutPos, best = null, bestA = Infinity, self = this;
+    this.state.datasets.forEach(function (d) {
+      if (excl[d.id] || !self.isCont(d, hc)) return;
+      var p = LP[d.id]; if (!p || !p.w) return;
+      if (x >= p.x && x <= p.x + p.w && y >= p.y && y <= p.y + p.h && p.w * p.h < bestA) { best = d.id; bestA = p.w * p.h; }
+    });
+    return best || '';
+  }
+  canvasPoint(e) { var el = this._cv, r = el.getBoundingClientRect(), z = this.state.zoom; return { x: (e.clientX - r.left + el.scrollLeft) / z, y: (e.clientY - r.top + el.scrollTop) / z }; }
+
+  /* ---------- canvas interaction ---------- */
+  attachCanvas(el) {
+    var self = this;
+    if (this._cv === el) return;
+    if (this._cv) { this._cv.removeEventListener('mousedown', this._onDown); this._cv.removeEventListener('wheel', this._onWheel); }
+    this._cv = el;
+    if (!el) return;
+    if (!this._onDown) {
+      this._onWheel = function (e) {
+        if (!(e.ctrlKey || e.metaKey)) return;
+        e.preventDefault();
+        var r = self._cv.getBoundingClientRect();
+        self.zoomTo(self.state.zoom * Math.exp(-e.deltaY * 0.0015), e.clientX - r.left, e.clientY - r.top);
+      };
+      this._onDown = function (e) {
+        if (e.button !== 0) return;
+        var t = e.target; if (!t.closest || t.closest('input,textarea,select,a,label')) return;
+        var cport = t.closest('[data-colport]'), port = t.closest('[data-port]'), rz = t.closest('[data-resize]'), dg = t.closest('[data-drag]');
+        var p = self.canvasPoint(e), LP = self.state.layoutPos;
+        if (cport) self._drag = { kind: 'col', from: cport.getAttribute('data-colport'), x0: p.x, y0: p.y };
+        else if (port) self._drag = { kind: 'edge', from: port.getAttribute('data-port'), x0: p.x, y0: p.y };
+        else if (rz) { var rid = rz.getAttribute('data-resize'), rp = LP[rid]; if (!rp) return; self._drag = { kind: 'resize', id: rid, p0: p, w0: rp.w, h0: rp.h, moved: false }; }
+        else if (dg) {
+          var id = dg.getAttribute('data-drag'), orig = {};
+          [id].concat(self.descendantsOf(id)).forEach(function (i) { if (LP[i]) orig[i] = Object.assign({}, LP[i]); });
+          self._drag = { kind: 'move', id: id, p0: p, orig: orig, moved: false };
+        } else self._drag = { kind: 'pan', cx: e.clientX, cy: e.clientY, l: el.scrollLeft, t: el.scrollTop };
+        e.preventDefault();
+      };
+      this._onMove = function (e) {
+        var d = self._drag, c = self._cv; if (!d || !c) return;
+        if (d.kind === 'pan') { c.scrollLeft = d.l - (e.clientX - d.cx); c.scrollTop = d.t - (e.clientY - d.cy); c.style.cursor = 'grabbing'; return; }
+        var p = self.canvasPoint(e);
+        if (d.kind === 'move') {
+          var dx = p.x - d.p0.x, dy = p.y - d.p0.y;
+          if (!d.moved && Math.abs(dx) + Math.abs(dy) < 4) return;
+          if (!d.moved) { d.moved = true; self.pushHist(true); }
+          var LP2 = Object.assign({}, self.state.layoutPos);
+          Object.keys(d.orig).forEach(function (i) { var o = d.orig[i]; LP2[i] = Object.assign({}, o, { x: self.snapV(o.x + dx), y: self.snapV(o.y + dy) }); });
+          var excl = {}; Object.keys(d.orig).forEach(function (i) { excl[i] = 1; });
+          var mp = LP2[d.id], over = mp ? self.containerAt(mp.x + 40, mp.y + 20, excl) : '';
+          self.setState({ layoutPos: LP2, drag: { kind: 'move', over: over } });
+        } else if (d.kind === 'resize') {
+          if (!d.moved) { d.moved = true; self.pushHist(true); }
+          var LP3 = Object.assign({}, self.state.layoutPos), o2 = LP3[d.id];
+          LP3[d.id] = Object.assign({}, o2, { w: Math.max(260, self.snapV(d.w0 + p.x - d.p0.x)), h: Math.max(80, self.snapV(d.h0 + p.y - d.p0.y)) });
+          self.setState({ layoutPos: LP3 });
+        } else {
+          self.setState({ drag: { kind: d.kind, x1: d.x0, y1: d.y0, x2: p.x, y2: p.y } });
+        }
+      };
+      this._onUp = function (e) {
+        var d = self._drag; if (!d) return;
+        self._drag = null;
+        if (self._cv) self._cv.style.cursor = 'grab';
+        if (d.kind === 'move') {
+          if (d.moved) { self._suppress = true; setTimeout(function () { self._suppress = false; }, 0); self.dropReparent(d.id); }
+          self.setState({ drag: null });
+        } else if (d.kind === 'resize') {
+          if (d.moved) { self._suppress = true; setTimeout(function () { self._suppress = false; }, 0); }
+        } else if (d.kind === 'edge' || d.kind === 'col') {
+          self.setState({ drag: null });
+          var hit = document.elementFromPoint(e.clientX, e.clientY);
+          if (d.kind === 'edge') { var tn = hit && hit.closest && hit.closest('[data-node]'); if (tn) self.addEdge(d.from, tn.getAttribute('data-node')); }
+          else { var tc = hit && hit.closest && hit.closest('[data-col]'); if (tc) self.addColSource(tc.getAttribute('data-col'), d.from); else self.say('Drop the purple dot on a column of another asset.', 'err'); }
+        }
+      };
+      window.addEventListener('mousemove', this._onMove);
+      window.addEventListener('mouseup', this._onUp);
+    }
+    el.addEventListener('mousedown', this._onDown);
+    el.addEventListener('wheel', this._onWheel, { passive: false });
+  }
+  componentWillUnmount() {
+    if (this._onMove) { window.removeEventListener('mousemove', this._onMove); window.removeEventListener('mouseup', this._onUp); }
+    this.attachCanvas(null);
+  }
+  zoomTo(nz, mx, my) {
+    var el = this._cv, z = this.state.zoom;
+    nz = Math.round(Math.max(0.15, Math.min(2, nz)) * 100) / 100;
+    if (!el) { this.setState({ zoom: nz }); return; }
+    if (mx === undefined) { mx = el.clientWidth / 2; my = el.clientHeight / 2; }
+    var sx = (el.scrollLeft + mx) / z, sy = (el.scrollTop + my) / z;
+    this.setState({ zoom: nz }, function () { el.scrollLeft = sx * nz - mx; el.scrollTop = sy * nz - my; });
+  }
+  centerOn(id) {
+    var el = this._cv, p = this.state.layoutPos[id]; if (!el || !p) return;
+    var z = this.state.zoom;
+    el.scrollLeft = Math.max(0, p.x * z - el.clientWidth / 3); el.scrollTop = Math.max(0, p.y * z - el.clientHeight / 3);
+  }
+
+  /* ---------- edits ---------- */
+  dropReparent(id) {
+    var m = this.byIdMap(), d = m[id], LP = this.state.layoutPos, p = LP[id]; if (!d || !p) return;
+    var excl = {}; excl[id] = 1; this.descendantsOf(id).forEach(function (x) { excl[x] = 1; });
+    var target = this.containerAt(p.x + 40, p.y + 20, excl), ds = this.state.datasets;
+    if ((d.parent || '') !== target) {
+      var oldP = d.parent && m[d.parent] ? d.parent : '';
+      if (target || oldP) {
+        ds = ds.map(function (x) { return x.id === id ? Object.assign({}, x, { parent: target }) : x; });
+        this.say(target ? 'Moved ' + id + ' into ' + target + '.' : 'Moved ' + id + ' out of ' + oldP + '.');
+      }
+    }
+    this.setState({ datasets: ds, layoutPos: this.fitAncestors(id, LP, ds) });
+  }
+  addEdge(from, to) {
+    if (!to || from === to) return;
+    if (this.state.lineage.some(function (e) { return e.from === from && e.to === to; })) { this.say('That relation already exists.', 'err'); return; }
+    this.pushHist(true);
+    var type = (this.state.relType || '').trim() || 'depends_on';
+    var lin = this.state.lineage.concat([{ from: from, to: to, type: type, process: '', properties: {} }]);
+    this.setState({ lineage: lin, sel: { kind: 'edge', i: lin.length - 1 }, msg: 'Added relation ' + from + ' → ' + to + ' (' + type + ').', msgKind: 'ok' });
+  }
+  addColSource(targetRef, sourceRef) {
+    if (!targetRef || targetRef === sourceRef) return;
+    var ta = targetRef.slice(0, targetRef.lastIndexOf('.')), tc = targetRef.slice(ta.length + 1), sa = sourceRef.slice(0, sourceRef.lastIndexOf('.'));
+    if (ta === sa) { this.say('Pick a column in another asset.', 'err'); return; }
+    var d = this.byIdMap()[ta]; if (!d) return;
+    var idx = d.fields.findIndex(function (f) { return f.name === tc; }); if (idx < 0) return;
+    if ((d.fields[idx].sources || []).indexOf(sourceRef) >= 0) { this.say('That source is already there.', 'err'); return; }
+    this.updField(ta, idx, { sources: (d.fields[idx].sources || []).concat([sourceRef]) }, true);
+    this.setState({ sel: { kind: 'colsrc', target: targetRef, source: sourceRef }, msg: sourceRef + ' is now a source of ' + targetRef + '.', msgKind: 'ok' });
+  }
+  renameAsset(oldId, newId) {
+    newId = (newId || '').trim();
+    if (!newId || newId === oldId) return;
+    if (/\s/.test(newId)) { this.say('IDs cannot contain spaces.', 'err'); return; }
+    if (this.byIdMap()[newId]) { this.say('ID ' + newId + ' is already used.', 'err'); return; }
+    this.pushHist(true);
+    var rr = function (r) { var a = r.slice(0, r.lastIndexOf('.')); return a === oldId ? newId + r.slice(oldId.length) : r; };
+    var ds = this.state.datasets.map(function (d) {
+      var n = Object.assign({}, d);
+      if (n.id === oldId) n.id = newId;
+      if (n.parent === oldId) n.parent = newId;
+      n.fields = n.fields.map(function (f) { return (f.sources || []).length ? Object.assign({}, f, { sources: f.sources.map(rr) }) : f; });
+      return n;
+    });
+    var lin = this.state.lineage.map(function (e) { return Object.assign({}, e, { from: e.from === oldId ? newId : e.from, to: e.to === oldId ? newId : e.to }); });
+    var LP = Object.assign({}, this.state.layoutPos); if (LP[oldId]) { LP[newId] = LP[oldId]; delete LP[oldId]; }
+    this.setState({ datasets: ds, lineage: lin, layoutPos: LP, sel: { kind: 'asset', id: newId }, idBuf: newId, msg: 'Renamed ' + oldId + ' to ' + newId + ' (parents, relations and column sources updated).', msgKind: 'ok' });
+  }
+  renameColumn(id, idx, newName) {
+    var d = this.byIdMap()[id]; if (!d) return;
+    var oldRef = id + '.' + d.fields[idx].name, newRef = id + '.' + newName;
+    this.pushHist(false);
+    var ds = this.state.datasets.map(function (x) {
+      var n = x.id === id ? Object.assign({}, x, { fields: x.fields.map(function (f, i) { return i === idx ? Object.assign({}, f, { name: newName }) : f; }) }) : x;
+      return Object.assign({}, n, { fields: n.fields.map(function (f) { return (f.sources || []).indexOf(oldRef) >= 0 ? Object.assign({}, f, { sources: f.sources.map(function (r) { return r === oldRef ? newRef : r; }) }) : f; }) });
+    });
+    this.setState({ datasets: ds });
+  }
+  deleteAsset(id) {
+    var m = this.byIdMap(), d = m[id]; if (!d) return;
+    this.pushHist(true);
+    var pref = id + '.';
+    var ds = this.state.datasets.filter(function (x) { return x.id !== id; }).map(function (x) {
+      var n = x.parent === id ? Object.assign({}, x, { parent: d.parent || '' }) : x;
+      return Object.assign({}, n, { fields: n.fields.map(function (f) { return (f.sources || []).some(function (r) { return r.slice(0, r.lastIndexOf('.')) === id; }) ? Object.assign({}, f, { sources: f.sources.filter(function (r) { return r.slice(0, r.lastIndexOf('.')) !== id; }) }) : f; }) });
+    });
+    var LP = Object.assign({}, this.state.layoutPos); delete LP[id];
+    this.setState({ datasets: ds, lineage: this.state.lineage.filter(function (e) { return e.from !== id && e.to !== id; }), layoutPos: LP, sel: null, msg: 'Deleted ' + id + '. Its children moved up one level; relations and column sources pointing to it were removed.', msgKind: 'ok' });
+  }
+  addAsset(type) {
+    var m = this.byIdMap(), hc = this.hasChildMap(), base = 'new_' + type.split('.').pop().replace(/[^A-Za-z0-9_]+/g, '_'), n = 1;
+    while (m[base + '_' + n]) n++;
+    var id = base + '_' + n, sel = this.state.sel, parent = '';
+    if (sel && sel.kind === 'asset' && m[sel.id] && this.isCont(m[sel.id], hc)) parent = sel.id;
+    var isC = !!this.CONT()[type], LP = Object.assign({}, this.state.layoutPos), pos;
+    if (parent && LP[parent]) {
+      var pp = LP[parent], kids = this.state.datasets.filter(function (d) { return d.parent === parent && LP[d.id]; });
+      var y = pp.y + 48; kids.forEach(function (k) { var kp = LP[k.id]; y = Math.max(y, kp.y + (kp.h || 70) + 16); });
+      pos = { x: pp.x + 16, y: y };
+    } else {
+      var el = this._cv, z = this.state.zoom;
+      pos = el ? { x: (el.scrollLeft + el.clientWidth / 2) / z - 120, y: (el.scrollTop + el.clientHeight / 3) / z } : { x: 80, y: 80 };
+    }
+    pos = { x: this.snapV(pos.x), y: this.snapV(pos.y) };
+    if (isC) { pos.w = 320; pos.h = 160; }
+    LP[id] = pos;
+    this.pushHist(true);
+    var ds = this.state.datasets.concat([{ id: id, type: type, name: id, parent: parent, domain: '', owner: '', source: '', description: '', tags: [], properties: {}, fields: [], file: '' }]);
+    this.setState({ datasets: ds, layoutPos: this.fitAncestors(id, LP, ds), msg: 'Added ' + id + (parent ? ' inside ' + parent : '') + '. Rename it in the panel on the right.', msgKind: 'ok' }, function () { this.select({ kind: 'asset', id: id }); }.bind(this));
+  }
+
+  /* ---------- auto layout: containers hold their children, laid out left to right by lineage depth ---------- */
+  autoLayout(onlyMissing) {
+    var self = this, ds = this.state.datasets, m = {}, hc = {}, kids = {};
+    ds.forEach(function (d) { m[d.id] = d; if (d.parent) hc[d.parent] = 1; });
+    ds.forEach(function (d) { if (d.parent && m[d.parent]) (kids[d.parent] = kids[d.parent] || []).push(d); });
+    var up = {};
+    this.state.lineage.forEach(function (e) { (up[e.to] = up[e.to] || []).push(e.from); });
+    ds.forEach(function (d) { d.fields.forEach(function (f) { (f.sources || []).forEach(function (r) { var a = r.slice(0, r.lastIndexOf('.')); if (a !== d.id) (up[d.id] = up[d.id] || []).push(a); }); }); });
+    var memo = {};
+    var depth = function (id, seen) { if (memo[id] !== undefined) return memo[id]; if (seen[id]) return 0; seen[id] = 1; var u = up[id] || []; var v = u.length ? 1 + Math.max.apply(null, u.map(function (x) { return depth(x, seen); })) : 0; seen[id] = 0; memo[id] = v; return v; };
+    var GX = 90, GY = 20, PADC = 16, HHc = 48;
+    var measure = function (d) {
+      var ch = (kids[d.id] || []).slice().sort(function (a, b) { return (depth(a.id, {}) - depth(b.id, {})) || (a.id < b.id ? -1 : 1); });
+      if (!self.isCont(d, hc) && !ch.length) return { id: d.id, w: 240, h: self.nodeH(d.id, m), col: depth(d.id, {}), kids: [] };
+      var km = ch.map(measure), cols = [];
+      km.forEach(function (k) { if (cols.indexOf(k.col) < 0) cols.push(k.col); }); cols.sort(function (a, b) { return a - b; });
+      var x = PADC, maxH = 0;
+      cols.forEach(function (c) { var items = km.filter(function (k) { return k.col === c; }), cw = 0, y = HHc; items.forEach(function (it) { it.rx = x; it.ry = y; y += it.h + GY; cw = Math.max(cw, it.w); }); maxH = Math.max(maxH, y - GY); x += cw + GX; });
+      return { id: d.id, cont: true, w: Math.max(280, x - GX + PADC), h: Math.max(110, maxH + PADC), col: km.length ? Math.min.apply(null, km.map(function (k) { return k.col; })) : depth(d.id, {}), kids: km };
+    };
+    var roots = ds.filter(function (d) { return !d.parent || !m[d.parent]; }).map(measure);
+    var cols = []; roots.forEach(function (r) { if (cols.indexOf(r.col) < 0) cols.push(r.col); }); cols.sort(function (a, b) { return a - b; });
+    var LPn = {}, x = 60;
+    var place = function (mm, ax, ay) { LPn[mm.id] = mm.cont ? { x: ax, y: ay, w: mm.w, h: mm.h } : { x: ax, y: ay }; mm.kids.forEach(function (k) { place(k, ax + k.rx, ay + k.ry); }); };
+    cols.forEach(function (c) { var items = roots.filter(function (r) { return r.col === c; }), y = 60, cw = 0; items.forEach(function (it) { place(it, x, y); y += it.h + 40; cw = Math.max(cw, it.w); }); x += cw + 120; });
+    if (!onlyMissing) return LPn;
+    var cur = Object.assign({}, this.state.layoutPos), missing = ds.filter(function (d) { return !cur[d.id]; });
+    if (!missing.length) return cur;
+    var maxY = 0; Object.keys(cur).forEach(function (k) { var p = cur[k]; maxY = Math.max(maxY, p.y + (p.h || 120)); });
+    var minY = Infinity; missing.forEach(function (d) { minY = Math.min(minY, LPn[d.id].y); });
+    var shift = Object.keys(cur).length ? maxY + 120 - minY : 0;
+    missing.forEach(function (d) { var p = LPn[d.id]; cur[d.id] = Object.assign({}, p, { y: p.y + shift }); });
+    return cur;
+  }
+  applyDoc(d, name) {
+    var self = this;
+    this.setState({ types: this.mergeTypes(this.defaultTypes(), d.types), datasets: d.datasets, lineage: d.lineage, layoutPos: d.layout || {}, hist: [], fut: [], sel: null, sourceName: name }, function () {
+      var missing = self.state.datasets.filter(function (x) { return !self.state.layoutPos[x.id]; }).length;
+      var LP = self.autoLayout(true);
+      self.setState({ layoutPos: LP, msg: 'Loaded ' + d.datasets.length + ' assets and ' + d.lineage.length + ' relations from ' + name + '.' + (missing ? ' ' + missing + ' assets had no saved position and were auto-placed.' : ' Saved layout restored.'), msgKind: 'ok' }, function () { setTimeout(function () { self.fitView(); }, 0); });
+    });
+  }
+  fitView() {
+    var el = this._cv, LP = this.state.layoutPos, ks = Object.keys(LP); if (!el || !ks.length) return;
+    var m = this.byIdMap(), x1 = 0, y1 = 0, self = this;
+    ks.forEach(function (k) { var p = LP[k]; x1 = Math.max(x1, p.x + (p.w || 240)); y1 = Math.max(y1, p.y + (p.h || self.nodeH(k, m))); });
+    var z = Math.max(0.15, Math.min(1.2, Math.min((el.clientWidth - 20) / (x1 + 40), (el.clientHeight - 20) / (y1 + 40))));
+    this.setState({ zoom: Math.floor(z * 100) / 100 }, function () { el.scrollLeft = 0; el.scrollTop = 0; });
+  }
+
+  renderVals() {
+    var self = this, s = this.state, ds = s.datasets, LP = s.layoutPos;
+    var set = function (p) { self.setState(p); };
+    var say = function (msg, k) { self.say(msg, k); };
+    var m = {}, hc = {}; ds.forEach(function (d) { m[d.id] = d; if (d.parent) hc[d.parent] = 1; });
+    var tmap = {}; s.types.forEach(function (t) { tmap[t.id] = t; });
+    var tinfo = function (id) { return tmap[id] || { id: id, label: id || 'dataset', category: 'Other', color: '#475569' }; };
+    var classify = function (f) { var src = f.sources || []; if (!src.length) return 'Source'; if (f.expression || src.length > 1) return 'Transformed'; return src[0].slice(src[0].lastIndexOf('.') + 1) === f.name ? 'Passthrough' : 'Rename'; };
+    var BADGE = { Passthrough: 'pass', Rename: 'ren', Transformed: 'ƒx' };
+    var sel = s.sel || null, selId = sel && sel.kind === 'asset' ? sel.id : null;
+    var selCol = sel && sel.kind === 'col' ? sel.ref : sel && sel.kind === 'colsrc' ? sel.target : null;
+    var nest = function (id) { var n = 0, cur = m[id]; while (cur && cur.parent && m[cur.parent] && n < 30) { n++; cur = m[cur.parent]; } return n; };
+    var over = s.drag && s.drag.kind === 'move' ? s.drag.over : '';
+    var guard = function (fn) { return function (e) { if (self._suppress) return; fn(e); }; };
+
+    // containers
+    var boxes = [], anchors = {}, colRows = {}, x1 = 1600, y1 = 1000;
+    ds.filter(function (d) { return self.isCont(d, hc) && LP[d.id] && LP[d.id].w; }).sort(function (a, b) { return nest(a.id) - nest(b.id); }).forEach(function (d) {
+      var p = LP[d.id], on = selId === d.id, isOver = over === d.id;
+      boxes.push({ id: d.id, x: p.x, y: p.y, w: p.w, h: p.h, title: d.name, sub: tinfo(d.type).label + ' · ' + d.id, dot: tinfo(d.type).color,
+        bd: isOver ? '#CA8A04' : on ? '#0F766E' : d.type === 'airflow.dag' ? '#8996A3' : '#B8C2CC', bw: isOver || on ? 3 : d.type === 'airflow.dag' ? 2 : 1,
+        bg: isOver ? '#FEFCE8' : on ? '#E7F4F2' : (nest(d.id) % 2 ? '#F6F8FA' : '#FFFFFF'),
+        pick: guard(function () { self.select({ kind: 'asset', id: d.id }); }) });
+      anchors[d.id] = { x: p.x, y: p.y, w: p.w, ay: p.y + 20 };
+      x1 = Math.max(x1, p.x + p.w + 400); y1 = Math.max(y1, p.y + p.h + 300);
+    });
+    // leaf nodes
+    var nodes = [];
+    ds.forEach(function (d) {
+      if (self.isCont(d, hc) && LP[d.id] && LP[d.id].w) return;
+      var p = LP[d.id]; if (!p) return;
+      var on = selId === d.id, showC = s.showCols && d.fields.length > 0, h = 4 + 58 + (showC ? 9 + d.fields.length * 26 : 0);
+      var cols = d.fields.map(function (f, i) {
+        var ref = d.id + '.' + f.name, cl = classify(f), cs = selCol === ref;
+        colRows[ref] = p.y + 2 + 58 + 5 + i * 26 + 13;
+        return { ref: ref, name: f.name, badge: cl === 'Source' ? f.type : BADGE[cl], title: ref + ' · ' + cl + (f.expression ? ' = ' + f.expression : ''), bg: cs ? '#7E22CE' : 'transparent', fg: cs ? '#FFFFFF' : '#15202B',
+          pick: guard(function () { self.select({ kind: 'col', ref: ref }); }) };
+      });
+      nodes.push({ id: d.id, x: p.x, y: p.y, h: h, name: d.name, typeLabel: tinfo(d.type).label, dot: tinfo(d.type).color, bg: on ? '#0F766E' : '#FFFFFF', fg: on ? '#FFFFFF' : '#15202B', bd: on ? '#0F766E' : '#C5CED8', showCols: showC, cols: cols,
+        pick: guard(function () { self.select({ kind: 'asset', id: d.id }); }) });
+      anchors[d.id] = { x: p.x, y: p.y, w: 240, ay: p.y + 31 };
+      x1 = Math.max(x1, p.x + 640); y1 = Math.max(y1, p.y + h + 300);
+    });
+    // lines
+    var paths = [];
+    var addPath = function (d, hx, hy, dir, color, w, dash, pick) { paths.push({ d: d, head: 'M' + hx + ' ' + hy + ' L' + (hx - 10 * dir) + ' ' + (hy - 5) + ' L' + (hx - 10 * dir) + ' ' + (hy + 5) + ' Z', color: color, w: w, dash: dash, pick: pick }); };
+    var link = function (a, ay, b, by2, color, w, dash, pick) {
+      var x1a, x2a, dx;
+      if (b.x >= a.x + a.w + 8) { x1a = a.x + a.w; x2a = b.x; dx = Math.max(40, (x2a - x1a) / 2); addPath('M' + x1a + ' ' + ay + ' C' + (x1a + dx) + ' ' + ay + ' ' + (x2a - 8 - dx) + ' ' + by2 + ' ' + (x2a - 8) + ' ' + by2, x2a, by2, 1, color, w, dash, pick); }
+      else if (b.x + b.w <= a.x - 8) { x1a = a.x; x2a = b.x + b.w; dx = Math.max(40, (x1a - x2a) / 2); addPath('M' + x1a + ' ' + ay + ' C' + (x1a - dx) + ' ' + ay + ' ' + (x2a + 8 + dx) + ' ' + by2 + ' ' + (x2a + 8) + ' ' + by2, x2a, by2, -1, color, w, dash, pick); }
+      else { var xr = Math.max(a.x + a.w, b.x + b.w); x1a = a.x + a.w; x2a = b.x + b.w; addPath('M' + x1a + ' ' + ay + ' C' + (xr + 60) + ' ' + ay + ' ' + (xr + 60) + ' ' + by2 + ' ' + (x2a + 8) + ' ' + by2, x2a, by2, -1, color, w, dash, pick); }
+    };
+    s.lineage.forEach(function (e, i) {
+      var a = anchors[e.from], b = anchors[e.to]; if (!a || !b) return;
+      var on = sel && sel.kind === 'edge' && sel.i === i, touch = selId && (e.from === selId || e.to === selId);
+      link(a, a.ay, b, b.ay, on ? '#0F766E' : touch ? '#1D4ED8' : '#8996A3', on ? 3.5 : touch ? 2.5 : 1.5, 'none', guard(function () { self.select({ kind: 'edge', i: i }); }));
+    });
+    ds.forEach(function (d) {
+      d.fields.forEach(function (f) {
+        var tref = d.id + '.' + f.name;
+        (f.sources || []).forEach(function (r) {
+          var sa = r.slice(0, r.lastIndexOf('.')), a = anchors[sa], b = anchors[d.id];
+          if (!a || !b || colRows[r] === undefined || colRows[tref] === undefined) return;
+          var on = sel && sel.kind === 'colsrc' && sel.target === tref && sel.source === r, touch = selCol === tref || selCol === r;
+          link(a, colRows[r], b, colRows[tref], on ? '#7E22CE' : touch ? '#9333EA' : '#C4B5FD', on ? 3 : touch ? 2 : 1.25, '5 4', guard(function () { self.select({ kind: 'colsrc', target: tref, source: r }); }));
+        });
+      });
+    });
+    var temp = null;
+    if (s.drag && (s.drag.kind === 'edge' || s.drag.kind === 'col') && s.drag.x2 !== undefined) {
+      var dx2 = Math.max(30, Math.abs(s.drag.x2 - s.drag.x1) / 2);
+      temp = { d: 'M' + s.drag.x1 + ' ' + s.drag.y1 + ' C' + (s.drag.x1 + dx2) + ' ' + s.drag.y1 + ' ' + (s.drag.x2 - dx2) + ' ' + s.drag.y2 + ' ' + s.drag.x2 + ' ' + s.drag.y2, color: s.drag.kind === 'col' ? '#7E22CE' : '#0F766E' };
+    }
+    var z = s.zoom, baseW = x1, baseH = y1;
+
+    // palette & outline
+    var tq = s.tq.trim().toLowerCase(), cats = [];
+    s.types.forEach(function (t) { if (tq && (t.label + ' ' + t.id + ' ' + t.category).toLowerCase().indexOf(tq) < 0) return; var g = cats.find(function (c) { return c.cat === t.category; }); if (!g) { g = { cat: t.category, items: [] }; cats.push(g); } g.items.push({ label: t.label, color: t.color, radius: self.CONT()[t.id] ? '2px' : '50%', add: function () { self.addAsset(t.id); } }); });
+    var oq = s.oq.trim().toLowerCase(), outline = [];
+    var kidsOf = {}; ds.forEach(function (d) { var p = d.parent && m[d.parent] ? d.parent : ''; (kidsOf[p] = kidsOf[p] || []).push(d); });
+    var walkO = function (pid, lvl) { (kidsOf[pid] || []).slice().sort(function (a, b) { return a.id < b.id ? -1 : 1; }).forEach(function (d) { if (!oq || (d.id + ' ' + d.name).toLowerCase().indexOf(oq) >= 0) outline.push({ id: d.id, label: d.id, indent: 10 + (oq ? 0 : lvl * 12), color: tinfo(d.type).color, bg: selId === d.id ? '#E7F4F2' : 'transparent', pick: function () { self.select({ kind: 'asset', id: d.id }); self.centerOn(d.id); } }); walkO(d.id, lvl + 1); }); };
+    walkO('', 0);
+
+    // panel: asset
+    var pa = null, cur = selId ? m[selId] : (sel && sel.kind === 'col' ? m[selCol.slice(0, selCol.lastIndexOf('.'))] : null);
+    if (cur) {
+      var updA = function (key, conv) { return function (e) { var v = conv ? conv(e) : e.target.value; self.updAsset(cur.id, function (d) { d[key] = v; return d; }); }; };
+      var excl = {}; excl[cur.id] = 1; self.descendantsOf(cur.id).forEach(function (x) { excl[x] = 1; });
+      pa = { typeLabel: tinfo(cur.type).label, type: cur.type, name: cur.name, owner: cur.owner, domain: cur.domain, source: cur.source, description: cur.description, parent: cur.parent || '',
+        idSame: s.idBuf.trim() === cur.id, rename: function () { self.renameAsset(cur.id, self.state.idBuf); },
+        del: function () { self.deleteAsset(cur.id); },
+        onType: function (e) { self.updAsset(cur.id, function (d) { d.type = e.target.value; return d; }, true); },
+        onName: updA('name'), onOwner: updA('owner'), onDomain: updA('domain'), onSource: updA('source'), onDescription: updA('description'),
+        onParent: function (e) {
+          var np = e.target.value, LPx = Object.assign({}, self.state.layoutPos), pp = LPx[np];
+          self.pushHist(true);
+          var ds2 = self.state.datasets.map(function (d) { return d.id === cur.id ? Object.assign({}, d, { parent: np }) : d; });
+          if (pp && LPx[cur.id]) { var dxp = pp.x + 16 - LPx[cur.id].x, dyp = pp.y + 48 - LPx[cur.id].y; [cur.id].concat(self.descendantsOf(cur.id)).forEach(function (i) { if (LPx[i]) LPx[i] = Object.assign({}, LPx[i], { x: LPx[i].x + dxp, y: LPx[i].y + dyp }); }); }
+          self.setState({ datasets: ds2, layoutPos: self.fitAncestors(cur.id, LPx, ds2) });
+        },
+        parentOpts: ds.filter(function (d) { return !excl[d.id] && self.isCont(d, hc); }).map(function (d) { return { id: d.id }; }),
+        commitTags: function () { var tags = self.state.tagsBuf.split(',').map(function (t) { return t.trim(); }).filter(Boolean); self.updAsset(cur.id, function (d) { d.tags = tags; return d; }, true); },
+        applyProps: function () {
+          var txt = self.state.propBuf, props = {};
+          if (txt.trim()) { try { props = self.yParse(txt); } catch (err) { say('Properties: ' + err.message, 'err'); return; } if (!props || typeof props !== 'object' || Array.isArray(props)) { say('Properties must be "key: value" lines.', 'err'); return; } }
+          self.updAsset(cur.id, function (d) { d.properties = props; return d; }, true); say('Properties saved.');
+        },
+        colCount: cur.fields.length,
+        addCol: function () { var n = 1; while (cur.fields.some(function (f) { return f.name === 'new_column_' + n; })) n++; self.updAsset(cur.id, function (d) { d.fields = d.fields.concat([{ name: 'new_column_' + n, type: 'STRING', nullable: true, pii: false, description: '', expression: '', sources: [] }]); return d; }, true); },
+        cols: cur.fields.map(function (f, i) {
+          var ref = cur.id + '.' + f.name, buf = s.srcBuf[i] || '';
+          return { name: f.name, type: f.type, description: f.description, expression: f.expression, nullable: f.nullable, pii: f.pii, bd: selCol === ref ? '#7E22CE' : '#DCE3EA', bg: selCol === ref ? '#FAF5FF' : '#FFFFFF',
+            onName: function (e) { self.renameColumn(cur.id, i, e.target.value); },
+            onType: function (e) { self.updField(cur.id, i, { type: e.target.value }); },
+            onDesc: function (e) { self.updField(cur.id, i, { description: e.target.value }); },
+            onExpr: function (e) { self.updField(cur.id, i, { expression: e.target.value }); },
+            onNull: function (e) { self.updField(cur.id, i, { nullable: e.target.checked }, true); },
+            onPii: function (e) { self.updField(cur.id, i, { pii: e.target.checked }, true); },
+            sources: (f.sources || []).map(function (r) { return { ref: r, remove: function () { self.updField(cur.id, i, { sources: f.sources.filter(function (x) { return x !== r; }) }, true); } }; }),
+            noSources: !(f.sources || []).length,
+            srcBuf: buf, onSrcBuf: function (e) { var b = Object.assign({}, self.state.srcBuf); b[i] = e.target.value; set({ srcBuf: b }); },
+            addSrc: function () { var r = (self.state.srcBuf[i] || '').trim(); if (!r) return; if (r.indexOf('.') < 0) { say('Use asset.column, e.g. acme-dwh.raw.orders.order_id', 'err'); return; } if ((f.sources || []).indexOf(r) >= 0) return; self.updField(cur.id, i, { sources: (f.sources || []).concat([r]) }, true); var b = Object.assign({}, self.state.srcBuf); b[i] = ''; set({ srcBuf: b }); },
+            del: function () {
+              self.pushHist(true);
+              var ds3 = self.state.datasets.map(function (d) {
+                var n = d.id === cur.id ? Object.assign({}, d, { fields: d.fields.filter(function (_, j) { return j !== i; }) }) : d;
+                return Object.assign({}, n, { fields: n.fields.map(function (ff) { return (ff.sources || []).indexOf(ref) >= 0 ? Object.assign({}, ff, { sources: ff.sources.filter(function (x) { return x !== ref; }) }) : ff; }) });
+              });
+              set({ datasets: ds3, sel: { kind: 'asset', id: cur.id } });
+            } };
+        }),
+        rels: s.lineage.map(function (e, i) { return { e: e, i: i }; }).filter(function (x) { return x.e.from === cur.id || x.e.to === cur.id; }).map(function (x) {
+          return { label: (x.e.from === cur.id ? '→ ' + x.e.to : '← ' + x.e.from) + (x.e.type ? '  (' + x.e.type + ')' : ''), pick: function () { self.select({ kind: 'edge', i: x.i }); }, del: function () { self.pushHist(true); set({ lineage: self.state.lineage.filter(function (_, j) { return j !== x.i; }) }); } };
+        })
+      };
+      pa.relCount = pa.rels.length;
+    }
+    var pe = null;
+    if (sel && sel.kind === 'edge' && s.lineage[sel.i]) {
+      var ed = s.lineage[sel.i], ei = sel.i;
+      var updE = function (patch, force) { self.pushHist(force); set({ lineage: self.state.lineage.map(function (x, j) { return j === ei ? Object.assign({}, x, patch) : x; }) }); };
+      pe = { from: ed.from, to: ed.to, type: ed.type, process: ed.process,
+        onType: function (e) { updE({ type: e.target.value }); }, onProcess: function (e) { updE({ process: e.target.value }); },
+        reverse: function () { updE({ from: ed.to, to: ed.from }, true); },
+        del: function () { self.pushHist(true); set({ lineage: self.state.lineage.filter(function (_, j) { return j !== ei; }), sel: null }); },
+        pickFrom: function () { self.select({ kind: 'asset', id: ed.from }); self.centerOn(ed.from); }, pickTo: function () { self.select({ kind: 'asset', id: ed.to }); self.centerOn(ed.to); } };
+    }
+    var pcs = null;
+    if (sel && sel.kind === 'colsrc') {
+      var ta = sel.target.slice(0, sel.target.lastIndexOf('.')), tcn = sel.target.slice(ta.length + 1), src = sel.source;
+      pcs = { source: src, target: sel.target,
+        pickSource: function () { var sa = src.slice(0, src.lastIndexOf('.')); self.select({ kind: 'asset', id: sa }); self.centerOn(sa); },
+        pickTarget: function () { self.select({ kind: 'asset', id: ta }); self.centerOn(ta); },
+        remove: function () { var d = m[ta]; if (!d) return; var idx = d.fields.findIndex(function (f) { return f.name === tcn; }); if (idx < 0) return; self.updField(ta, idx, { sources: d.fields[idx].sources.filter(function (x) { return x !== src; }) }, true); set({ sel: null }); } };
+    }
+    var stamp = new Date().toISOString().slice(0, 10);
+    var save = function (blob, name, okMsg) {
+      try { var u = URL.createObjectURL(blob), a = document.createElement('a'); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(u); }, 2000); say(okMsg); }
+      catch (e) { say('Download is blocked in this view.', 'err'); }
+    };
+    var readFiles = function (list, input) {
+      if (!list.length) return;
+      var raw = {};
+      say('Reading ' + list.length + ' file(s)…');
+      Promise.all(list.map(function (file) {
+        if (/\.zip$/i.test(file.name)) return file.arrayBuffer().then(function (b) { return self.readZip(b); }).then(function (fs) { Object.assign(raw, fs); });
+        return file.text().then(function (t) { raw[file.webkitRelativePath || file.name] = t; });
+      })).then(function () {
+        var yamlRaw = {}, ol = [];
+        Object.keys(raw).forEach(function (k) { if (/\.(json|jsonl|ndjson)$/i.test(k)) ol.push(raw[k]); else yamlRaw[k] = raw[k]; });
+        var d = Object.keys(yamlRaw).length ? self.loadProject(yamlRaw) : { types: [], datasets: [], lineage: [], layout: {} };
+        if (ol.length) d = self.mergeLoaded(d, self.normalize(self.convertOpenLineage(ol)));
+        self.applyDoc(d, list.map(function (f) { return f.name; }).join(', '));
+      }).catch(function (err) { say('Import failed — ' + (err && err.message ? err.message : String(err)), 'err'); }).then(function () { if (input) { try { input.value = ''; } catch (x) {} } });
+    };
+    var allCols = []; ds.forEach(function (d) { d.fields.forEach(function (f) { allCols.push({ v: d.id + '.' + f.name }); }); });
+    var msgPal = s.msgKind === 'err' ? ['#FEF3F2', '#912018', '#F3C1BC'] : ['#ECFDF3', '#05603A', '#A6E9C5'];
+
+    return {
+      standalone: typeof window !== 'undefined' && !!window.MH_STANDALONE,
+      hasMsg: !!s.msg, msg: s.msg, msgBg: msgPal[0], msgFg: msgPal[1], msgBd: msgPal[2], clearMsg: function () { set({ msg: '' }); },
+      newDoc: function () { self.pushHist(true); set({ datasets: [], lineage: [], layoutPos: {}, sel: null, msg: 'New empty diagram. Undo brings the previous one back.', msgKind: 'ok' }); },
+      onFile: function (e) { readFiles(Array.prototype.slice.call((e.target && e.target.files) || []), e.target); },
+      loadSample: function () {
+        say('Loading sample…');
+        fetch('samples/airflow-bigquery-sample.zip').then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })
+          .then(function (b) { return self.readZip(b); }).then(function (fs) { self.applyDoc(self.loadProject(fs), 'airflow-bigquery-sample.zip'); })
+          .catch(function (err) { say('Could not load the sample — ' + err.message, 'err'); });
+      },
+      exportZip: function () { var f = self.toFiles(); save(self.makeZip(f), 'metadata-hub-' + stamp + '.zip', 'Exported ' + Object.keys(f).length + ' files including layout.yaml. Import the .zip in the viewer to see this layout.'); },
+      exportYaml: function () { save(new Blob([self.toYaml()], { type: 'application/x-yaml' }), 'metadata-hub-' + stamp + '.yaml', 'Exported a single YAML file (with layout).'); },
+      noUndo: s.hist.length === 0, noRedo: s.fut.length === 0,
+      undo: function () { var h = self.state.hist; if (!h.length) return; var prev = h[h.length - 1]; set({ datasets: prev.datasets, lineage: prev.lineage, layoutPos: prev.layoutPos, hist: h.slice(0, -1), fut: self.state.fut.concat([self.snapshot()]), sel: null }); },
+      redo: function () { var f = self.state.fut; if (!f.length) return; var nx = f[f.length - 1]; set({ datasets: nx.datasets, lineage: nx.lineage, layoutPos: nx.layoutPos, fut: f.slice(0, -1), hist: self.state.hist.concat([self.snapshot()]), sel: null }); },
+      autoAll: function () { if (!ds.length) return; self.pushHist(true); set({ layoutPos: self.autoLayout(false), msg: 'Auto-layout applied. Undo restores your own layout.', msgKind: 'ok' }); },
+      zoomIn: function () { self.zoomTo(self.state.zoom * 1.2); }, zoomOut: function () { self.zoomTo(self.state.zoom / 1.2); }, zoomReset: function () { self.zoomTo(1); }, fit: function () { self.fitView(); },
+      zoomText: Math.round(z * 100) + '%', zoom: z, baseW: baseW, baseH: baseH, cw: Math.round(baseW * z), chh: Math.round(baseH * z), gridPx: Math.max(4, Math.round(16 * z)),
+      showCols: s.showCols, colsLabel: s.showCols ? 'Hide columns' : 'Show columns', toggleCols: function () { set({ showCols: !self.state.showCols }); },
+      snap: s.snap, snapLabel: s.snap ? 'Snap: on' : 'Snap: off', toggleSnap: function () { set({ snap: !self.state.snap }); },
+      canvasRef: this.canvasRef, boxes: boxes, nodes: nodes, paths: paths, hasTemp: !!temp, temp: temp || { d: '', color: '' }, isEmpty: ds.length === 0,
+      tq: s.tq, onTq: function (e) { set({ tq: e.target.value }); }, palette: cats,
+      relType: s.relType, onRelType: function (e) { set({ relType: e.target.value }); },
+      relTypes: ['depends_on', 'reads', 'writes', 'calls', 'triggers', 'configures', 'uses', 'produces', 'deploys'].map(function (v) { return { v: v }; }),
+      oq: s.oq, onOq: function (e) { set({ oq: e.target.value }); }, outline: outline.slice(0, 400), assetCount: ds.length + ' assets',
+      selNone: !pa && !pe && !pcs, selAsset: !!pa, selEdge: !!pe, selColSrc: !!pcs,
+      pa: pa || { cols: [], rels: [], parentOpts: [] }, pe: pe || {}, pcs: pcs || {},
+      idBuf: s.idBuf, onIdBuf: function (e) { set({ idBuf: e.target.value }); },
+      tagsBuf: s.tagsBuf, onTagsBuf: function (e) { set({ tagsBuf: e.target.value }); },
+      propBuf: s.propBuf, onPropBuf: function (e) { set({ propBuf: e.target.value }); },
+      typeOpts: s.types.map(function (t) { return { id: t.id, label: t.category + ' — ' + t.label }; }),
+      colTypes: ['STRING', 'INT64', 'NUMERIC', 'BIGNUMERIC', 'FLOAT64', 'BOOL', 'DATE', 'DATETIME', 'TIMESTAMP', 'TIME', 'JSON', 'BYTES', 'GEOGRAPHY', 'ARRAY', 'STRUCT'].map(function (v) { return { v: v }; }),
+      allCols: allCols.slice(0, 2000),
+      stats: ds.length + ' assets · ' + s.lineage.length + ' relations · ' + Object.keys(LP).length + ' placed'
+    };
+  }
+}
+
+mountDC(document.getElementById('dc-template').textContent, Component, document.getElementById('app'));
+</script>
+</body>
+</html>

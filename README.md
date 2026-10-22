@@ -12,7 +12,7 @@ and publishes `public/` to https://zenaki.github.io/Data-Management-Hub/.
 One-time setup: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
 
 ## Structure
-- `src/Main.dc.html` – app source (template + logic).
+- `src/Main.dc.html` – viewer source; `src/Editor.dc.html` – diagram editor source.
 - `scripts/build.js` – turns the source into `public/index.html`.
 - `public/dc-runtime.js` – small template runtime (holes, `sc-for`, `sc-if`) on React 18.
 - `public/vendor/` – React 18.3.1 production builds (no CDN needed).
@@ -20,6 +20,19 @@ One-time setup: **Settings → Pages → Build and deployment → Source: GitHub
   DAG + Variables → Task Group → Task → BigQuery, two DAGs sharing a variable and a mart table.
 - `samples/` – sample data: `metadata-hub-sample.zip` (multi-file with `main.yaml`),
   `metadata-hub-sample.yaml` (single file) and `project/` (the same files unzipped).
+
+## Diagram Editor (`editor.html`)
+Draw the diagram yourself and save the layout with the data:
+- Import / export `.zip` (with `main.yaml`) or a single `.yaml`; *Load sample* opens `samples/airflow-bigquery-sample.zip`.
+- Palette: add any asset type; with a container selected the new asset goes inside it.
+- Drag an asset's header to move it; drop it inside a container to set `parent`. Drag a container to move it
+  with its contents, drag its corner to resize it.
+- Drag the teal dot onto another asset to add a lineage relation; drag a column's purple dot onto a column of
+  another asset to add it to that column's `sources`.
+- Side panel: rename (references are updated), type, parent, owner, properties, columns, expressions, sources,
+  relations. Undo / redo, auto-layout, snap to grid, zoom and pan.
+- Positions are exported as `layout.yaml` (`layout.nodes.<id>: {x, y, w, h}`). The viewer's Data Lineage
+  shows them in the **Editor layout** view.
 
 ## Lineage features
 - **DAG containers** (default): every Airflow DAG is a collapsible container with lanes for

@@ -1,0 +1,757 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Metadata Hub · Diagram Editor</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F6F8}
+.mono{font-family:'IBM Plex Mono',ui-monospace,monospace}
+.inp{box-sizing:border-box;width:100%;min-height:36px;padding:6px 10px;border:1px solid #C5CED8;border-radius:6px;background:#fff;color:#15202B;font:inherit;font-size:13px}
+.inp:focus{outline:2px solid #0F766E;outline-offset:1px;border-color:#0F766E}
+textarea.inp{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:12px;line-height:1.5;resize:vertical}
+.lbl{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:500;color:#3B4856;min-width:0}
+.tb{min-height:36px;padding:0 12px;border-radius:6px;border:1px solid #C5CED8;background:#fff;color:#15202B;font:inherit;font-size:13px;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;text-decoration:none;box-sizing:border-box}
+.tb:hover{border-color:#0F766E;color:#0F766E}
+.tb:disabled{opacity:.45;cursor:default}
+.pri{background:#0F766E;border-color:#0F766E;color:#fff}
+.pri:hover{background:#115E59;color:#fff}
+.del{min-height:32px;padding:0 10px;border-radius:6px;border:1px solid #F3C1BC;background:#fff;color:#B42318;font:inherit;font-size:12px;cursor:pointer}
+.del:hover{background:#FEF3F2}
+.pal{width:100%;min-height:34px;padding:0 10px;border:1px solid transparent;border-radius:6px;background:transparent;color:#15202B;font:inherit;font-size:13px;cursor:pointer;text-align:left;display:flex;gap:8px;align-items:center}
+.pal:hover{background:#EEF1F4;border-color:#DCE3EA}
+.sec{font-size:11px;font-weight:600;letter-spacing:.06em;color:#4A5765;text-transform:uppercase}
+.chip{display:inline-flex;align-items:center;gap:4px;max-width:100%;padding:2px 4px 2px 8px;border-radius:999px;background:#F3E8FF;color:#6B21A8;font-size:11px}
+.chip button{border:0;background:transparent;color:#6B21A8;cursor:pointer;font-size:14px;line-height:1;padding:0 4px;min-height:22px}
+</style>
+</helmet>
+<div style="height: 100vh; display: flex; flex-direction: column; font-family: 'IBM Plex Sans', system-ui, sans-serif; color: #15202B; background: #F4F6F8">
+
+<header style="flex: none; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 16px; background: #15202B; color: #E8EDF2">
+<div style="display: flex; flex-direction: column; margin-right: 8px">
+<span class="mono" style="font-size: 11px; letter-spacing: 0.08em; color: #8FD3C9">METADATA HUB</span>
+<span style="font-size: 17px; font-weight: 600">Diagram Editor</span>
+</div>
+<sc-if value="{{standalone}}" hint-placeholder-val="{{true}}"><a class="tb" href="index.html">← Viewer</a></sc-if>
+<button type="button" class="tb" onClick="{{newDoc}}">New</button>
+<label class="tb" style="position: relative; overflow: hidden">Import .zip / .yaml<input type="file" multiple="{{true}}" onChange="{{onFile}}" aria-label="Import .zip or .yaml files" style="position: absolute; inset: 0; opacity: 0; cursor: pointer"></label>
+<sc-if value="{{standalone}}" hint-placeholder-val="{{true}}"><button type="button" class="tb" onClick="{{loadSample}}">Load sample</button></sc-if>
+<button type="button" class="tb pri" onClick="{{exportZip}}">Export .zip</button>
+<button type="button" class="tb" onClick="{{exportYaml}}">Export .yaml</button>
+<span aria-hidden="true" style="width: 1px; height: 28px; background: #2C3A48"></span>
+<button type="button" class="tb" disabled="{{noUndo}}" onClick="{{undo}}">Undo</button>
+<button type="button" class="tb" disabled="{{noRedo}}" onClick="{{redo}}">Redo</button>
+<button type="button" class="tb" onClick="{{autoAll}}" title="Rearrange every asset">Auto-layout</button>
+<span aria-hidden="true" style="width: 1px; height: 28px; background: #2C3A48"></span>
+<button type="button" class="tb" style="min-width: 36px; padding: 0" onClick="{{zoomOut}}" aria-label="Zoom out">−</button>
+<button type="button" class="tb mono" style="min-width: 56px; justify-content: center" onClick="{{zoomReset}}" aria-label="Reset zoom">{{zoomText}}</button>
+<button type="button" class="tb" style="min-width: 36px; padding: 0" onClick="{{zoomIn}}" aria-label="Zoom in">+</button>
+<button type="button" class="tb" onClick="{{fit}}">Fit</button>
+<button type="button" class="tb" aria-pressed="{{showCols}}" onClick="{{toggleCols}}">{{colsLabel}}</button>
+<button type="button" class="tb" aria-pressed="{{snap}}" onClick="{{toggleSnap}}">{{snapLabel}}</button>
+</header>
+
+<sc-if value="{{hasMsg}}" hint-placeholder-val="{{false}}">
+<div role="status" style="flex: none; padding: 8px 16px; font-size: 13px; background: {{msgBg}}; color: {{msgFg}}; border-bottom: 1px solid {{msgBd}}; display: flex; justify-content: space-between; gap: 12px"><span>{{msg}}</span><button type="button" onClick="{{clearMsg}}" aria-label="Dismiss" style="border: 0; background: transparent; color: inherit; cursor: pointer; font-size: 16px">×</button></div>
+</sc-if>
+
+<div style="flex: 1; min-height: 0; display: flex">
+
+<aside aria-label="Palette and outline" style="flex: none; width: 236px; box-sizing: border-box; overflow: auto; background: #FFFFFF; border-right: 1px solid #DCE3EA; padding: 12px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<span class="sec">Add asset</span>
+<span style="font-size: 12px; color: #5B6876; line-height: 1.4">Click a type. If a container is selected, the new asset goes inside it.</span>
+<input class="inp" type="search" placeholder="Filter types…" value="{{tq}}" onChange="{{onTq}}" aria-label="Filter asset types">
+<sc-for list="{{palette}}" as="g" hint-placeholder-count="3">
+<div style="display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 11px; color: #5B6876; margin-top: 4px">{{g.cat}}</span>
+<sc-for list="{{g.items}}" as="t" hint-placeholder-count="3"><button type="button" class="pal" onClick="{{t.add}}"><span aria-hidden="true" style="flex: none; width: 9px; height: 9px; border-radius: {{t.radius}}; background: {{t.color}}"></span><span>{{t.label}}</span></button></sc-for>
+</div>
+</sc-for>
+</div>
+<label class="lbl">New relations use type
+<input class="inp mono" list="rel-types" value="{{relType}}" onChange="{{onRelType}}">
+</label>
+<datalist id="rel-types"><sc-for list="{{relTypes}}" as="r" hint-placeholder-count="3"><option value="{{r.v}}"></option></sc-for></datalist>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<span class="sec">Outline · {{assetCount}}</span>
+<input class="inp" type="search" placeholder="Find asset…" value="{{oq}}" onChange="{{onOq}}" aria-label="Find asset">
+<sc-for list="{{outline}}" as="o" hint-placeholder-count="6"><button type="button" class="pal mono" onClick="{{o.pick}}" title="{{o.id}}" style="padding-left: {{o.indent}}px; font-size: 12px; background: {{o.bg}}; min-height: 28px"><span aria-hidden="true" style="flex: none; width: 7px; height: 7px; border-radius: 50%; background: {{o.color}}"></span><span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{o.label}}</span></button></sc-for>
+</div>
+</aside>
+
+<main style="flex: 1; min-width: 0; position: relative">
+<div ref="{{canvasRef}}" style="position: absolute; inset: 0; overflow: auto; background-color: #FBFCFD; background-image: radial-gradient(#D5DCE3 1px, transparent 1px); background-size: {{gridPx}}px {{gridPx}}px; cursor: grab">
+<div style="position: relative; width: {{cw}}px; height: {{chh}}px">
+<div style="position: absolute; left: 0; top: 0; width: {{baseW}}px; height: {{baseH}}px; transform: scale({{zoom}}); transform-origin: 0 0">
+
+<sc-for list="{{boxes}}" as="b" hint-placeholder-count="2">
+<div data-node="{{b.id}}" style="position: absolute; left: {{b.x}}px; top: {{b.y}}px; width: {{b.w}}px; height: {{b.h}}px; box-sizing: border-box; border: {{b.bw}}px solid {{b.bd}}; border-radius: 12px; background: {{b.bg}}">
+<button type="button" data-drag="{{b.id}}" onClick="{{b.pick}}" title="Drag to move (with everything inside) · click to edit" style="display: flex; align-items: center; gap: 8px; width: 100%; height: 40px; padding: 0 12px; border: 0; background: transparent; font: inherit; color: #15202B; cursor: move; text-align: left">
+<span aria-hidden="true" style="flex: none; width: 10px; height: 10px; border-radius: 3px; background: {{b.dot}}"></span>
+<span style="display: flex; flex-direction: column; min-width: 0"><span style="font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{b.title}}</span><span class="mono" style="font-size: 10px; color: #5B6876; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{b.sub}}</span></span>
+</button>
+<span data-port="{{b.id}}" title="Drag to another asset to add a lineage relation" style="position: absolute; right: -8px; top: 13px; width: 12px; height: 12px; border-radius: 50%; background: #0F766E; border: 2px solid #FFFFFF; box-shadow: 0 0 0 1px #0F766E; cursor: crosshair"></span>
+<span data-resize="{{b.id}}" title="Drag to resize" style="position: absolute; right: 3px; bottom: 3px; width: 14px; height: 14px; box-sizing: border-box; border-right: 3px solid #8996A3; border-bottom: 3px solid #8996A3; border-radius: 0 0 8px 0; cursor: nwse-resize"></span>
+</div>
+</sc-for>
+
+<sc-for list="{{paths}}" as="p" hint-placeholder-count="3">
+<svg aria-hidden="true" width="1" height="1" style="position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none"><path d="{{p.d}}" style="fill: none; stroke: {{p.color}}; stroke-width: {{p.w}}px; stroke-dasharray: {{p.dash}}"></path><path d="{{p.head}}" style="fill: {{p.color}}; stroke: none"></path><path d="{{p.d}}" onClick="{{p.pick}}" style="fill: none; stroke: transparent; stroke-width: 14px; pointer-events: stroke; cursor: pointer"></path></svg>
+</sc-for>
+
+<sc-for list="{{nodes}}" as="n" hint-placeholder-count="3">
+<div data-node="{{n.id}}" style="position: absolute; left: {{n.x}}px; top: {{n.y}}px; width: 240px; height: {{n.h}}px; box-sizing: border-box; border-radius: 10px; background: #FFFFFF; border: 2px solid {{n.bd}}; box-shadow: 0 1px 3px rgba(21, 32, 43, 0.10)">
+<button type="button" data-drag="{{n.id}}" onClick="{{n.pick}}" title="Drag to move · drop inside a container to nest it · click to edit" style="width: 100%; height: 58px; box-sizing: border-box; padding: 8px 12px; border: 0; border-radius: 8px 8px 0 0; background: {{n.bg}}; color: {{n.fg}}; text-align: left; cursor: move; font: inherit; display: flex; flex-direction: column; gap: 2px; justify-content: center">
+<span style="display: flex; gap: 6px; align-items: center; max-width: 100%"><span aria-hidden="true" style="flex: none; width: 9px; height: 9px; border-radius: 50%; background: {{n.dot}}; box-shadow: 0 0 0 2px #FFFFFF"></span><span class="mono" style="font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{n.id}}</span></span>
+<span style="font-size: 11px; opacity: 0.85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%">{{n.typeLabel}} · {{n.name}}</span>
+</button>
+<span data-port="{{n.id}}" title="Drag to another asset to add a lineage relation" style="position: absolute; right: -8px; top: 22px; width: 12px; height: 12px; border-radius: 50%; background: #0F766E; border: 2px solid #FFFFFF; box-shadow: 0 0 0 1px #0F766E; cursor: crosshair"></span>
+<sc-if value="{{n.showCols}}" hint-placeholder-val="{{true}}">
+<div style="padding: 4px 0; border-top: 1px solid #E6EBF0">
+<sc-for list="{{n.cols}}" as="c" hint-placeholder-count="3">
+<button type="button" data-col="{{c.ref}}" onClick="{{c.pick}}" title="{{c.title}}" style="position: relative; width: 100%; height: 26px; border: 0; padding: 0 14px 0 12px; display: flex; justify-content: space-between; gap: 8px; align-items: center; background: {{c.bg}}; color: {{c.fg}}; font: inherit; font-size: 12px; cursor: pointer; text-align: left"><span class="mono" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{c.name}}</span><span class="mono" style="font-size: 10px; opacity: 0.75; white-space: nowrap">{{c.badge}}</span><span data-colport="{{c.ref}}" title="Drag to a column in another asset: that column will use this one as a source" style="position: absolute; right: -7px; top: 7px; width: 10px; height: 10px; border-radius: 50%; background: #7E22CE; border: 2px solid #FFFFFF; cursor: crosshair"></span></button>
+</sc-for>
+</div>
+</sc-if>
+</div>
+</sc-for>
+
+<sc-if value="{{hasTemp}}" hint-placeholder-val="{{false}}">
+<svg aria-hidden="true" width="1" height="1" style="position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none"><path d="{{temp.d}}" style="fill: none; stroke: {{temp.color}}; stroke-width: 2px; stroke-dasharray: 6 4"></path></svg>
+</sc-if>
+
+</div>
+</div>
+</div>
+<sc-if value="{{isEmpty}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); max-width: 420px; padding: 24px; background: #FFFFFF; border: 1px solid #DCE3EA; border-radius: 12px; text-align: center; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 6px 20px rgba(21, 32, 43, 0.08)">
+<strong style="font-size: 16px">Start a diagram</strong>
+<span style="font-size: 13px; color: #4A5765; line-height: 1.5">Import a .zip / .yaml project, load the sample, or add assets from the palette on the left. Drag the teal dot to connect assets, the purple dot to connect columns, and the corner of a container to resize it.</span>
+</div>
+</sc-if>
+</main>
+
+<aside aria-label="Properties" style="flex: none; width: 340px; box-sizing: border-box; overflow: auto; background: #FFFFFF; border-left: 1px solid #DCE3EA; padding: 14px; display: flex; flex-direction: column; gap: 12px">
+
+<sc-if value="{{selNone}}" hint-placeholder-val="{{true}}">
+<span class="sec">Properties</span>
+<p style="margin: 0; font-size: 13px; color: #4A5765; line-height: 1.55">Select an asset, a column, or a line to edit it.</p>
+<ul style="margin: 0; padding-left: 18px; font-size: 12px; color: #4A5765; line-height: 1.7">
+<li>Drag an asset's header to move it; drop it inside a container to nest it.</li>
+<li>Drag a container's header to move it with everything inside; drag its corner to resize.</li>
+<li>Drag the <span style="color: #0F766E; font-weight: 600">teal dot</span> onto another asset to add a lineage relation.</li>
+<li>Drag a column's <span style="color: #7E22CE; font-weight: 600">purple dot</span> onto a column of another asset to make it a source.</li>
+<li>Ctrl/⌘ + scroll to zoom; drag the background to pan.</li>
+</ul>
+<span style="font-size: 12px; color: #5B6876">{{stats}}</span>
+</sc-if>
+
+<sc-if value="{{selAsset}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 8px"><span class="sec">{{pa.typeLabel}}</span><button type="button" class="del" onClick="{{pa.del}}">Delete asset</button></div>
+<div style="display: flex; gap: 6px; align-items: flex-end">
+<label class="lbl" style="flex: 1">ID<input class="inp mono" value="{{idBuf}}" onChange="{{onIdBuf}}"></label>
+<button type="button" class="tb" disabled="{{pa.idSame}}" onClick="{{pa.rename}}">Rename</button>
+</div>
+<label class="lbl">Type
+<select class="inp" value="{{pa.type}}" onChange="{{pa.onType}}"><sc-for list="{{typeOpts}}" as="o" hint-placeholder-count="4"><option value="{{o.id}}">{{o.label}}</option></sc-for></select>
+</label>
+<label class="lbl">Name<input class="inp" value="{{pa.name}}" onChange="{{pa.onName}}"></label>
+<label class="lbl">Parent (container)
+<select class="inp mono" value="{{pa.parent}}" onChange="{{pa.onParent}}"><option value="">— none —</option><sc-for list="{{pa.parentOpts}}" as="o" hint-placeholder-count="4"><option value="{{o.id}}">{{o.id}}</option></sc-for></select>
+</label>
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px">
+<label class="lbl">Owner<input class="inp" value="{{pa.owner}}" onChange="{{pa.onOwner}}"></label>
+<label class="lbl">Domain<input class="inp" value="{{pa.domain}}" onChange="{{pa.onDomain}}"></label>
+</div>
+<label class="lbl">Source / location<input class="inp mono" value="{{pa.source}}" onChange="{{pa.onSource}}"></label>
+<label class="lbl">Tags (comma separated)<input class="inp" value="{{tagsBuf}}" onChange="{{onTagsBuf}}" onBlur="{{pa.commitTags}}"></label>
+<label class="lbl">Description<textarea class="inp" rows="2" style="font-family: inherit; font-size: 13px" value="{{pa.description}}" onChange="{{pa.onDescription}}"></textarea></label>
+<label class="lbl">Properties (YAML)<textarea class="inp" rows="4" value="{{propBuf}}" onChange="{{onPropBuf}}"></textarea></label>
+<div><button type="button" class="tb" onClick="{{pa.applyProps}}">Apply properties</button></div>
+
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 4px"><span class="sec">Columns · {{pa.colCount}}</span><button type="button" class="tb" onClick="{{pa.addCol}}">+ Column</button></div>
+<sc-for list="{{pa.cols}}" as="f" hint-placeholder-count="2">
+<div style="border: 1px solid {{f.bd}}; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 6px; background: {{f.bg}}">
+<div style="display: grid; grid-template-columns: 1fr 110px; gap: 6px">
+<input class="inp mono" aria-label="Column name" value="{{f.name}}" onChange="{{f.onName}}">
+<input class="inp mono" aria-label="Column type" list="col-types" value="{{f.type}}" onChange="{{f.onType}}">
+</div>
+<input class="inp" aria-label="Description" placeholder="Description" value="{{f.description}}" onChange="{{f.onDesc}}">
+<input class="inp mono" aria-label="Expression" placeholder="Expression, e.g. SUM(net_amount)" value="{{f.expression}}" onChange="{{f.onExpr}}">
+<div style="display: flex; flex-wrap: wrap; gap: 4px; align-items: center"><span style="font-size: 11px; color: #5B6876">Sources:</span><sc-for list="{{f.sources}}" as="sr" hint-placeholder-count="1"><span class="chip mono"><span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px">{{sr.ref}}</span><button type="button" onClick="{{sr.remove}}" aria-label="Remove source {{sr.ref}}">×</button></span></sc-for><sc-if value="{{f.noSources}}" hint-placeholder-val="{{false}}"><span style="font-size: 11px; color: #5B6876; font-style: italic">none (source column)</span></sc-if></div>
+<div style="display: flex; gap: 6px"><input class="inp mono" list="all-cols" placeholder="add source: asset.column" aria-label="Add source column" value="{{f.srcBuf}}" onChange="{{f.onSrcBuf}}"><button type="button" class="tb" onClick="{{f.addSrc}}">Add</button></div>
+<div style="display: flex; gap: 12px; align-items: center; font-size: 12px">
+<label style="display: flex; gap: 6px; align-items: center"><input type="checkbox" checked="{{f.nullable}}" onChange="{{f.onNull}}"> Nullable</label>
+<label style="display: flex; gap: 6px; align-items: center"><input type="checkbox" checked="{{f.pii}}" onChange="{{f.onPii}}"> PII</label>
+<span style="flex: 1"></span>
+<button type="button" class="del" onClick="{{f.del}}">Delete</button>
+</div>
+</div>
+</sc-for>
+<datalist id="col-types"><sc-for list="{{colTypes}}" as="ty" hint-placeholder-count="4"><option value="{{ty.v}}"></option></sc-for></datalist>
+<datalist id="all-cols"><sc-for list="{{allCols}}" as="ac" hint-placeholder-count="4"><option value="{{ac.v}}"></option></sc-for></datalist>
+
+<div style="display: flex; flex-direction: column; gap: 6px; margin-top: 4px">
+<span class="sec">Relations · {{pa.relCount}}</span>
+<sc-for list="{{pa.rels}}" as="r" hint-placeholder-count="2"><div style="display: flex; gap: 6px; align-items: center; font-size: 12px"><button type="button" class="pal mono" style="flex: 1; min-width: 0; font-size: 11px" onClick="{{r.pick}}"><span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{r.label}}</span></button><button type="button" class="del" onClick="{{r.del}}" aria-label="Delete relation">×</button></div></sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{selEdge}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; justify-content: space-between; align-items: center"><span class="sec">Lineage relation</span><button type="button" class="del" onClick="{{pe.del}}">Delete</button></div>
+<div class="mono" style="font-size: 12px; line-height: 1.6; word-break: break-all"><button type="button" class="pal mono" style="font-size: 12px" onClick="{{pe.pickFrom}}">{{pe.from}}</button><span style="color: #5B6876; padding-left: 10px">↓</span><button type="button" class="pal mono" style="font-size: 12px" onClick="{{pe.pickTo}}">{{pe.to}}</button></div>
+<label class="lbl">Relation type<input class="inp mono" list="rel-types" value="{{pe.type}}" onChange="{{pe.onType}}"></label>
+<label class="lbl">Process / transformation<input class="inp" value="{{pe.process}}" onChange="{{pe.onProcess}}"></label>
+<div><button type="button" class="tb" onClick="{{pe.reverse}}">Reverse direction</button></div>
+</sc-if>
+
+<sc-if value="{{selColSrc}}" hint-placeholder-val="{{false}}">
+<span class="sec">Column source</span>
+<div class="mono" style="font-size: 12px; line-height: 1.6; word-break: break-all"><button type="button" class="pal mono" style="font-size: 12px" onClick="{{pcs.pickSource}}">{{pcs.source}}</button><span style="color: #5B6876; padding-left: 10px">feeds ↓</span><button type="button" class="pal mono" style="font-size: 12px" onClick="{{pcs.pickTarget}}">{{pcs.target}}</button></div>
+<div><button type="button" class="del" onClick="{{pcs.remove}}">Remove this source</button></div>
+</sc-if>
+</aside>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    var core = typeof window !== 'undefined' && window.MHCore ? window.MHCore.prototype : null, self = this;
+    ['stripComment', 'splitFlow', 'scalar', 'keyMatch', 'isSeq', 'yParse', 'pBlock', 'pSeq', 'pMap', 'yStr', 'yKey', 'emit', 'cleanAsset', 'cleanEdge', 'dump', 'toYaml', 'toFiles', 'crc32', 'makeZip', 'readZip', 'joinPath', 'globRe', 'loadProject', 'normalize', 'mergeTypes', 'defaultTypes', 'convertOpenLineage', 'mergeLoaded']
+      .forEach(function (n) { if (core && core[n]) self[n] = core[n].bind(self); });
+    this.state = {
+      types: this.defaultTypes ? this.defaultTypes() : [], datasets: [], lineage: [], layoutPos: {},
+      sel: null, zoom: 0.8, showCols: true, snap: true, hist: [], fut: [], msg: core ? '' : 'Core library not loaded — open editor.html from the Metadata Hub site.', msgKind: core ? 'ok' : 'err',
+      drag: null, tq: '', oq: '', relType: 'depends_on', idBuf: '', tagsBuf: '', propBuf: '', srcBuf: {}, sourceName: ''
+    };
+    this.canvasRef = this.attachCanvas.bind(this);
+  }
+
+  /* ---------- helpers ---------- */
+  CONT() { return { 'airflow.dag': 1, 'airflow.task_group': 1, 'bigquery.project': 1, 'bigquery.dataset': 1, 'gcs.bucket': 1, 'artifact_registry.repository': 1, 'vertex.pipeline': 1 }; }
+  byIdMap() { var m = {}; this.state.datasets.forEach(function (d) { m[d.id] = d; }); return m; }
+  hasChildMap() { var m = {}; this.state.datasets.forEach(function (d) { if (d.parent) m[d.parent] = 1; }); return m; }
+  isCont(d, hc) { return !!(this.CONT()[d.type] || hc[d.id]); }
+  descendantsOf(id) {
+    var out = [], ds = this.state.datasets, frontier = [id];
+    while (frontier.length) { var x = frontier.pop(); ds.forEach(function (d) { if (d.parent === x && out.indexOf(d.id) < 0 && d.id !== id) { out.push(d.id); frontier.push(d.id); } }); }
+    return out;
+  }
+  nodeH(id, m) { var d = (m || this.byIdMap())[id], nf = d ? d.fields.length : 0; return 4 + 58 + (this.state.showCols && nf ? 9 + nf * 26 : 0); }
+  rectOf(id, m, hc) { var p = this.state.layoutPos[id]; if (!p) return null; var d = m[id]; if (d && this.isCont(d, hc) && p.w) return { x: p.x, y: p.y, w: p.w, h: p.h }; return { x: p.x, y: p.y, w: 240, h: this.nodeH(id, m) }; }
+  snapV(v) { return this.state.snap ? Math.round(v / 8) * 8 : Math.round(v); }
+  snapshot() { return { datasets: this.state.datasets, lineage: this.state.lineage, layoutPos: this.state.layoutPos }; }
+  pushHist(force) {
+    var now = Date.now();
+    if (!force && now - (this._lastHist || 0) < 800) return;
+    this._lastHist = now;
+    this.setState({ hist: this.state.hist.concat([this.snapshot()]).slice(-80), fut: [] });
+  }
+  say(m, k) { this.setState({ msg: m, msgKind: k || 'ok' }); }
+  select(sel) {
+    var st = { sel: sel, srcBuf: {} };
+    var aid = sel && sel.kind === 'asset' ? sel.id : sel && sel.kind === 'col' ? sel.ref.slice(0, sel.ref.lastIndexOf('.')) : null;
+    if (aid) {
+      var d = this.byIdMap()[aid];
+      st.idBuf = aid; st.tagsBuf = d ? d.tags.join(', ') : ''; st.propBuf = d && Object.keys(d.properties || {}).length ? this.emit(d.properties, 0, []).join('\n') : '';
+    }
+    this.setState(st);
+  }
+  updAsset(id, fn, force) {
+    this.pushHist(force);
+    this.setState({ datasets: this.state.datasets.map(function (d) { return d.id === id ? fn(Object.assign({}, d)) : d; }) });
+  }
+  updField(id, idx, patch, force) { this.updAsset(id, function (d) { d.fields = d.fields.map(function (f, i) { return i === idx ? Object.assign({}, f, patch) : f; }); return d; }, force); }
+
+  /* grow every container on the parent chain so it encloses its children */
+  fitAncestors(id, LP0, ds0) {
+    var LP = Object.assign({}, LP0 || this.state.layoutPos), ds = ds0 || this.state.datasets, m = {}, hc = {}, self = this;
+    ds.forEach(function (d) { m[d.id] = d; if (d.parent) hc[d.parent] = 1; });
+    var cur = m[id], g = 0;
+    while (cur && cur.parent && g++ < 30) {
+      var pid = cur.parent, pp = LP[pid];
+      if (!pp || !pp.w) break;
+      var kids = ds.filter(function (d) { return d.parent === pid && LP[d.id]; });
+      var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      kids.forEach(function (k) { var p = LP[k.id], w = p.w && self.isCont(k, hc) ? p.w : 240, h = p.h && self.isCont(k, hc) ? p.h : self.nodeH(k.id, m); x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y); x1 = Math.max(x1, p.x + w); y1 = Math.max(y1, p.y + h); });
+      if (kids.length) {
+        var nx = Math.min(pp.x, x0 - 16), ny = Math.min(pp.y, y0 - 48);
+        LP[pid] = { x: nx, y: ny, w: Math.max(pp.x + pp.w, x1 + 16) - nx, h: Math.max(pp.y + pp.h, y1 + 16) - ny };
+      }
+      cur = m[pid];
+    }
+    return LP;
+  }
+  containerAt(x, y, excl) {
+    var m = this.byIdMap(), hc = this.hasChildMap(), LP = this.state.layoutPos, best = null, bestA = Infinity, self = this;
+    this.state.datasets.forEach(function (d) {
+      if (excl[d.id] || !self.isCont(d, hc)) return;
+      var p = LP[d.id]; if (!p || !p.w) return;
+      if (x >= p.x && x <= p.x + p.w && y >= p.y && y <= p.y + p.h && p.w * p.h < bestA) { best = d.id; bestA = p.w * p.h; }
+    });
+    return best || '';
+  }
+  canvasPoint(e) { var el = this._cv, r = el.getBoundingClientRect(), z = this.state.zoom; return { x: (e.clientX - r.left + el.scrollLeft) / z, y: (e.clientY - r.top + el.scrollTop) / z }; }
+
+  /* ---------- canvas interaction ---------- */
+  attachCanvas(el) {
+    var self = this;
+    if (this._cv === el) return;
+    if (this._cv) { this._cv.removeEventListener('mousedown', this._onDown); this._cv.removeEventListener('wheel', this._onWheel); }
+    this._cv = el;
+    if (!el) return;
+    if (!this._onDown) {
+      this._onWheel = function (e) {
+        if (!(e.ctrlKey || e.metaKey)) return;
+        e.preventDefault();
+        var r = self._cv.getBoundingClientRect();
+        self.zoomTo(self.state.zoom * Math.exp(-e.deltaY * 0.0015), e.clientX - r.left, e.clientY - r.top);
+      };
+      this._onDown = function (e) {
+        if (e.button !== 0) return;
+        var t = e.target; if (!t.closest || t.closest('input,textarea,select,a,label')) return;
+        var cport = t.closest('[data-colport]'), port = t.closest('[data-port]'), rz = t.closest('[data-resize]'), dg = t.closest('[data-drag]');
+        var p = self.canvasPoint(e), LP = self.state.layoutPos;
+        if (cport) self._drag = { kind: 'col', from: cport.getAttribute('data-colport'), x0: p.x, y0: p.y };
+        else if (port) self._drag = { kind: 'edge', from: port.getAttribute('data-port'), x0: p.x, y0: p.y };
+        else if (rz) { var rid = rz.getAttribute('data-resize'), rp = LP[rid]; if (!rp) return; self._drag = { kind: 'resize', id: rid, p0: p, w0: rp.w, h0: rp.h, moved: false }; }
+        else if (dg) {
+          var id = dg.getAttribute('data-drag'), orig = {};
+          [id].concat(self.descendantsOf(id)).forEach(function (i) { if (LP[i]) orig[i] = Object.assign({}, LP[i]); });
+          self._drag = { kind: 'move', id: id, p0: p, orig: orig, moved: false };
+        } else self._drag = { kind: 'pan', cx: e.clientX, cy: e.clientY, l: el.scrollLeft, t: el.scrollTop };
+        e.preventDefault();
+      };
+      this._onMove = function (e) {
+        var d = self._drag, c = self._cv; if (!d || !c) return;
+        if (d.kind === 'pan') { c.scrollLeft = d.l - (e.clientX - d.cx); c.scrollTop = d.t - (e.clientY - d.cy); c.style.cursor = 'grabbing'; return; }
+        var p = self.canvasPoint(e);
+        if (d.kind === 'move') {
+          var dx = p.x - d.p0.x, dy = p.y - d.p0.y;
+          if (!d.moved && Math.abs(dx) + Math.abs(dy) < 4) return;
+          if (!d.moved) { d.moved = true; self.pushHist(true); }
+          var LP2 = Object.assign({}, self.state.layoutPos);
+          Object.keys(d.orig).forEach(function (i) { var o = d.orig[i]; LP2[i] = Object.assign({}, o, { x: self.snapV(o.x + dx), y: self.snapV(o.y + dy) }); });
+          var excl = {}; Object.keys(d.orig).forEach(function (i) { excl[i] = 1; });
+          var mp = LP2[d.id], over = mp ? self.containerAt(mp.x + 40, mp.y + 20, excl) : '';
+          self.setState({ layoutPos: LP2, drag: { kind: 'move', over: over } });
+        } else if (d.kind === 'resize') {
+          if (!d.moved) { d.moved = true; self.pushHist(true); }
+          var LP3 = Object.assign({}, self.state.layoutPos), o2 = LP3[d.id];
+          LP3[d.id] = Object.assign({}, o2, { w: Math.max(260, self.snapV(d.w0 + p.x - d.p0.x)), h: Math.max(80, self.snapV(d.h0 + p.y - d.p0.y)) });
+          self.setState({ layoutPos: LP3 });
+        } else {
+          self.setState({ drag: { kind: d.kind, x1: d.x0, y1: d.y0, x2: p.x, y2: p.y } });
+        }
+      };
+      this._onUp = function (e) {
+        var d = self._drag; if (!d) return;
+        self._drag = null;
+        if (self._cv) self._cv.style.cursor = 'grab';
+        if (d.kind === 'move') {
+          if (d.moved) { self._suppress = true; setTimeout(function () { self._suppress = false; }, 0); self.dropReparent(d.id); }
+          self.setState({ drag: null });
+        } else if (d.kind === 'resize') {
+          if (d.moved) { self._suppress = true; setTimeout(function () { self._suppress = false; }, 0); }
+        } else if (d.kind === 'edge' || d.kind === 'col') {
+          self.setState({ drag: null });
+          var hit = document.elementFromPoint(e.clientX, e.clientY);
+          if (d.kind === 'edge') { var tn = hit && hit.closest && hit.closest('[data-node]'); if (tn) self.addEdge(d.from, tn.getAttribute('data-node')); }
+          else { var tc = hit && hit.closest && hit.closest('[data-col]'); if (tc) self.addColSource(tc.getAttribute('data-col'), d.from); else self.say('Drop the purple dot on a column of another asset.', 'err'); }
+        }
+      };
+      window.addEventListener('mousemove', this._onMove);
+      window.addEventListener('mouseup', this._onUp);
+    }
+    el.addEventListener('mousedown', this._onDown);
+    el.addEventListener('wheel', this._onWheel, { passive: false });
+  }
+  componentWillUnmount() {
+    if (this._onMove) { window.removeEventListener('mousemove', this._onMove); window.removeEventListener('mouseup', this._onUp); }
+    this.attachCanvas(null);
+  }
+  zoomTo(nz, mx, my) {
+    var el = this._cv, z = this.state.zoom;
+    nz = Math.round(Math.max(0.15, Math.min(2, nz)) * 100) / 100;
+    if (!el) { this.setState({ zoom: nz }); return; }
+    if (mx === undefined) { mx = el.clientWidth / 2; my = el.clientHeight / 2; }
+    var sx = (el.scrollLeft + mx) / z, sy = (el.scrollTop + my) / z;
+    this.setState({ zoom: nz }, function () { el.scrollLeft = sx * nz - mx; el.scrollTop = sy * nz - my; });
+  }
+  centerOn(id) {
+    var el = this._cv, p = this.state.layoutPos[id]; if (!el || !p) return;
+    var z = this.state.zoom;
+    el.scrollLeft = Math.max(0, p.x * z - el.clientWidth / 3); el.scrollTop = Math.max(0, p.y * z - el.clientHeight / 3);
+  }
+
+  /* ---------- edits ---------- */
+  dropReparent(id) {
+    var m = this.byIdMap(), d = m[id], LP = this.state.layoutPos, p = LP[id]; if (!d || !p) return;
+    var excl = {}; excl[id] = 1; this.descendantsOf(id).forEach(function (x) { excl[x] = 1; });
+    var target = this.containerAt(p.x + 40, p.y + 20, excl), ds = this.state.datasets;
+    if ((d.parent || '') !== target) {
+      var oldP = d.parent && m[d.parent] ? d.parent : '';
+      if (target || oldP) {
+        ds = ds.map(function (x) { return x.id === id ? Object.assign({}, x, { parent: target }) : x; });
+        this.say(target ? 'Moved ' + id + ' into ' + target + '.' : 'Moved ' + id + ' out of ' + oldP + '.');
+      }
+    }
+    this.setState({ datasets: ds, layoutPos: this.fitAncestors(id, LP, ds) });
+  }
+  addEdge(from, to) {
+    if (!to || from === to) return;
+    if (this.state.lineage.some(function (e) { return e.from === from && e.to === to; })) { this.say('That relation already exists.', 'err'); return; }
+    this.pushHist(true);
+    var type = (this.state.relType || '').trim() || 'depends_on';
+    var lin = this.state.lineage.concat([{ from: from, to: to, type: type, process: '', properties: {} }]);
+    this.setState({ lineage: lin, sel: { kind: 'edge', i: lin.length - 1 }, msg: 'Added relation ' + from + ' → ' + to + ' (' + type + ').', msgKind: 'ok' });
+  }
+  addColSource(targetRef, sourceRef) {
+    if (!targetRef || targetRef === sourceRef) return;
+    var ta = targetRef.slice(0, targetRef.lastIndexOf('.')), tc = targetRef.slice(ta.length + 1), sa = sourceRef.slice(0, sourceRef.lastIndexOf('.'));
+    if (ta === sa) { this.say('Pick a column in another asset.', 'err'); return; }
+    var d = this.byIdMap()[ta]; if (!d) return;
+    var idx = d.fields.findIndex(function (f) { return f.name === tc; }); if (idx < 0) return;
+    if ((d.fields[idx].sources || []).indexOf(sourceRef) >= 0) { this.say('That source is already there.', 'err'); return; }
+    this.updField(ta, idx, { sources: (d.fields[idx].sources || []).concat([sourceRef]) }, true);
+    this.setState({ sel: { kind: 'colsrc', target: targetRef, source: sourceRef }, msg: sourceRef + ' is now a source of ' + targetRef + '.', msgKind: 'ok' });
+  }
+  renameAsset(oldId, newId) {
+    newId = (newId || '').trim();
+    if (!newId || newId === oldId) return;
+    if (/\s/.test(newId)) { this.say('IDs cannot contain spaces.', 'err'); return; }
+    if (this.byIdMap()[newId]) { this.say('ID ' + newId + ' is already used.', 'err'); return; }
+    this.pushHist(true);
+    var rr = function (r) { var a = r.slice(0, r.lastIndexOf('.')); return a === oldId ? newId + r.slice(oldId.length) : r; };
+    var ds = this.state.datasets.map(function (d) {
+      var n = Object.assign({}, d);
+      if (n.id === oldId) n.id = newId;
+      if (n.parent === oldId) n.parent = newId;
+      n.fields = n.fields.map(function (f) { return (f.sources || []).length ? Object.assign({}, f, { sources: f.sources.map(rr) }) : f; });
+      return n;
+    });
+    var lin = this.state.lineage.map(function (e) { return Object.assign({}, e, { from: e.from === oldId ? newId : e.from, to: e.to === oldId ? newId : e.to }); });
+    var LP = Object.assign({}, this.state.layoutPos); if (LP[oldId]) { LP[newId] = LP[oldId]; delete LP[oldId]; }
+    this.setState({ datasets: ds, lineage: lin, layoutPos: LP, sel: { kind: 'asset', id: newId }, idBuf: newId, msg: 'Renamed ' + oldId + ' to ' + newId + ' (parents, relations and column sources updated).', msgKind: 'ok' });
+  }
+  renameColumn(id, idx, newName) {
+    var d = this.byIdMap()[id]; if (!d) return;
+    var oldRef = id + '.' + d.fields[idx].name, newRef = id + '.' + newName;
+    this.pushHist(false);
+    var ds = this.state.datasets.map(function (x) {
+      var n = x.id === id ? Object.assign({}, x, { fields: x.fields.map(function (f, i) { return i === idx ? Object.assign({}, f, { name: newName }) : f; }) }) : x;
+      return Object.assign({}, n, { fields: n.fields.map(function (f) { return (f.sources || []).indexOf(oldRef) >= 0 ? Object.assign({}, f, { sources: f.sources.map(function (r) { return r === oldRef ? newRef : r; }) }) : f; }) });
+    });
+    this.setState({ datasets: ds });
+  }
+  deleteAsset(id) {
+    var m = this.byIdMap(), d = m[id]; if (!d) return;
+    this.pushHist(true);
+    var pref = id + '.';
+    var ds = this.state.datasets.filter(function (x) { return x.id !== id; }).map(function (x) {
+      var n = x.parent === id ? Object.assign({}, x, { parent: d.parent || '' }) : x;
+      return Object.assign({}, n, { fields: n.fields.map(function (f) { return (f.sources || []).some(function (r) { return r.slice(0, r.lastIndexOf('.')) === id; }) ? Object.assign({}, f, { sources: f.sources.filter(function (r) { return r.slice(0, r.lastIndexOf('.')) !== id; }) }) : f; }) });
+    });
+    var LP = Object.assign({}, this.state.layoutPos); delete LP[id];
+    this.setState({ datasets: ds, lineage: this.state.lineage.filter(function (e) { return e.from !== id && e.to !== id; }), layoutPos: LP, sel: null, msg: 'Deleted ' + id + '. Its children moved up one level; relations and column sources pointing to it were removed.', msgKind: 'ok' });
+  }
+  addAsset(type) {
+    var m = this.byIdMap(), hc = this.hasChildMap(), base = 'new_' + type.split('.').pop().replace(/[^A-Za-z0-9_]+/g, '_'), n = 1;
+    while (m[base + '_' + n]) n++;
+    var id = base + '_' + n, sel = this.state.sel, parent = '';
+    if (sel && sel.kind === 'asset' && m[sel.id] && this.isCont(m[sel.id], hc)) parent = sel.id;
+    var isC = !!this.CONT()[type], LP = Object.assign({}, this.state.layoutPos), pos;
+    if (parent && LP[parent]) {
+      var pp = LP[parent], kids = this.state.datasets.filter(function (d) { return d.parent === parent && LP[d.id]; });
+      var y = pp.y + 48; kids.forEach(function (k) { var kp = LP[k.id]; y = Math.max(y, kp.y + (kp.h || 70) + 16); });
+      pos = { x: pp.x + 16, y: y };
+    } else {
+      var el = this._cv, z = this.state.zoom;
+      pos = el ? { x: (el.scrollLeft + el.clientWidth / 2) / z - 120, y: (el.scrollTop + el.clientHeight / 3) / z } : { x: 80, y: 80 };
+    }
+    pos = { x: this.snapV(pos.x), y: this.snapV(pos.y) };
+    if (isC) { pos.w = 320; pos.h = 160; }
+    LP[id] = pos;
+    this.pushHist(true);
+    var ds = this.state.datasets.concat([{ id: id, type: type, name: id, parent: parent, domain: '', owner: '', source: '', description: '', tags: [], properties: {}, fields: [], file: '' }]);
+    this.setState({ datasets: ds, layoutPos: this.fitAncestors(id, LP, ds), msg: 'Added ' + id + (parent ? ' inside ' + parent : '') + '. Rename it in the panel on the right.', msgKind: 'ok' }, function () { this.select({ kind: 'asset', id: id }); }.bind(this));
+  }
+
+  /* ---------- auto layout: containers hold their children, laid out left to right by lineage depth ---------- */
+  autoLayout(onlyMissing) {
+    var self = this, ds = this.state.datasets, m = {}, hc = {}, kids = {};
+    ds.forEach(function (d) { m[d.id] = d; if (d.parent) hc[d.parent] = 1; });
+    ds.forEach(function (d) { if (d.parent && m[d.parent]) (kids[d.parent] = kids[d.parent] || []).push(d); });
+    var up = {};
+    this.state.lineage.forEach(function (e) { (up[e.to] = up[e.to] || []).push(e.from); });
+    ds.forEach(function (d) { d.fields.forEach(function (f) { (f.sources || []).forEach(function (r) { var a = r.slice(0, r.lastIndexOf('.')); if (a !== d.id) (up[d.id] = up[d.id] || []).push(a); }); }); });
+    var memo = {};
+    var depth = function (id, seen) { if (memo[id] !== undefined) return memo[id]; if (seen[id]) return 0; seen[id] = 1; var u = up[id] || []; var v = u.length ? 1 + Math.max.apply(null, u.map(function (x) { return depth(x, seen); })) : 0; seen[id] = 0; memo[id] = v; return v; };
+    var GX = 90, GY = 20, PADC = 16, HHc = 48;
+    var measure = function (d) {
+      var ch = (kids[d.id] || []).slice().sort(function (a, b) { return (depth(a.id, {}) - depth(b.id, {})) || (a.id < b.id ? -1 : 1); });
+      if (!self.isCont(d, hc) && !ch.length) return { id: d.id, w: 240, h: self.nodeH(d.id, m), col: depth(d.id, {}), kids: [] };
+      var km = ch.map(measure), cols = [];
+      km.forEach(function (k) { if (cols.indexOf(k.col) < 0) cols.push(k.col); }); cols.sort(function (a, b) { return a - b; });
+      var x = PADC, maxH = 0;
+      cols.forEach(function (c) { var items = km.filter(function (k) { return k.col === c; }), cw = 0, y = HHc; items.forEach(function (it) { it.rx = x; it.ry = y; y += it.h + GY; cw = Math.max(cw, it.w); }); maxH = Math.max(maxH, y - GY); x += cw + GX; });
+      return { id: d.id, cont: true, w: Math.max(280, x - GX + PADC), h: Math.max(110, maxH + PADC), col: km.length ? Math.min.apply(null, km.map(function (k) { return k.col; })) : depth(d.id, {}), kids: km };
+    };
+    var roots = ds.filter(function (d) { return !d.parent || !m[d.parent]; }).map(measure);
+    var cols = []; roots.forEach(function (r) { if (cols.indexOf(r.col) < 0) cols.push(r.col); }); cols.sort(function (a, b) { return a - b; });
+    var LPn = {}, x = 60;
+    var place = function (mm, ax, ay) { LPn[mm.id] = mm.cont ? { x: ax, y: ay, w: mm.w, h: mm.h } : { x: ax, y: ay }; mm.kids.forEach(function (k) { place(k, ax + k.rx, ay + k.ry); }); };
+    cols.forEach(function (c) { var items = roots.filter(function (r) { return r.col === c; }), y = 60, cw = 0; items.forEach(function (it) { place(it, x, y); y += it.h + 40; cw = Math.max(cw, it.w); }); x += cw + 120; });
+    if (!onlyMissing) return LPn;
+    var cur = Object.assign({}, this.state.layoutPos), missing = ds.filter(function (d) { return !cur[d.id]; });
+    if (!missing.length) return cur;
+    var maxY = 0; Object.keys(cur).forEach(function (k) { var p = cur[k]; maxY = Math.max(maxY, p.y + (p.h || 120)); });
+    var minY = Infinity; missing.forEach(function (d) { minY = Math.min(minY, LPn[d.id].y); });
+    var shift = Object.keys(cur).length ? maxY + 120 - minY : 0;
+    missing.forEach(function (d) { var p = LPn[d.id]; cur[d.id] = Object.assign({}, p, { y: p.y + shift }); });
+    return cur;
+  }
+  applyDoc(d, name) {
+    var self = this;
+    this.setState({ types: this.mergeTypes(this.defaultTypes(), d.types), datasets: d.datasets, lineage: d.lineage, layoutPos: d.layout || {}, hist: [], fut: [], sel: null, sourceName: name }, function () {
+      var missing = self.state.datasets.filter(function (x) { return !self.state.layoutPos[x.id]; }).length;
+      var LP = self.autoLayout(true);
+      self.setState({ layoutPos: LP, msg: 'Loaded ' + d.datasets.length + ' assets and ' + d.lineage.length + ' relations from ' + name + '.' + (missing ? ' ' + missing + ' assets had no saved position and were auto-placed.' : ' Saved layout restored.'), msgKind: 'ok' }, function () { setTimeout(function () { self.fitView(); }, 0); });
+    });
+  }
+  fitView() {
+    var el = this._cv, LP = this.state.layoutPos, ks = Object.keys(LP); if (!el || !ks.length) return;
+    var m = this.byIdMap(), x1 = 0, y1 = 0, self = this;
+    ks.forEach(function (k) { var p = LP[k]; x1 = Math.max(x1, p.x + (p.w || 240)); y1 = Math.max(y1, p.y + (p.h || self.nodeH(k, m))); });
+    var z = Math.max(0.15, Math.min(1.2, Math.min((el.clientWidth - 20) / (x1 + 40), (el.clientHeight - 20) / (y1 + 40))));
+    this.setState({ zoom: Math.floor(z * 100) / 100 }, function () { el.scrollLeft = 0; el.scrollTop = 0; });
+  }
+
+  renderVals() {
+    var self = this, s = this.state, ds = s.datasets, LP = s.layoutPos;
+    var set = function (p) { self.setState(p); };
+    var say = function (msg, k) { self.say(msg, k); };
+    var m = {}, hc = {}; ds.forEach(function (d) { m[d.id] = d; if (d.parent) hc[d.parent] = 1; });
+    var tmap = {}; s.types.forEach(function (t) { tmap[t.id] = t; });
+    var tinfo = function (id) { return tmap[id] || { id: id, label: id || 'dataset', category: 'Other', color: '#475569' }; };
+    var classify = function (f) { var src = f.sources || []; if (!src.length) return 'Source'; if (f.expression || src.length > 1) return 'Transformed'; return src[0].slice(src[0].lastIndexOf('.') + 1) === f.name ? 'Passthrough' : 'Rename'; };
+    var BADGE = { Passthrough: 'pass', Rename: 'ren', Transformed: 'ƒx' };
+    var sel = s.sel || null, selId = sel && sel.kind === 'asset' ? sel.id : null;
+    var selCol = sel && sel.kind === 'col' ? sel.ref : sel && sel.kind === 'colsrc' ? sel.target : null;
+    var nest = function (id) { var n = 0, cur = m[id]; while (cur && cur.parent && m[cur.parent] && n < 30) { n++; cur = m[cur.parent]; } return n; };
+    var over = s.drag && s.drag.kind === 'move' ? s.drag.over : '';
+    var guard = function (fn) { return function (e) { if (self._suppress) return; fn(e); }; };
+
+    // containers
+    var boxes = [], anchors = {}, colRows = {}, x1 = 1600, y1 = 1000;
+    ds.filter(function (d) { return self.isCont(d, hc) && LP[d.id] && LP[d.id].w; }).sort(function (a, b) { return nest(a.id) - nest(b.id); }).forEach(function (d) {
+      var p = LP[d.id], on = selId === d.id, isOver = over === d.id;
+      boxes.push({ id: d.id, x: p.x, y: p.y, w: p.w, h: p.h, title: d.name, sub: tinfo(d.type).label + ' · ' + d.id, dot: tinfo(d.type).color,
+        bd: isOver ? '#CA8A04' : on ? '#0F766E' : d.type === 'airflow.dag' ? '#8996A3' : '#B8C2CC', bw: isOver || on ? 3 : d.type === 'airflow.dag' ? 2 : 1,
+        bg: isOver ? '#FEFCE8' : on ? '#E7F4F2' : (nest(d.id) % 2 ? '#F6F8FA' : '#FFFFFF'),
+        pick: guard(function () { self.select({ kind: 'asset', id: d.id }); }) });
+      anchors[d.id] = { x: p.x, y: p.y, w: p.w, ay: p.y + 20 };
+      x1 = Math.max(x1, p.x + p.w + 400); y1 = Math.max(y1, p.y + p.h + 300);
+    });
+    // leaf nodes
+    var nodes = [];
+    ds.forEach(function (d) {
+      if (self.isCont(d, hc) && LP[d.id] && LP[d.id].w) return;
+      var p = LP[d.id]; if (!p) return;
+      var on = selId === d.id, showC = s.showCols && d.fields.length > 0, h = 4 + 58 + (showC ? 9 + d.fields.length * 26 : 0);
+      var cols = d.fields.map(function (f, i) {
+        var ref = d.id + '.' + f.name, cl = classify(f), cs = selCol === ref;
+        colRows[ref] = p.y + 2 + 58 + 5 + i * 26 + 13;
+        return { ref: ref, name: f.name, badge: cl === 'Source' ? f.type : BADGE[cl], title: ref + ' · ' + cl + (f.expression ? ' = ' + f.expression : ''), bg: cs ? '#7E22CE' : 'transparent', fg: cs ? '#FFFFFF' : '#15202B',
+          pick: guard(function () { self.select({ kind: 'col', ref: ref }); }) };
+      });
+      nodes.push({ id: d.id, x: p.x, y: p.y, h: h, name: d.name, typeLabel: tinfo(d.type).label, dot: tinfo(d.type).color, bg: on ? '#0F766E' : '#FFFFFF', fg: on ? '#FFFFFF' : '#15202B', bd: on ? '#0F766E' : '#C5CED8', showCols: showC, cols: cols,
+        pick: guard(function () { self.select({ kind: 'asset', id: d.id }); }) });
+      anchors[d.id] = { x: p.x, y: p.y, w: 240, ay: p.y + 31 };
+      x1 = Math.max(x1, p.x + 640); y1 = Math.max(y1, p.y + h + 300);
+    });
+    // lines
+    var paths = [];
+    var addPath = function (d, hx, hy, dir, color, w, dash, pick) { paths.push({ d: d, head: 'M' + hx + ' ' + hy + ' L' + (hx - 10 * dir) + ' ' + (hy - 5) + ' L' + (hx - 10 * dir) + ' ' + (hy + 5) + ' Z', color: color, w: w, dash: dash, pick: pick }); };
+    var link = function (a, ay, b, by2, color, w, dash, pick) {
+      var x1a, x2a, dx;
+      if (b.x >= a.x + a.w + 8) { x1a = a.x + a.w; x2a = b.x; dx = Math.max(40, (x2a - x1a) / 2); addPath('M' + x1a + ' ' + ay + ' C' + (x1a + dx) + ' ' + ay + ' ' + (x2a - 8 - dx) + ' ' + by2 + ' ' + (x2a - 8) + ' ' + by2, x2a, by2, 1, color, w, dash, pick); }
+      else if (b.x + b.w <= a.x - 8) { x1a = a.x; x2a = b.x + b.w; dx = Math.max(40, (x1a - x2a) / 2); addPath('M' + x1a + ' ' + ay + ' C' + (x1a - dx) + ' ' + ay + ' ' + (x2a + 8 + dx) + ' ' + by2 + ' ' + (x2a + 8) + ' ' + by2, x2a, by2, -1, color, w, dash, pick); }
+      else { var xr = Math.max(a.x + a.w, b.x + b.w); x1a = a.x + a.w; x2a = b.x + b.w; addPath('M' + x1a + ' ' + ay + ' C' + (xr + 60) + ' ' + ay + ' ' + (xr + 60) + ' ' + by2 + ' ' + (x2a + 8) + ' ' + by2, x2a, by2, -1, color, w, dash, pick); }
+    };
+    s.lineage.forEach(function (e, i) {
+      var a = anchors[e.from], b = anchors[e.to]; if (!a || !b) return;
+      var on = sel && sel.kind === 'edge' && sel.i === i, touch = selId && (e.from === selId || e.to === selId);
+      link(a, a.ay, b, b.ay, on ? '#0F766E' : touch ? '#1D4ED8' : '#8996A3', on ? 3.5 : touch ? 2.5 : 1.5, 'none', guard(function () { self.select({ kind: 'edge', i: i }); }));
+    });
+    ds.forEach(function (d) {
+      d.fields.forEach(function (f) {
+        var tref = d.id + '.' + f.name;
+        (f.sources || []).forEach(function (r) {
+          var sa = r.slice(0, r.lastIndexOf('.')), a = anchors[sa], b = anchors[d.id];
+          if (!a || !b || colRows[r] === undefined || colRows[tref] === undefined) return;
+          var on = sel && sel.kind === 'colsrc' && sel.target === tref && sel.source === r, touch = selCol === tref || selCol === r;
+          link(a, colRows[r], b, colRows[tref], on ? '#7E22CE' : touch ? '#9333EA' : '#C4B5FD', on ? 3 : touch ? 2 : 1.25, '5 4', guard(function () { self.select({ kind: 'colsrc', target: tref, source: r }); }));
+        });
+      });
+    });
+    var temp = null;
+    if (s.drag && (s.drag.kind === 'edge' || s.drag.kind === 'col') && s.drag.x2 !== undefined) {
+      var dx2 = Math.max(30, Math.abs(s.drag.x2 - s.drag.x1) / 2);
+      temp = { d: 'M' + s.drag.x1 + ' ' + s.drag.y1 + ' C' + (s.drag.x1 + dx2) + ' ' + s.drag.y1 + ' ' + (s.drag.x2 - dx2) + ' ' + s.drag.y2 + ' ' + s.drag.x2 + ' ' + s.drag.y2, color: s.drag.kind === 'col' ? '#7E22CE' : '#0F766E' };
+    }
+    var z = s.zoom, baseW = x1, baseH = y1;
+
+    // palette & outline
+    var tq = s.tq.trim().toLowerCase(), cats = [];
+    s.types.forEach(function (t) { if (tq && (t.label + ' ' + t.id + ' ' + t.category).toLowerCase().indexOf(tq) < 0) return; var g = cats.find(function (c) { return c.cat === t.category; }); if (!g) { g = { cat: t.category, items: [] }; cats.push(g); } g.items.push({ label: t.label, color: t.color, radius: self.CONT()[t.id] ? '2px' : '50%', add: function () { self.addAsset(t.id); } }); });
+    var oq = s.oq.trim().toLowerCase(), outline = [];
+    var kidsOf = {}; ds.forEach(function (d) { var p = d.parent && m[d.parent] ? d.parent : ''; (kidsOf[p] = kidsOf[p] || []).push(d); });
+    var walkO = function (pid, lvl) { (kidsOf[pid] || []).slice().sort(function (a, b) { return a.id < b.id ? -1 : 1; }).forEach(function (d) { if (!oq || (d.id + ' ' + d.name).toLowerCase().indexOf(oq) >= 0) outline.push({ id: d.id, label: d.id, indent: 10 + (oq ? 0 : lvl * 12), color: tinfo(d.type).color, bg: selId === d.id ? '#E7F4F2' : 'transparent', pick: function () { self.select({ kind: 'asset', id: d.id }); self.centerOn(d.id); } }); walkO(d.id, lvl + 1); }); };
+    walkO('', 0);
+
+    // panel: asset
+    var pa = null, cur = selId ? m[selId] : (sel && sel.kind === 'col' ? m[selCol.slice(0, selCol.lastIndexOf('.'))] : null);
+    if (cur) {
+      var updA = function (key, conv) { return function (e) { var v = conv ? conv(e) : e.target.value; self.updAsset(cur.id, function (d) { d[key] = v; return d; }); }; };
+      var excl = {}; excl[cur.id] = 1; self.descendantsOf(cur.id).forEach(function (x) { excl[x] = 1; });
+      pa = { typeLabel: tinfo(cur.type).label, type: cur.type, name: cur.name, owner: cur.owner, domain: cur.domain, source: cur.source, description: cur.description, parent: cur.parent || '',
+        idSame: s.idBuf.trim() === cur.id, rename: function () { self.renameAsset(cur.id, self.state.idBuf); },
+        del: function () { self.deleteAsset(cur.id); },
+        onType: function (e) { self.updAsset(cur.id, function (d) { d.type = e.target.value; return d; }, true); },
+        onName: updA('name'), onOwner: updA('owner'), onDomain: updA('domain'), onSource: updA('source'), onDescription: updA('description'),
+        onParent: function (e) {
+          var np = e.target.value, LPx = Object.assign({}, self.state.layoutPos), pp = LPx[np];
+          self.pushHist(true);
+          var ds2 = self.state.datasets.map(function (d) { return d.id === cur.id ? Object.assign({}, d, { parent: np }) : d; });
+          if (pp && LPx[cur.id]) { var dxp = pp.x + 16 - LPx[cur.id].x, dyp = pp.y + 48 - LPx[cur.id].y; [cur.id].concat(self.descendantsOf(cur.id)).forEach(function (i) { if (LPx[i]) LPx[i] = Object.assign({}, LPx[i], { x: LPx[i].x + dxp, y: LPx[i].y + dyp }); }); }
+          self.setState({ datasets: ds2, layoutPos: self.fitAncestors(cur.id, LPx, ds2) });
+        },
+        parentOpts: ds.filter(function (d) { return !excl[d.id] && self.isCont(d, hc); }).map(function (d) { return { id: d.id }; }),
+        commitTags: function () { var tags = self.state.tagsBuf.split(',').map(function (t) { return t.trim(); }).filter(Boolean); self.updAsset(cur.id, function (d) { d.tags = tags; return d; }, true); },
+        applyProps: function () {
+          var txt = self.state.propBuf, props = {};
+          if (txt.trim()) { try { props = self.yParse(txt); } catch (err) { say('Properties: ' + err.message, 'err'); return; } if (!props || typeof props !== 'object' || Array.isArray(props)) { say('Properties must be "key: value" lines.', 'err'); return; } }
+          self.updAsset(cur.id, function (d) { d.properties = props; return d; }, true); say('Properties saved.');
+        },
+        colCount: cur.fields.length,
+        addCol: function () { var n = 1; while (cur.fields.some(function (f) { return f.name === 'new_column_' + n; })) n++; self.updAsset(cur.id, function (d) { d.fields = d.fields.concat([{ name: 'new_column_' + n, type: 'STRING', nullable: true, pii: false, description: '', expression: '', sources: [] }]); return d; }, true); },
+        cols: cur.fields.map(function (f, i) {
+          var ref = cur.id + '.' + f.name, buf = s.srcBuf[i] || '';
+          return { name: f.name, type: f.type, description: f.description, expression: f.expression, nullable: f.nullable, pii: f.pii, bd: selCol === ref ? '#7E22CE' : '#DCE3EA', bg: selCol === ref ? '#FAF5FF' : '#FFFFFF',
+            onName: function (e) { self.renameColumn(cur.id, i, e.target.value); },
+            onType: function (e) { self.updField(cur.id, i, { type: e.target.value }); },
+            onDesc: function (e) { self.updField(cur.id, i, { description: e.target.value }); },
+            onExpr: function (e) { self.updField(cur.id, i, { expression: e.target.value }); },
+            onNull: function (e) { self.updField(cur.id, i, { nullable: e.target.checked }, true); },
+            onPii: function (e) { self.updField(cur.id, i, { pii: e.target.checked }, true); },
+            sources: (f.sources || []).map(function (r) { return { ref: r, remove: function () { self.updField(cur.id, i, { sources: f.sources.filter(function (x) { return x !== r; }) }, true); } }; }),
+            noSources: !(f.sources || []).length,
+            srcBuf: buf, onSrcBuf: function (e) { var b = Object.assign({}, self.state.srcBuf); b[i] = e.target.value; set({ srcBuf: b }); },
+            addSrc: function () { var r = (self.state.srcBuf[i] || '').trim(); if (!r) return; if (r.indexOf('.') < 0) { say('Use asset.column, e.g. acme-dwh.raw.orders.order_id', 'err'); return; } if ((f.sources || []).indexOf(r) >= 0) return; self.updField(cur.id, i, { sources: (f.sources || []).concat([r]) }, true); var b = Object.assign({}, self.state.srcBuf); b[i] = ''; set({ srcBuf: b }); },
+            del: function () {
+              self.pushHist(true);
+              var ds3 = self.state.datasets.map(function (d) {
+                var n = d.id === cur.id ? Object.assign({}, d, { fields: d.fields.filter(function (_, j) { return j !== i; }) }) : d;
+                return Object.assign({}, n, { fields: n.fields.map(function (ff) { return (ff.sources || []).indexOf(ref) >= 0 ? Object.assign({}, ff, { sources: ff.sources.filter(function (x) { return x !== ref; }) }) : ff; }) });
+              });
+              set({ datasets: ds3, sel: { kind: 'asset', id: cur.id } });
+            } };
+        }),
+        rels: s.lineage.map(function (e, i) { return { e: e, i: i }; }).filter(function (x) { return x.e.from === cur.id || x.e.to === cur.id; }).map(function (x) {
+          return { label: (x.e.from === cur.id ? '→ ' + x.e.to : '← ' + x.e.from) + (x.e.type ? '  (' + x.e.type + ')' : ''), pick: function () { self.select({ kind: 'edge', i: x.i }); }, del: function () { self.pushHist(true); set({ lineage: self.state.lineage.filter(function (_, j) { return j !== x.i; }) }); } };
+        })
+      };
+      pa.relCount = pa.rels.length;
+    }
+    var pe = null;
+    if (sel && sel.kind === 'edge' && s.lineage[sel.i]) {
+      var ed = s.lineage[sel.i], ei = sel.i;
+      var updE = function (patch, force) { self.pushHist(force); set({ lineage: self.state.lineage.map(function (x, j) { return j === ei ? Object.assign({}, x, patch) : x; }) }); };
+      pe = { from: ed.from, to: ed.to, type: ed.type, process: ed.process,
+        onType: function (e) { updE({ type: e.target.value }); }, onProcess: function (e) { updE({ process: e.target.value }); },
+        reverse: function () { updE({ from: ed.to, to: ed.from }, true); },
+        del: function () { self.pushHist(true); set({ lineage: self.state.lineage.filter(function (_, j) { return j !== ei; }), sel: null }); },
+        pickFrom: function () { self.select({ kind: 'asset', id: ed.from }); self.centerOn(ed.from); }, pickTo: function () { self.select({ kind: 'asset', id: ed.to }); self.centerOn(ed.to); } };
+    }
+    var pcs = null;
+    if (sel && sel.kind === 'colsrc') {
+      var ta = sel.target.slice(0, sel.target.lastIndexOf('.')), tcn = sel.target.slice(ta.length + 1), src = sel.source;
+      pcs = { source: src, target: sel.target,
+        pickSource: function () { var sa = src.slice(0, src.lastIndexOf('.')); self.select({ kind: 'asset', id: sa }); self.centerOn(sa); },
+        pickTarget: function () { self.select({ kind: 'asset', id: ta }); self.centerOn(ta); },
+        remove: function () { var d = m[ta]; if (!d) return; var idx = d.fields.findIndex(function (f) { return f.name === tcn; }); if (idx < 0) return; self.updField(ta, idx, { sources: d.fields[idx].sources.filter(function (x) { return x !== src; }) }, true); set({ sel: null }); } };
+    }
+    var stamp = new Date().toISOString().slice(0, 10);
+    var save = function (blob, name, okMsg) {
+      try { var u = URL.createObjectURL(blob), a = document.createElement('a'); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(u); }, 2000); say(okMsg); }
+      catch (e) { say('Download is blocked in this view.', 'err'); }
+    };
+    var readFiles = function (list, input) {
+      if (!list.length) return;
+      var raw = {};
+      say('Reading ' + list.length + ' file(s)…');
+      Promise.all(list.map(function (file) {
+        if (/\.zip$/i.test(file.name)) return file.arrayBuffer().then(function (b) { return self.readZip(b); }).then(function (fs) { Object.assign(raw, fs); });
+        return file.text().then(function (t) { raw[file.webkitRelativePath || file.name] = t; });
+      })).then(function () {
+        var yamlRaw = {}, ol = [];
+        Object.keys(raw).forEach(function (k) { if (/\.(json|jsonl|ndjson)$/i.test(k)) ol.push(raw[k]); else yamlRaw[k] = raw[k]; });
+        var d = Object.keys(yamlRaw).length ? self.loadProject(yamlRaw) : { types: [], datasets: [], lineage: [], layout: {} };
+        if (ol.length) d = self.mergeLoaded(d, self.normalize(self.convertOpenLineage(ol)));
+        self.applyDoc(d, list.map(function (f) { return f.name; }).join(', '));
+      }).catch(function (err) { say('Import failed — ' + (err && err.message ? err.message : String(err)), 'err'); }).then(function () { if (input) { try { input.value = ''; } catch (x) {} } });
+    };
+    var allCols = []; ds.forEach(function (d) { d.fields.forEach(function (f) { allCols.push({ v: d.id + '.' + f.name }); }); });
+    var msgPal = s.msgKind === 'err' ? ['#FEF3F2', '#912018', '#F3C1BC'] : ['#ECFDF3', '#05603A', '#A6E9C5'];
+
+    return {
+      standalone: typeof window !== 'undefined' && !!window.MH_STANDALONE,
+      hasMsg: !!s.msg, msg: s.msg, msgBg: msgPal[0], msgFg: msgPal[1], msgBd: msgPal[2], clearMsg: function () { set({ msg: '' }); },
+      newDoc: function () { self.pushHist(true); set({ datasets: [], lineage: [], layoutPos: {}, sel: null, msg: 'New empty diagram. Undo brings the previous one back.', msgKind: 'ok' }); },
+      onFile: function (e) { readFiles(Array.prototype.slice.call((e.target && e.target.files) || []), e.target); },
+      loadSample: function () {
+        say('Loading sample…');
+        fetch('samples/airflow-bigquery-sample.zip').then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })
+          .then(function (b) { return self.readZip(b); }).then(function (fs) { self.applyDoc(self.loadProject(fs), 'airflow-bigquery-sample.zip'); })
+          .catch(function (err) { say('Could not load the sample — ' + err.message, 'err'); });
+      },
+      exportZip: function () { var f = self.toFiles(); save(self.makeZip(f), 'metadata-hub-' + stamp + '.zip', 'Exported ' + Object.keys(f).length + ' files including layout.yaml. Import the .zip in the viewer to see this layout.'); },
+      exportYaml: function () { save(new Blob([self.toYaml()], { type: 'application/x-yaml' }), 'metadata-hub-' + stamp + '.yaml', 'Exported a single YAML file (with layout).'); },
+      noUndo: s.hist.length === 0, noRedo: s.fut.length === 0,
+      undo: function () { var h = self.state.hist; if (!h.length) return; var prev = h[h.length - 1]; set({ datasets: prev.datasets, lineage: prev.lineage, layoutPos: prev.layoutPos, hist: h.slice(0, -1), fut: self.state.fut.concat([self.snapshot()]), sel: null }); },
+      redo: function () { var f = self.state.fut; if (!f.length) return; var nx = f[f.length - 1]; set({ datasets: nx.datasets, lineage: nx.lineage, layoutPos: nx.layoutPos, fut: f.slice(0, -1), hist: self.state.hist.concat([self.snapshot()]), sel: null }); },
+      autoAll: function () { if (!ds.length) return; self.pushHist(true); set({ layoutPos: self.autoLayout(false), msg: 'Auto-layout applied. Undo restores your own layout.', msgKind: 'ok' }); },
+      zoomIn: function () { self.zoomTo(self.state.zoom * 1.2); }, zoomOut: function () { self.zoomTo(self.state.zoom / 1.2); }, zoomReset: function () { self.zoomTo(1); }, fit: function () { self.fitView(); },
+      zoomText: Math.round(z * 100) + '%', zoom: z, baseW: baseW, baseH: baseH, cw: Math.round(baseW * z), chh: Math.round(baseH * z), gridPx: Math.max(4, Math.round(16 * z)),
+      showCols: s.showCols, colsLabel: s.showCols ? 'Hide columns' : 'Show columns', toggleCols: function () { set({ showCols: !self.state.showCols }); },
+      snap: s.snap, snapLabel: s.snap ? 'Snap: on' : 'Snap: off', toggleSnap: function () { set({ snap: !self.state.snap }); },
+      canvasRef: this.canvasRef, boxes: boxes, nodes: nodes, paths: paths, hasTemp: !!temp, temp: temp || { d: '', color: '' }, isEmpty: ds.length === 0,
+      tq: s.tq, onTq: function (e) { set({ tq: e.target.value }); }, palette: cats,
+      relType: s.relType, onRelType: function (e) { set({ relType: e.target.value }); },
+      relTypes: ['depends_on', 'reads', 'writes', 'calls', 'triggers', 'configures', 'uses', 'produces', 'deploys'].map(function (v) { return { v: v }; }),
+      oq: s.oq, onOq: function (e) { set({ oq: e.target.value }); }, outline: outline.slice(0, 400), assetCount: ds.length + ' assets',
+      selNone: !pa && !pe && !pcs, selAsset: !!pa, selEdge: !!pe, selColSrc: !!pcs,
+      pa: pa || { cols: [], rels: [], parentOpts: [] }, pe: pe || {}, pcs: pcs || {},
+      idBuf: s.idBuf, onIdBuf: function (e) { set({ idBuf: e.target.value }); },
+      tagsBuf: s.tagsBuf, onTagsBuf: function (e) { set({ tagsBuf: e.target.value }); },
+      propBuf: s.propBuf, onPropBuf: function (e) { set({ propBuf: e.target.value }); },
+      typeOpts: s.types.map(function (t) { return { id: t.id, label: t.category + ' — ' + t.label }; }),
+      colTypes: ['STRING', 'INT64', 'NUMERIC', 'BIGNUMERIC', 'FLOAT64', 'BOOL', 'DATE', 'DATETIME', 'TIMESTAMP', 'TIME', 'JSON', 'BYTES', 'GEOGRAPHY', 'ARRAY', 'STRUCT'].map(function (v) { return { v: v }; }),
+      allCols: allCols.slice(0, 2000),
+      stats: ds.length + ' assets · ' + s.lineage.length + ' relations · ' + Object.keys(LP).length + ' placed'
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -42,6 +42,7 @@ textarea.inp{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:13px;l
 <sc-for list="{{tabs}}" as="t" hint-placeholder-count="4">
 <button type="button" class="nav" style="background: {{t.bg}}; color: {{t.fg}}" onClick="{{t.go}}"><span>{{t.label}}</span><span class="mono" style="font-size: 12px; opacity: 0.8">{{t.count}}</span></button>
 </sc-for>
+<sc-if value="{{hasEditor}}" hint-placeholder-val="{{false}}"><a href="editor.html" class="nav" style="color: #C9D3DD; text-decoration: none; border: 1px solid #2C3A48"><span>Diagram Editor</span><span aria-hidden="true">↗</span></a></sc-if>
 <div style="margin-top: 20px; padding: 12px; border-top: 1px solid #2C3A48; font-size: 12px; line-height: 1.5; color: #AAB6C2">No database. YAML is the only source of truth: import to load, export to keep your changes. Nothing is saved when you close the page.</div>
 <div style="padding: 0 12px; font-size: 12px; color: #AAB6C2; line-height: 1.5">{{sourceText}}</div>
 </nav>
@@ -262,9 +263,10 @@ textarea.inp{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:13px;l
 <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center">
 <div role="group" aria-label="Layout" style="display: flex; gap: 0">
 <button type="button" class="btn2" aria-pressed="{{isDag}}" style="border-radius: 8px 0 0 8px; background: {{dagBg}}; color: {{dagFg}}" onClick="{{viewDag}}">DAG containers</button>
-<button type="button" class="btn2" aria-pressed="{{isFlat}}" style="border-radius: 0 8px 8px 0; margin-left: -1px; background: {{flatBg}}; color: {{flatFg}}" onClick="{{viewFlat}}">Flat graph</button>
+<button type="button" class="btn2" aria-pressed="{{isFlat}}" style="border-radius: 0; margin-left: -1px; background: {{flatBg}}; color: {{flatFg}}" onClick="{{viewFlat}}">Flat graph</button>
+<button type="button" class="btn2" aria-pressed="{{isCustom}}" disabled="{{noLayoutPos}}" title="Positions saved by the Diagram Editor (layout.yaml)" style="border-radius: 0 8px 8px 0; margin-left: -1px; background: {{cusBg}}; color: {{cusFg}}" onClick="{{viewCustom}}">Editor layout</button>
 </div>
-<sc-if value="{{isDag}}" hint-placeholder-val="{{true}}">
+<sc-if value="{{showOC}}" hint-placeholder-val="{{true}}">
 <button type="button" class="btn2" onClick="{{openAll}}">Open all</button>
 <button type="button" class="btn2" onClick="{{closeAll}}">Close all</button>
 </sc-if>
@@ -578,7 +580,7 @@ class Component extends DCLogic {
       sel: null, linSel: null, linCol: null, q: '', fq: '', lq: '', zoom: 0.9, showCols: true, focusOnly: false,
       dsForm: this.emptyDs(), fieldForm: this.emptyField(), edgeForm: { from: '', to: '', type: '', process: '' },
       importText: '', mode: 'replace', msg: '', msgKind: 'ok', loaded: [], unused: [], sourceName: '',
-      layout: 'dag', collapsed: {}, depthUp: 2, depthDown: 2, expUp: {}, expDown: {}, layerLimit: 20, layerMore: {}, selEdge: null, linView: 'graph', impDir: 'both',
+      layout: 'dag', layoutPos: {}, collapsed: {}, depthUp: 2, depthDown: 2, expUp: {}, expDown: {}, layerLimit: 20, layerMore: {}, selEdge: null, linView: 'graph', impDir: 'both',
       fType: '', fDomain: '', fRel: '', fMode: 'hide', colorBy: 'type', connect: false, connectFrom: null, scr: { l: 0, t: 0, w: 0, h: 0 }, showMini: true, panelPinned: true, vSev: ''
     };
     this.diagRef = this.attachDiagram.bind(this);
@@ -724,7 +726,7 @@ class Component extends DCLogic {
     });
     var lineage = a.lineage.slice();
     b.lineage.forEach(function (n) { if (!lineage.some(function (x) { return x.from === n.from && x.to === n.to; })) lineage.push(n); });
-    return { types: this.mergeTypes(a.types, b.types), datasets: datasets, lineage: lineage, loaded: (a.loaded || []).concat(b.loaded || []), unused: a.unused || [] };
+    return { types: this.mergeTypes(a.types, b.types), datasets: datasets, lineage: lineage, layout: Object.assign({}, a.layout || {}, b.layout || {}), loaded: (a.loaded || []).concat(b.loaded || []), unused: a.unused || [] };
   }
   componentWillUnmount() {
     if (this._onMove) { window.removeEventListener('mousemove', this._onMove); window.removeEventListener('mouseup', this._onUp); }
@@ -970,12 +972,16 @@ class Component extends DCLogic {
   dump(doc, title) { return '# ' + title + '\n' + this.emit(doc, 0, []).join('\n') + '\n'; }
   toYaml() {
     var s = this.state, self = this;
-    return this.dump({ version: 2, generated_at: new Date().toISOString(), asset_types: s.types, assets: s.datasets.map(function (d) { return self.cleanAsset(d); }), lineage: s.lineage.map(function (e) { return self.cleanEdge(e); }) }, 'Metadata Hub — data catalog, data dictionary, data lineage (schema v2, single file)');
+    var doc = { version: 2, generated_at: new Date().toISOString(), asset_types: s.types, assets: s.datasets.map(function (d) { return self.cleanAsset(d); }), lineage: s.lineage.map(function (e) { return self.cleanEdge(e); }) };
+    if (s.layoutPos && Object.keys(s.layoutPos).length) doc.layout = { nodes: s.layoutPos };
+    return this.dump(doc, 'Metadata Hub — data catalog, data dictionary, data lineage (schema v2, single file)');
   }
   toFiles() {
     var s = this.state, self = this, files = {}, groups = {};
     s.datasets.forEach(function (d) { var g = (d.type || 'dataset').split('.')[0].replace(/[^A-Za-z0-9_-]+/g, '-') || 'misc'; (groups[g] = groups[g] || []).push(self.cleanAsset(d)); });
-    files['main.yaml'] = this.dump({ version: 2, generated_at: new Date().toISOString(), include: ['asset_types.yaml', 'assets/*.yaml', 'lineage.yaml'] }, 'Metadata Hub — entry point. Every file listed under include is loaded in order.');
+    var hasLayout = s.layoutPos && Object.keys(s.layoutPos).length > 0;
+    files['main.yaml'] = this.dump({ version: 2, generated_at: new Date().toISOString(), include: ['asset_types.yaml', 'assets/*.yaml', 'lineage.yaml'].concat(hasLayout ? ['layout.yaml'] : []) }, 'Metadata Hub — entry point. Every file listed under include is loaded in order.');
+    if (hasLayout) files['layout.yaml'] = this.dump({ layout: { nodes: s.layoutPos } }, 'Diagram layout from the Diagram Editor: x, y per asset; w, h for containers (canvas pixels).');
     files['asset_types.yaml'] = this.dump({ asset_types: s.types }, 'Asset type registry — add your own types here.');
     Object.keys(groups).sort().forEach(function (g) { files['assets/' + g + '.yaml'] = self.dump({ assets: groups[g] }, g + ' assets'); });
     files['lineage.yaml'] = this.dump({ lineage: s.lineage.map(function (e) { return self.cleanEdge(e); }) }, 'Asset-level lineage. Column-level lineage lives in each field (expression + sources).');
@@ -1047,7 +1053,7 @@ class Component extends DCLogic {
     var mains = paths.filter(function (p) { return /(^|\/)main\.ya?ml$/i.test(p); }).sort(function (a, b) { return a.split('/').length - b.split('/').length; });
     var entry = mains[0] || (paths.length === 1 ? paths[0] : null);
     if (!entry) throw new Error('main.yaml not found. With several files, main.yaml is the entry point that includes the others.');
-    var acc = { asset_types: [], assets: [], lineage: [] }, loaded = [], stack = [];
+    var acc = { asset_types: [], assets: [], lineage: [], layout: {} }, loaded = [], stack = [];
     var visit = function (path) {
       if (stack.indexOf(path) >= 0) throw new Error('Include cycle: ' + stack.concat([path]).join(' → '));
       if (loaded.indexOf(path) >= 0) return;
@@ -1060,6 +1066,7 @@ class Component extends DCLogic {
         if (!Array.isArray(v)) throw new Error(path + ': "' + kv[0] + '" must be a list.');
         acc[kv[1]] = acc[kv[1]].concat(v.map(function (x) { return x && typeof x === 'object' && !Array.isArray(x) && kv[1] === 'assets' ? Object.assign({ __file: path }, x) : x; }));
       });
+      if (doc.layout && typeof doc.layout === 'object' && doc.layout.nodes && typeof doc.layout.nodes === 'object') Object.assign(acc.layout, doc.layout.nodes);
       var inc = doc.include !== undefined ? doc.include : doc.includes;
       var list = inc === null || inc === undefined ? [] : Array.isArray(inc) ? inc : [inc];
       var dir = path.indexOf('/') >= 0 ? path.slice(0, path.lastIndexOf('/') + 1) : '';
@@ -1072,7 +1079,7 @@ class Component extends DCLogic {
       stack.pop();
     };
     visit(entry);
-    var norm = this.normalize({ asset_types: acc.asset_types, assets: acc.assets, lineage: acc.lineage });
+    var norm = this.normalize({ asset_types: acc.asset_types, assets: acc.assets, lineage: acc.lineage, layout: { nodes: acc.layout } });
     norm.loaded = loaded; norm.unused = paths.filter(function (p) { return loaded.indexOf(p) < 0; });
     return norm;
   }
@@ -1109,7 +1116,14 @@ class Component extends DCLogic {
       Object.keys(e).forEach(function (k) { if (['from', 'to', 'type', 'process', 'properties'].indexOf(k) < 0) ep[k] = e[k]; });
       return { from: str(e.from), to: str(e.to), type: str(e.type), process: str(e.process), properties: ep };
     });
-    return { types: types, datasets: datasets, lineage: lineage };
+    var layoutPos = {}, ln = isObj(doc.layout) && isObj(doc.layout.nodes) ? doc.layout.nodes : {};
+    Object.keys(ln).forEach(function (k) {
+      var v = ln[k]; if (!isObj(v)) return;
+      var o = { x: Math.round(Number(v.x) || 0), y: Math.round(Number(v.y) || 0) };
+      if (Number(v.w) > 0 && Number(v.h) > 0) { o.w = Math.round(Number(v.w)); o.h = Math.round(Number(v.h)); }
+      layoutPos[k] = o;
+    });
+    return { types: types, datasets: datasets, lineage: lineage, layout: layoutPos };
   }
   applyLoaded(d, sourceName) {
     var s = this.state, datasets, lineage;
@@ -1124,6 +1138,7 @@ class Component extends DCLogic {
     var sel = datasets.some(function (x) { return x.id === s.sel; }) ? s.sel : (datasets[0] ? datasets[0].id : null);
     var files = d.loaded || [];
     this.setState({ types: types, datasets: datasets, lineage: lineage, sel: sel, linSel: null, linCol: null, importText: '', loaded: files, unused: d.unused || [], sourceName: sourceName,
+      layoutPos: s.mode === 'replace' ? (d.layout || {}) : Object.assign({}, s.layoutPos, d.layout || {}), layout: d.layout && Object.keys(d.layout).length ? 'custom' : (s.layout === 'custom' ? 'dag' : s.layout),
       msg: 'Loaded ' + d.datasets.length + ' assets, ' + d.lineage.length + ' lineage relations and ' + d.types.length + ' custom types from ' + (files.length || 1) + ' file(s) (' + (s.mode === 'replace' ? 'replaced' : 'merged') + ').', msgKind: 'ok' });
   }
 
@@ -1279,7 +1294,7 @@ class Component extends DCLogic {
       ups.forEach(function (id) { if (lc || upDist[id] <= s.depthUp) vis[id] = 1; });
       downs.forEach(function (id) { if (lc || downDist[id] <= s.depthDown) vis[id] = 1; });
     } else ids.forEach(function (id) { vis[id] = 1; });
-    if (!isDag) {
+    if (s.layout === 'flat') {
       for (var pass = 0; pass < 6; pass++) {
         var grew = false;
         Object.keys(s.expUp).forEach(function (id) { if (vis[id]) (upMap[id] || []).forEach(function (x) { if (!vis[x]) { vis[x] = 1; grew = true; } }); });
@@ -1519,6 +1534,45 @@ class Component extends DCLogic {
         baseW = Math.max(baseW, PAD + b.w + PAD);
       });
       baseH = Math.max(by + PAD - 32, 200);
+    } else if (s.layout === 'custom') {
+      // ---------- Editor layout: positions and container sizes saved by the Diagram Editor (layout.yaml) ----------
+      var LP = s.layoutPos, HHc = 36;
+      var isContC = function (id) { var p = LP[id]; return !!(p && p.w && p.h); };
+      var chainOf = function (id) { var out = [], cur = byId[id], g = 0; while (cur && cur.parent && g++ < 30) { out.push(cur.parent); cur = byId[cur.parent]; } return out; };
+      var hiddenBy = function (id) { var ch = chainOf(id); for (var i = ch.length - 1; i >= 0; i--) { if (s.collapsed['custom|' + ch[i]] && isContC(ch[i])) return ch[i]; } return null; };
+      inst.custom = {};
+      var conts = ds.filter(function (d) { return isContC(d.id); }).sort(function (a, b) { return chainOf(a.id).length - chainOf(b.id).length; });
+      var maxX = 400, maxY = 120;
+      conts.forEach(function (c) {
+        var key = 'custom|' + c.id; allKeys.push(key);
+        if (hiddenBy(c.id)) return;
+        var p = LP[c.id], closed = !!s.collapsed[key], k = kindOf(c.id), lvl = chainOf(c.id).length;
+        var hit = lq && (c.id + ' ' + c.name).toLowerCase().indexOf(lq) >= 0;
+        var bd = k === 'sel' ? '#0F766E' : k === 'up' ? '#1D4ED8' : k === 'down' ? '#C2410C' : hit ? '#CA8A04' : (c.type === 'airflow.dag' ? '#8996A3' : '#B8C2CC');
+        var bg = k === 'sel' ? '#E7F4F2' : k === 'up' ? '#EFF6FF' : k === 'down' ? '#FFF7ED' : (lvl % 2 ? '#F6F8FA' : '#FFFFFF');
+        boxes.push({ x: p.x, y: p.y, w: p.w, h: closed ? HHc : p.h, hh: HHc, fs: c.type === 'airflow.dag' ? 14 : 12, title: c.name, sub: tinfo(c.type).label + ' · ' + c.id, bg: bg, bd: bd, bw: k === 'all' || k === 'other' ? (c.type === 'airflow.dag' ? 2 : 1) : 2, bs: 'solid', op: 1, dot: dotColor(c.id), canToggle: true, open: !closed, chev: closed ? '▸' : '▾',
+          toggleLabel: (closed ? 'Open ' : 'Close ') + c.id, toggle: function () { var cc = Object.assign({}, self.state.collapsed); if (cc[key]) delete cc[key]; else cc[key] = 1; set({ collapsed: cc }); }, pick: function () { selectAsset(c.id); }, hasPick: true });
+        inst.custom[c.id] = { key: key, x: p.x, y: p.y, w: p.w, ay: p.y + HHc / 2, showC: false, rows: {} };
+        if (!firstPos[c.id]) firstPos[c.id] = { x: p.x, y: p.y };
+        maxX = Math.max(maxX, p.x + p.w); maxY = Math.max(maxY, p.y + (closed ? HHc : p.h));
+      });
+      var unplaced = [];
+      ids.forEach(function (id) {
+        if (isContC(id)) return;
+        var hb = hiddenBy(id);
+        if (hb) return;
+        if (!showable(id)) return;
+        var p = LP[id]; if (!p) { unplaced.push(id); return; }
+        var h = placeNode('custom', id, p.x, p.y); maxX = Math.max(maxX, p.x + NW); maxY = Math.max(maxY, p.y + h);
+      });
+      ids.forEach(function (id) { var hb = hiddenBy(id); if (hb && inst.custom[hb]) inst.custom[id] = inst.custom[hb]; });
+      if (unplaced.length) {
+        var uy = maxY + 60;
+        boxes.push({ x: PAD, y: uy, w: 6 * (NW + 40), h: 24, hh: 24, fs: 11, title: 'NOT PLACED IN THE DIAGRAM EDITOR YET (' + unplaced.length + ')', sub: '', bg: 'transparent', bd: 'transparent', bw: 0, bs: 'solid', op: 1, dot: 'transparent', canToggle: false, open: true, chev: '', toggleLabel: '', toggle: function () {}, pick: function () {}, hasPick: false, lane: true });
+        unplaced.forEach(function (id, i) { var hh = placeNode('custom', id, PAD + (i % 6) * (NW + 40), uy + 32 + Math.floor(i / 6) * 120); maxY = Math.max(maxY, uy + 32 + Math.floor(i / 6) * 120 + hh); });
+        maxX = Math.max(maxX, PAD + 6 * (NW + 40));
+      }
+      baseW = maxX + PAD; baseH = maxY + PAD;
     } else {
       // ---------- Flat graph: layered left to right ----------
       var GX = 130, GY = 28, MOREH = 36;
@@ -1773,7 +1827,11 @@ class Component extends DCLogic {
       types: ['STRING', 'INT64', 'NUMERIC', 'BIGNUMERIC', 'FLOAT64', 'BOOL', 'DATE', 'DATETIME', 'TIMESTAMP', 'TIME', 'JSON', 'BYTES', 'GEOGRAPHY', 'ARRAY', 'STRUCT'].map(function (v) { return { v: v }; }),
       addField: addField,
       nodes: nodes, boxes: boxes, paths: paths, exps: exps, mores: mores, noNodes: nodes.length === 0 && boxes.length === 0,
-      isDag: isDag, isFlat: !isDag, dagBg: isDag ? '#0F766E' : '#FFFFFF', dagFg: isDag ? '#FFFFFF' : '#15202B', flatBg: !isDag ? '#0F766E' : '#FFFFFF', flatFg: !isDag ? '#FFFFFF' : '#15202B',
+      isDag: isDag, isFlat: s.layout === 'flat', isCustom: s.layout === 'custom', showOC: s.layout !== 'flat', hasLayoutPos: Object.keys(s.layoutPos).length > 0,
+      dagBg: isDag ? '#0F766E' : '#FFFFFF', dagFg: isDag ? '#FFFFFF' : '#15202B', flatBg: s.layout === 'flat' ? '#0F766E' : '#FFFFFF', flatFg: s.layout === 'flat' ? '#FFFFFF' : '#15202B',
+      cusBg: s.layout === 'custom' ? '#0F766E' : '#FFFFFF', cusFg: s.layout === 'custom' ? '#FFFFFF' : '#15202B', viewCustom: function () { set({ layout: 'custom' }); },
+      hasEditor: typeof window !== 'undefined' && !!window.MH_STANDALONE,
+      noLayoutPos: Object.keys(s.layoutPos).length === 0,
       viewDag: function () { set({ layout: 'dag' }); }, viewFlat: function () { set({ layout: 'flat' }); },
       openAll: function () { set({ collapsed: {} }); },
       closeAll: function () { var c = {}; allKeys.forEach(function (k) { c[k] = 1; }); set({ collapsed: c }); },
@@ -1839,7 +1897,7 @@ class Component extends DCLogic {
       hasColTrace: !!lc, ct: { ref: lc || '', summary: summary }, traceUp: traceUp, traceDown: traceDown, noDown: traceDown.length === 0,
       edgeRows: edgeRows, edgeForm: s.edgeForm, efFrom: form('edgeForm', 'from'), efTo: form('edgeForm', 'to'), efProc: form('edgeForm', 'process'), efType: form('edgeForm', 'type'), addEdge: addEdge,
       relTypes: ['reads', 'writes', 'calls', 'triggers', 'uses', 'produces', 'configures', 'deploys', 'depends_on'].map(function (v) { return { v: v }; }),
-      loadSample: function () { var d = self.sample(); set({ types: d.types, datasets: d.datasets, lineage: d.lineage, sel: 'acme-sales.mart.sales_daily', linSel: null, linCol: 'acme-sales.mart.sales_daily.total_sales', focusOnly: false, layout: 'dag', collapsed: {}, selEdge: null, tf: '', loaded: [], unused: [], sourceName: 'built-in example', tab: 'lineage', msg: 'Loaded the example: 5 domains, ' + d.datasets.length + ' assets, at least 5 of every asset type (replaced the current data). Showing the trace of total_sales — press Reset to see everything.', msgKind: 'ok' }); },
+      loadSample: function () { var d = self.sample(); set({ types: d.types, datasets: d.datasets, lineage: d.lineage, sel: 'acme-sales.mart.sales_daily', linSel: null, linCol: 'acme-sales.mart.sales_daily.total_sales', focusOnly: false, layout: 'dag', collapsed: {}, selEdge: null, tf: '', loaded: [], unused: [], sourceName: 'built-in example', layoutPos: {}, tab: 'lineage', msg: 'Loaded the example: 5 domains, ' + d.datasets.length + ' assets, at least 5 of every asset type (replaced the current data). Showing the trace of total_sales — press Reset to see everything.', msgKind: 'ok' }); },
       yaml: this.toYaml(), download: download, downloadZip: downloadZip, copy: copy, onFile: onFile, onDragOver: onDragOver, onDrop: onDrop,
       importText: s.importText, onImportText: function (e) { set({ importText: e.target.value }); },
       applyPaste: function () {
