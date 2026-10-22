@@ -1,0 +1,92 @@
+# dataset assets
+assets:
+  - id: sheet.sales_targets
+    type: dataset
+    name: Sales targets sheet
+    domain: Sales
+    owner: sales-data
+    source: Google Sheets
+    description: Monthly targets maintained by the business.
+    fields:
+      - name: month
+        type: DATE
+        nullable: false
+        pii: false
+        description: Target month.
+      - name: target_value
+        type: NUMERIC
+        nullable: false
+        pii: false
+        description: Monthly target.
+  - id: sheet.inventory_targets
+    type: dataset
+    name: Inventory targets sheet
+    domain: Inventory
+    owner: supply-data
+    source: Google Sheets
+    description: Monthly targets maintained by the business.
+    fields:
+      - name: month
+        type: DATE
+        nullable: false
+        pii: false
+        description: Target month.
+      - name: target_value
+        type: INT64
+        nullable: false
+        pii: false
+        description: Monthly target.
+  - id: sheet.finance_targets
+    type: dataset
+    name: Finance targets sheet
+    domain: Finance
+    owner: finance-data
+    source: Google Sheets
+    description: Monthly targets maintained by the business.
+    fields:
+      - name: month
+        type: DATE
+        nullable: false
+        pii: false
+        description: Target month.
+      - name: target_value
+        type: NUMERIC
+        nullable: false
+        pii: false
+        description: Monthly target.
+  - id: sheet.marketing_targets
+    type: dataset
+    name: Marketing targets sheet
+    domain: Marketing
+    owner: growth-data
+    source: Google Sheets
+    description: Monthly targets maintained by the business.
+    fields:
+      - name: month
+        type: DATE
+        nullable: false
+        pii: false
+        description: Target month.
+      - name: target_value
+        type: NUMERIC
+        nullable: false
+        pii: false
+        description: Monthly target.
+  - id: sheet.support_targets
+    type: dataset
+    name: Support targets sheet
+    domain: Support
+    owner: cx-data
+    source: Google Sheets
+    description: Monthly targets maintained by the business.
+    fields:
+      - name: month
+        type: DATE
+        nullable: false
+        pii: false
+        description: Target month.
+      - name: target_value
+        type: INT64
+        nullable: false
+        pii: false
+        description: Monthly target.

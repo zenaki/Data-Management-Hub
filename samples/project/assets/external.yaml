@@ -1,0 +1,47 @@
+# external assets
+assets:
+  - id: external.erp
+    type: external
+    name: ERP system
+    domain: Sales
+    owner: sales-data
+    description: Operational source system for sales data.
+    properties:
+      vendor: ERP
+      extract: daily file export
+  - id: external.wms
+    type: external
+    name: WMS system
+    domain: Inventory
+    owner: supply-data
+    description: Operational source system for inventory data.
+    properties:
+      vendor: WMS
+      extract: daily file export
+  - id: external.core_banking
+    type: external
+    name: Core banking system
+    domain: Finance
+    owner: finance-data
+    description: Operational source system for finance data.
+    properties:
+      vendor: Core banking
+      extract: daily file export
+  - id: external.ads_platform
+    type: external
+    name: Ads platform system
+    domain: Marketing
+    owner: growth-data
+    description: Operational source system for marketing data.
+    properties:
+      vendor: Ads platform
+      extract: daily file export
+  - id: external.helpdesk
+    type: external
+    name: Helpdesk system
+    domain: Support
+    owner: cx-data
+    description: Operational source system for support data.
+    properties:
+      vendor: Helpdesk
+      extract: daily file export

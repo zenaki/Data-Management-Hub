@@ -1,0 +1,1119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Metadata Hub</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F6F8}
+a{color:#0F766E}a:hover{color:#115E59}
+.mono{font-family:'IBM Plex Mono',ui-monospace,monospace}
+.inp{box-sizing:border-box;width:100%;min-height:44px;padding:10px 12px;border:1px solid #C5CED8;border-radius:8px;background:#fff;color:#15202B;font:inherit;font-size:14px}
+.inp:focus{outline:2px solid #0F766E;outline-offset:1px;border-color:#0F766E}
+textarea.inp{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:13px;line-height:1.55;resize:vertical}
+.lbl{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:500;color:#3B4856;min-width:0}
+.btn{min-height:44px;padding:0 16px;border-radius:8px;border:1px solid #0F766E;background:#0F766E;color:#fff;font:inherit;font-size:14px;font-weight:500;cursor:pointer;white-space:nowrap}
+.btn:hover{background:#115E59}
+.btn2{min-height:44px;padding:0 14px;border-radius:8px;border:1px solid #C5CED8;background:#fff;color:#15202B;font:inherit;font-size:14px;cursor:pointer;white-space:nowrap}
+.btn2:hover{border-color:#0F766E;color:#0F766E}
+.del{min-height:36px;padding:0 10px;border-radius:6px;border:1px solid transparent;background:transparent;color:#B42318;font:inherit;font-size:13px;cursor:pointer}
+.del:hover{border-color:#F3C1BC;background:#FEF3F2}
+.nav{display:flex;justify-content:space-between;align-items:center;gap:8px;min-height:44px;padding:0 12px;border:0;border-radius:8px;font:inherit;font-size:14px;cursor:pointer;text-align:left}
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th{text-align:left;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#4A5765;padding:10px 12px;border-bottom:1px solid #D9E0E7;background:#F8FAFB}
+.tbl td{padding:10px 12px;border-bottom:1px solid #E6EBF0;vertical-align:top}
+.card{background:#fff;border:1px solid #DCE3EA;border-radius:12px}
+@media (min-width: 900px){.side{position:sticky;top:0;align-self:flex-start;height:100vh;overflow-y:auto}}
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; flex-wrap: wrap; font-family: 'IBM Plex Sans', system-ui, sans-serif; color: #15202B; background: #F4F6F8">
+
+<nav class="side" aria-label="Main navigation" style="flex: 1 1 240px; box-sizing: border-box; background: #15202B; color: #E8EDF2; padding: 24px 16px; display: flex; flex-direction: column; gap: 6px">
+<div style="padding: 0 12px 20px; display: flex; flex-direction: column; gap: 4px">
+<span class="mono" style="font-size: 12px; letter-spacing: 0.08em; color: #8FD3C9">DATA MANAGEMENT</span>
+<span style="font-size: 22px; font-weight: 600">Metadata Hub</span>
+</div>
+<sc-for list="{{tabs}}" as="t" hint-placeholder-count="4">
+<button type="button" class="nav" style="background: {{t.bg}}; color: {{t.fg}}" onClick="{{t.go}}"><span>{{t.label}}</span><span class="mono" style="font-size: 12px; opacity: 0.8">{{t.count}}</span></button>
+</sc-for>
+<div style="margin-top: 20px; padding: 12px; border-top: 1px solid #2C3A48; font-size: 12px; line-height: 1.5; color: #AAB6C2">No database. YAML is the only source of truth: import to load, export to keep your changes. Nothing is saved when you close the page.</div>
+<div style="padding: 0 12px; font-size: 12px; color: #AAB6C2; line-height: 1.5">{{sourceText}}</div>
+</nav>
+
+<main style="flex: 999 1 560px; min-width: 0; box-sizing: border-box; padding: 32px clamp(16px, 3vw, 40px) 48px; display: flex; flex-direction: column; gap: 24px">
+<header style="display: flex; flex-direction: column; gap: 6px">
+<h1 style="margin: 0; font-size: 28px; font-weight: 600">{{pageTitle}}</h1>
+<p style="margin: 0; font-size: 15px; color: #4A5765; max-width: 780px">{{pageDesc}}</p>
+</header>
+
+<sc-if value="{{hasMsg}}" hint-placeholder-val="{{false}}">
+<div role="status" style="padding: 12px 16px; border-radius: 8px; font-size: 14px; white-space: pre-line; background: {{msgBg}}; color: {{msgFg}}; border: 1px solid {{msgBd}}">{{msg}}</div>
+</sc-if>
+
+<sc-if value="{{showEmpty}}" hint-placeholder-val="{{false}}">
+<div class="card" style="padding: 24px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between">
+<p style="margin: 0; font-size: 14px; color: #3B4856">Nothing loaded yet. Import a YAML file or a .zip containing main.yaml.</p>
+<div style="display: flex; gap: 8px; flex-wrap: wrap"><button type="button" class="btn" onClick="{{goImport}}">Go to Import</button><button type="button" class="btn2" onClick="{{loadSample}}">Load Airflow + GCP example</button></div>
+</div>
+</sc-if>
+
+<!-- ================= CATALOG ================= -->
+<sc-if value="{{isCatalog}}" hint-placeholder-val="{{true}}">
+<div style="display: flex; flex-direction: column; gap: 20px">
+<div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end">
+<label class="lbl" style="flex: 1 1 320px">Search assets
+<input class="inp" type="search" placeholder="id, name, type, owner, tag, property…" value="{{q}}" onChange="{{onQ}}">
+</label>
+<label class="lbl" style="flex: 0 1 280px">Asset type
+<select class="inp" value="{{tf}}" onChange="{{onTf}}"><option value="">All types</option><sc-for list="{{tfOptions}}" as="o" hint-placeholder-count="3"><option value="{{o.id}}">{{o.label}}</option></sc-for></select>
+</label>
+<span style="font-size: 14px; color: #4A5765; padding-bottom: 12px">{{catalogCount}}</span>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px">
+<sc-for list="{{cards}}" as="c" hint-placeholder-count="4">
+<article class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; justify-content: space-between; gap: 8px; align-items: flex-start">
+<div style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
+<span class="mono" style="font-size: 12px; color: #0F766E; word-break: break-all">{{c.id}}</span>
+<h2 style="margin: 0; font-size: 18px; font-weight: 600">{{c.name}}</h2>
+</div>
+<span style="font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 999px; border: 1px solid {{c.tcolor}}; color: {{c.tcolor}}; background: #FFFFFF; white-space: nowrap">{{c.typeLabel}}</span>
+</div>
+<p style="margin: 0; font-size: 14px; line-height: 1.5; color: #3B4856">{{c.description}}</p>
+<dl style="margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 13px">
+<dt style="color: #5B6876">Parent</dt><dd class="mono" style="margin: 0; font-size: 12px; word-break: break-all">{{c.parent}}</dd>
+<dt style="color: #5B6876">Domain</dt><dd style="margin: 0">{{c.domain}}</dd>
+<dt style="color: #5B6876">Owner</dt><dd style="margin: 0">{{c.owner}}</dd>
+<dt style="color: #5B6876">Source</dt><dd class="mono" style="margin: 0; font-size: 12px; word-break: break-all">{{c.source}}</dd>
+<dt style="color: #5B6876">Schema</dt><dd style="margin: 0">{{c.fieldCount}} · {{c.linkCount}}</dd>
+<dt style="color: #5B6876">File</dt><dd class="mono" style="margin: 0; font-size: 12px; word-break: break-all">{{c.file}}</dd>
+<sc-for list="{{c.props}}" as="pp" hint-placeholder-count="2"><dt class="mono" style="color: #5B6876; font-size: 12px">{{pp.k}}</dt><dd class="mono" style="margin: 0; font-size: 12px; word-break: break-all">{{pp.v}}</dd></sc-for>
+</dl>
+<div style="display: flex; flex-wrap: wrap; gap: 6px">
+<sc-for list="{{c.tagList}}" as="tg" hint-placeholder-count="2">
+<span class="mono" style="font-size: 12px; padding: 3px 8px; border-radius: 6px; background: #EEF1F4; color: #3B4856">#{{tg.t}}</span>
+</sc-for>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 4px">
+<button type="button" class="btn2" onClick="{{c.toDict}}">Dictionary</button>
+<button type="button" class="btn2" onClick="{{c.toLin}}">Lineage</button>
+<button type="button" class="del" onClick="{{c.del}}" aria-label="Delete asset {{c.id}}">Delete</button>
+</div>
+</article>
+</sc-for>
+</div>
+
+<sc-if value="{{noCards}}" hint-placeholder-val="{{false}}">
+<div class="card" style="padding: 24px; font-size: 14px; color: #4A5765">No matching assets.</div>
+</sc-if>
+
+<section class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 16px" aria-labelledby="add-ds">
+<h2 id="add-ds" style="margin: 0; font-size: 17px; font-weight: 600">Add asset</h2>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px">
+<label class="lbl">Asset type
+<select class="inp" value="{{dsForm.type}}" onChange="{{dsF.type}}"><sc-for list="{{typeOptions}}" as="o" hint-placeholder-count="5"><option value="{{o.id}}">{{o.label}}</option></sc-for></select>
+</label>
+<label class="lbl">ID (unique)<input class="inp mono" placeholder="my-project.mart.sales_daily" value="{{dsForm.id}}" onChange="{{dsF.id}}"></label>
+<label class="lbl">Parent (optional)<input class="inp mono" list="asset-ids" placeholder="airflow.sales_daily.tg_transform" value="{{dsForm.parent}}" onChange="{{dsF.parent}}"></label>
+<datalist id="asset-ids"><sc-for list="{{assetIds}}" as="a" hint-placeholder-count="3"><option value="{{a.id}}"></option></sc-for></datalist>
+<label class="lbl">Name<input class="inp" placeholder="Daily sales" value="{{dsForm.name}}" onChange="{{dsF.name}}"></label>
+<label class="lbl">Domain<input class="inp" placeholder="Sales" value="{{dsForm.domain}}" onChange="{{dsF.domain}}"></label>
+<label class="lbl">Owner<input class="inp" placeholder="team / email" value="{{dsForm.owner}}" onChange="{{dsF.owner}}"></label>
+<label class="lbl">Source / location<input class="inp mono" placeholder="bq://project.dataset.table" value="{{dsForm.source}}" onChange="{{dsF.source}}"></label>
+<label class="lbl">Tags (comma separated)<input class="inp" placeholder="finance, daily" value="{{dsForm.tags}}" onChange="{{dsF.tags}}"></label>
+</div>
+<label class="lbl">Description<textarea class="inp" rows="2" style="font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 14px" value="{{dsForm.description}}" onChange="{{dsF.description}}"></textarea></label>
+<label class="lbl">Properties (free-form YAML, optional)<textarea class="inp" rows="3" placeholder="operator: BigQueryInsertJobOperator&#10;retries: 2&#10;schedule: &quot;0 1 * * *&quot;" value="{{dsForm.properties}}" onChange="{{dsF.properties}}"></textarea></label>
+<div><button type="button" class="btn" onClick="{{addDataset}}">Save asset</button></div>
+</section>
+</div>
+</sc-if>
+
+<!-- ================= DICTIONARY ================= -->
+<sc-if value="{{isDict}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; gap: 20px">
+<sc-if value="{{hasDatasets}}" hint-placeholder-val="{{true}}">
+<div style="display: flex; flex-direction: column; gap: 20px">
+<div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end">
+<label class="lbl" style="flex: 1 1 280px">Asset
+<select class="inp mono" value="{{sel}}" onChange="{{onSel}}">
+<sc-for list="{{dsOptions}}" as="o" hint-placeholder-count="3"><option value="{{o.id}}">{{o.label}}</option></sc-for>
+</select>
+</label>
+<label class="lbl" style="flex: 1 1 240px">Filter columns
+<input class="inp" type="search" placeholder="name, type, description, expression…" value="{{fq}}" onChange="{{onFq}}">
+</label>
+</div>
+
+<section class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 6px">
+<span class="mono" style="font-size: 12px; color: #0F766E">{{cur.id}}</span>
+<h2 style="margin: 0; font-size: 20px; font-weight: 600">{{cur.name}}</h2>
+<p style="margin: 0; font-size: 14px; color: #3B4856; line-height: 1.5">{{cur.description}}</p>
+<p style="margin: 0; font-size: 13px; color: #5B6876">{{cur.meta}}</p>
+</section>
+
+<div class="card" style="overflow-x: auto">
+<table class="tbl" style="min-width: 980px">
+<thead><tr><th scope="col">Column</th><th scope="col">Type</th><th scope="col">Nullable</th><th scope="col">PII</th><th scope="col">Description</th><th scope="col">Expression &amp; sources</th><th scope="col"><span style="position: absolute; left: -9999px">Actions</span></th></tr></thead>
+<tbody>
+<sc-for list="{{fieldRows}}" as="f" hint-placeholder-count="4">
+<tr>
+<td class="mono" style="font-weight: 500">{{f.name}}</td>
+<td class="mono" style="color: #0F766E">{{f.type}}</td>
+<td>{{f.nullText}}</td>
+<td><span style="font-size: 12px; padding: 3px 8px; border-radius: 999px; background: {{f.piiBg}}; color: {{f.piiFg}}">{{f.piiText}}</span></td>
+<td style="color: #3B4856">{{f.description}}</td>
+<td style="max-width: 320px">
+<sc-if value="{{f.hasExpr}}" hint-placeholder-val="{{false}}"><code class="mono" style="display: block; font-size: 12px; color: #0F766E; white-space: pre-wrap; word-break: break-word; margin-bottom: 4px">{{f.expr}}</code></sc-if>
+<span class="mono" style="font-size: 11px; color: #5B6876; word-break: break-all">{{f.srcText}}</span>
+</td>
+<td style="text-align: right; white-space: nowrap"><button type="button" class="btn2" style="min-height: 36px" onClick="{{f.trace}}" aria-label="Trace lineage of column {{f.name}}">Trace</button> <button type="button" class="del" onClick="{{f.del}}" aria-label="Delete column {{f.name}}">Delete</button></td>
+</tr>
+</sc-for>
+</tbody>
+</table>
+<sc-if value="{{noFields}}" hint-placeholder-val="{{false}}">
+<p style="margin: 0; padding: 16px; font-size: 14px; color: #4A5765">No matching columns.</p>
+</sc-if>
+</div>
+
+<section class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 16px" aria-labelledby="add-f">
+<h2 id="add-f" style="margin: 0; font-size: 17px; font-weight: 600">Add column to {{cur.id}}</h2>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; align-items: end">
+<label class="lbl">Column name<input class="inp mono" placeholder="order_id" value="{{fieldForm.name}}" onChange="{{ffName}}"></label>
+<label class="lbl">Data type<input class="inp mono" list="col-types" placeholder="STRING" value="{{fieldForm.type}}" onChange="{{ffType}}"></label>
+<datalist id="col-types"><sc-for list="{{types}}" as="ty" hint-placeholder-count="5"><option value="{{ty.v}}"></option></sc-for></datalist>
+<label style="display: flex; gap: 8px; align-items: center; min-height: 44px; font-size: 14px"><input type="checkbox" style="width: 20px; height: 20px" checked="{{fieldForm.nullable}}" onChange="{{ffNull}}"> Nullable</label>
+<label style="display: flex; gap: 8px; align-items: center; min-height: 44px; font-size: 14px"><input type="checkbox" style="width: 20px; height: 20px" checked="{{fieldForm.pii}}" onChange="{{ffPii}}"> Personal data (PII)</label>
+</div>
+<label class="lbl">Description<input class="inp" placeholder="Business meaning of this column" value="{{fieldForm.description}}" onChange="{{ffDesc}}"></label>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px">
+<label class="lbl">Expression / transformation (optional)<input class="inp mono" placeholder="SUM(net_amount)" value="{{fieldForm.expression}}" onChange="{{ffExpr}}"></label>
+<label class="lbl">Source columns (asset.column, comma separated)<input class="inp mono" placeholder="my-project.staging.orders.net_amount" value="{{fieldForm.sources}}" onChange="{{ffSrc}}"></label>
+</div>
+<div><button type="button" class="btn" onClick="{{addField}}">Save column</button></div>
+</section>
+</div>
+</sc-if>
+</div>
+</sc-if>
+
+<!-- ================= LINEAGE ================= -->
+<sc-if value="{{isLin}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; gap: 16px">
+<div class="card" style="padding: 16px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end">
+<div style="flex: 1 1 360px; position: relative; min-width: 0">
+<label class="lbl">Search assets, columns or expressions
+<input class="inp" type="search" placeholder="e.g. total_sales, SUM, raw.orders…" autocomplete="off" value="{{lq}}" onChange="{{onLq}}" onKeyDown="{{onLqKey}}">
+</label>
+<sc-if value="{{hasSugg}}" hint-placeholder-val="{{false}}">
+<ul aria-label="Search results" style="position: absolute; z-index: 20; left: 0; right: 0; top: 100%; margin: 4px 0 0; padding: 6px; list-style: none; background: #FFFFFF; border: 1px solid #C5CED8; border-radius: 10px; box-shadow: 0 10px 28px rgba(21, 32, 43, 0.14); max-height: 340px; overflow: auto">
+<sc-for list="{{sugg}}" as="g" hint-placeholder-count="3">
+<li><button type="button" onClick="{{g.pick}}" style="width: 100%; text-align: left; min-height: 44px; padding: 8px 10px; border: 0; background: transparent; border-radius: 6px; cursor: pointer; font: inherit; color: #15202B; display: flex; gap: 10px; align-items: center">
+<span style="font-size: 11px; font-weight: 600; padding: 2px 6px; border-radius: 4px; background: {{g.kbg}}; color: {{g.kfg}}; white-space: nowrap">{{g.kind}}</span>
+<span style="display: flex; flex-direction: column; min-width: 0"><span class="mono" style="font-size: 13px; word-break: break-all">{{g.ref}}</span><span style="font-size: 12px; color: #5B6876; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{g.sub}}</span></span>
+</button></li>
+</sc-for>
+</ul>
+</sc-if>
+<sc-if value="{{noSugg}}" hint-placeholder-val="{{false}}">
+<p style="position: absolute; z-index: 20; left: 0; right: 0; top: 100%; margin: 4px 0 0; padding: 12px; background: #FFFFFF; border: 1px solid #C5CED8; border-radius: 10px; font-size: 13px; color: #4A5765">No matches.</p>
+</sc-if>
+</div>
+<div role="group" aria-label="Zoom" style="display: flex; gap: 4px; align-items: center">
+<button type="button" class="btn2" style="min-width: 44px; padding: 0" onClick="{{zoomOut}}" aria-label="Zoom out">−</button>
+<span class="mono" style="min-width: 52px; text-align: center; font-size: 13px">{{zoomText}}</span>
+<button type="button" class="btn2" style="min-width: 44px; padding: 0" onClick="{{zoomIn}}" aria-label="Zoom in">+</button>
+</div>
+<button type="button" class="btn2" onClick="{{toggleCols}}">{{colsLabel}}</button>
+<button type="button" class="btn2" onClick="{{toggleIso}}">{{isoLabel}}</button>
+<button type="button" class="btn2" aria-pressed="{{focusOnly}}" style="background: {{focusBg}}; color: {{focusFg}}" onClick="{{toggleFocus}}">Related only</button>
+<button type="button" class="btn2" onClick="{{resetView}}">Reset</button>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 16px; font-size: 13px; color: #3B4856; align-items: center">
+<span>Click an asset header or a column name to trace it:</span>
+<span style="display: inline-flex; gap: 6px; align-items: center"><span aria-hidden="true" style="width: 12px; height: 12px; border-radius: 3px; background: #0F766E"></span>Selected</span>
+<span style="display: inline-flex; gap: 6px; align-items: center"><span aria-hidden="true" style="width: 12px; height: 12px; border-radius: 3px; background: #DBEAFE; border: 2px solid #1D4ED8"></span>Upstream</span>
+<span style="display: inline-flex; gap: 6px; align-items: center"><span aria-hidden="true" style="width: 12px; height: 12px; border-radius: 3px; background: #FFEDD5; border: 2px solid #C2410C"></span>Downstream</span>
+<span style="display: inline-flex; gap: 6px; align-items: center"><span class="mono" style="font-size: 11px; color: #0F766E">ƒx</span>has an expression</span>
+</div>
+</div>
+
+<div class="card" style="overflow: auto; max-height: 680px; background: #FBFCFD">
+<div style="position: relative; width: {{cw}}px; height: {{chh}}px">
+<div style="position: absolute; left: 0; top: 0; width: {{baseW}}px; height: {{baseH}}px; transform: scale({{zoom}}); transform-origin: 0 0">
+<sc-for list="{{paths}}" as="p" hint-placeholder-count="3">
+<svg aria-hidden="true" width="1" height="1" style="position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; opacity: {{p.op}}"><path d="{{p.d}}" style="fill: none; stroke: {{p.color}}; stroke-width: {{p.w}}px"></path><path d="{{p.head}}" style="fill: {{p.color}}; stroke: none"></path></svg>
+</sc-for>
+<sc-for list="{{nodes}}" as="n" hint-placeholder-count="3">
+<div style="position: absolute; left: {{n.x}}px; top: {{n.y}}px; width: 240px; height: {{n.h}}px; box-sizing: border-box; border-radius: 10px; background: #FFFFFF; border: 2px solid {{n.bd}}; opacity: {{n.op}}; overflow: hidden; box-shadow: 0 1px 3px rgba(21, 32, 43, 0.08)">
+<button type="button" title="{{n.id}}" onClick="{{n.pick}}" style="width: 100%; height: 58px; box-sizing: border-box; padding: 8px 12px; border: 0; background: {{n.bg}}; color: {{n.fg}}; text-align: left; cursor: pointer; font: inherit; display: flex; flex-direction: column; gap: 2px; justify-content: center">
+<span style="display: flex; gap: 6px; align-items: center; max-width: 100%"><span aria-hidden="true" style="flex: none; width: 9px; height: 9px; border-radius: 50%; background: {{n.tcolor}}; box-shadow: 0 0 0 2px #FFFFFF"></span><span class="mono" style="font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{n.id}}</span></span>
+<span style="font-size: 11px; opacity: 0.85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%">{{n.typeLabel}} · {{n.name}}</span>
+</button>
+<sc-if value="{{n.showCols}}" hint-placeholder-val="{{true}}">
+<div style="padding: 4px 0; border-top: 1px solid #E6EBF0">
+<sc-for list="{{n.cols}}" as="c" hint-placeholder-count="3">
+<button type="button" onClick="{{c.pick}}" title="{{c.title}}" style="width: 100%; height: 26px; border: 0; padding: 0 12px; display: flex; justify-content: space-between; gap: 8px; align-items: center; background: {{c.bg}}; color: {{c.fg}}; font: inherit; font-size: 12px; font-weight: {{c.fw}}; cursor: pointer; text-align: left"><span class="mono" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{c.name}}</span><span class="mono" style="font-size: 10px; opacity: 0.75; white-space: nowrap">{{c.badge}}</span></button>
+</sc-for>
+</div>
+</sc-if>
+</div>
+</sc-for>
+</div>
+</div>
+<sc-if value="{{noNodes}}" hint-placeholder-val="{{false}}">
+<p style="margin: 0; padding: 20px; font-size: 14px; color: #4A5765">No lineage nodes yet.</p>
+</sc-if>
+</div>
+
+<sc-if value="{{hasColTrace}}" hint-placeholder-val="{{false}}">
+<section class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 16px" aria-labelledby="trace-h">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<h2 id="trace-h" style="margin: 0; font-size: 17px; font-weight: 600">How <span class="mono" style="color: #0F766E">{{ct.ref}}</span> is calculated</h2>
+<p style="margin: 0; font-size: 13px; color: #4A5765">{{ct.summary}}</p>
+</div>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px">
+<div style="display: flex; flex-direction: column; gap: 6px; min-width: 0">
+<span style="font-size: 12px; font-weight: 600; letter-spacing: 0.04em; color: #1D4ED8">UPSTREAM — CALCULATION CHAIN DOWN TO THE SOURCE</span>
+<sc-for list="{{traceUp}}" as="u" hint-placeholder-count="3">
+<button type="button" onClick="{{u.pick}}" style="margin-left: {{u.indent}}px; text-align: left; padding: 8px 10px; min-height: 44px; border: 1px solid {{u.bd}}; border-radius: 8px; background: {{u.bg}}; cursor: pointer; font: inherit; color: #15202B; display: flex; flex-direction: column; gap: 3px">
+<span style="display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap"><span aria-hidden="true" style="color: #8996A3">{{u.arrow}}</span><span class="mono" style="font-size: 13px; font-weight: 500; word-break: break-all">{{u.ref}}</span><span class="mono" style="font-size: 11px; color: #5B6876">{{u.type}}</span></span>
+<sc-if value="{{u.hasExpr}}" hint-placeholder-val="{{true}}"><code class="mono" style="font-size: 12px; color: #0F766E; background: #E7F4F2; padding: 3px 6px; border-radius: 4px; white-space: pre-wrap; word-break: break-word">= {{u.line}}</code></sc-if>
+<sc-if value="{{u.noExpr}}" hint-placeholder-val="{{false}}"><span style="font-size: 12px; color: #5B6876; font-style: italic">{{u.line}}</span></sc-if>
+</button>
+</sc-for>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px; min-width: 0">
+<span style="font-size: 12px; font-weight: 600; letter-spacing: 0.04em; color: #C2410C">DOWNSTREAM — COLUMNS THAT USE IT</span>
+<sc-for list="{{traceDown}}" as="u" hint-placeholder-count="2">
+<button type="button" onClick="{{u.pick}}" style="margin-left: {{u.indent}}px; text-align: left; padding: 8px 10px; min-height: 44px; border: 1px solid #F5D0B5; border-radius: 8px; background: #FFF7ED; cursor: pointer; font: inherit; color: #15202B; display: flex; flex-direction: column; gap: 3px">
+<span style="display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap"><span aria-hidden="true" style="color: #8996A3">{{u.arrow}}</span><span class="mono" style="font-size: 13px; font-weight: 500; word-break: break-all">{{u.ref}}</span><span class="mono" style="font-size: 11px; color: #5B6876">{{u.type}}</span></span>
+<sc-if value="{{u.hasExpr}}" hint-placeholder-val="{{true}}"><code class="mono" style="font-size: 12px; color: #9A3412; white-space: pre-wrap; word-break: break-word">= {{u.line}}</code></sc-if>
+<sc-if value="{{u.noExpr}}" hint-placeholder-val="{{false}}"><span style="font-size: 12px; color: #5B6876; font-style: italic">{{u.line}}</span></sc-if>
+</button>
+</sc-for>
+<sc-if value="{{noDown}}" hint-placeholder-val="{{false}}"><p style="margin: 0; font-size: 13px; color: #5B6876">No other column uses this column.</p></sc-if>
+</div>
+</div>
+</section>
+</sc-if>
+
+<sc-if value="{{hasDsFocus}}" hint-placeholder-val="{{false}}">
+<section class="card" style="padding: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; font-size: 14px">
+<div style="display: flex; flex-direction: column; gap: 8px"><span style="font-size: 12px; color: #1D4ED8; font-weight: 600">UPSTREAM OF {{focus.id}}</span>
+<div style="display: flex; flex-wrap: wrap; gap: 6px"><sc-for list="{{upChips}}" as="h" hint-placeholder-count="2"><button type="button" class="btn2 mono" style="min-height: 36px; font-size: 12px" onClick="{{h.pick}}">{{h.id}}</button></sc-for></div>
+<sc-if value="{{noUpChips}}" hint-placeholder-val="{{false}}"><span style="font-size: 13px; color: #5B6876">None — this is a source.</span></sc-if></div>
+<div style="display: flex; flex-direction: column; gap: 8px"><span style="font-size: 12px; color: #C2410C; font-weight: 600">DOWNSTREAM OF {{focus.id}}</span>
+<div style="display: flex; flex-wrap: wrap; gap: 6px"><sc-for list="{{downChips}}" as="h" hint-placeholder-count="2"><button type="button" class="btn2 mono" style="min-height: 36px; font-size: 12px" onClick="{{h.pick}}">{{h.id}}</button></sc-for></div>
+<sc-if value="{{noDownChips}}" hint-placeholder-val="{{false}}"><span style="font-size: 13px; color: #5B6876">None — this is the end of the flow.</span></sc-if></div>
+<p style="margin: 0; font-size: 13px; color: #4A5765; grid-column: 1 / -1">Click a column name in the diagram to see its expression and where its values come from.</p>
+</section>
+</sc-if>
+
+<div class="card" style="overflow-x: auto">
+<table class="tbl" style="min-width: 720px">
+<thead><tr><th scope="col">From (source)</th><th scope="col">To (target)</th><th scope="col">Relation</th><th scope="col">Process / transformation</th><th scope="col"><span style="position: absolute; left: -9999px">Actions</span></th></tr></thead>
+<tbody>
+<sc-for list="{{edgeRows}}" as="e" hint-placeholder-count="3">
+<tr>
+<td class="mono">{{e.from}}</td>
+<td class="mono">{{e.to}}</td>
+<td><span class="mono" style="font-size: 12px; padding: 2px 8px; border-radius: 999px; background: #EEF1F4; white-space: nowrap">{{e.type}}</span></td>
+<td style="color: #3B4856">{{e.process}}</td>
+<td style="text-align: right"><button type="button" class="del" onClick="{{e.del}}" aria-label="Delete relation">Delete</button></td>
+</tr>
+</sc-for>
+</tbody>
+</table>
+</div>
+
+<section class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 16px" aria-labelledby="add-e">
+<h2 id="add-e" style="margin: 0; font-size: 17px; font-weight: 600">Add lineage relation</h2>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px">
+<label class="lbl">From
+<select class="inp mono" value="{{edgeForm.from}}" onChange="{{efFrom}}">
+<option value="">— select —</option>
+<sc-for list="{{dsOptions}}" as="o" hint-placeholder-count="3"><option value="{{o.id}}">{{o.id}}</option></sc-for>
+</select>
+</label>
+<label class="lbl">To
+<select class="inp mono" value="{{edgeForm.to}}" onChange="{{efTo}}">
+<option value="">— select —</option>
+<sc-for list="{{dsOptions}}" as="o" hint-placeholder-count="3"><option value="{{o.id}}">{{o.id}}</option></sc-for>
+</select>
+</label>
+<label class="lbl">Relation type<input class="inp mono" list="rel-types" placeholder="reads, writes, triggers…" value="{{edgeForm.type}}" onChange="{{efType}}"></label>
+<datalist id="rel-types"><sc-for list="{{relTypes}}" as="r" hint-placeholder-count="3"><option value="{{r.v}}"></option></sc-for></datalist>
+<label class="lbl">Process<input class="inp" placeholder="Daily MERGE, CALL sp_…" value="{{edgeForm.process}}" onChange="{{efProc}}"></label>
+</div>
+<div><button type="button" class="btn" onClick="{{addEdge}}">Save relation</button></div>
+</section>
+</div>
+</sc-if>
+
+<!-- ================= YAML ================= -->
+<sc-if value="{{isYaml}}" hint-placeholder-val="{{false}}">
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 20px; align-items: start">
+<section class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 14px" aria-labelledby="imp">
+<h2 id="imp" style="margin: 0; font-size: 17px; font-weight: 600">Import</h2>
+<p style="margin: 0; font-size: 14px; color: #4A5765; line-height: 1.5">Upload one .yaml file, several .yaml files, or a .zip. With several files, <span class="mono">main.yaml</span> is the entry point and pulls in the rest through <span class="mono">include:</span> (paths and <span class="mono">*</span> / <span class="mono">**</span> globs, relative to the file).</p>
+<fieldset style="border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 16px; font-size: 14px">
+<legend style="font-size: 13px; font-weight: 500; color: #3B4856; margin-bottom: 8px">Mode</legend>
+<label style="display: flex; gap: 8px; align-items: center; min-height: 44px"><input type="radio" name="mode" style="width: 18px; height: 18px" checked="{{modeReplace}}" onChange="{{setReplace}}"> Replace everything</label>
+<label style="display: flex; gap: 8px; align-items: center; min-height: 44px"><input type="radio" name="mode" style="width: 18px; height: 18px" checked="{{modeMerge}}" onChange="{{setMerge}}"> Merge (update by id)</label>
+</fieldset>
+<label class="lbl">Choose files (.zip, .yaml, .yml)<input class="inp" type="file" multiple="{{true}}" onChange="{{onFile}}" onInput="{{onFile}}"></label>
+<div onDragOver="{{onDragOver}}" onDrop="{{onDrop}}" style="padding: 20px; border: 2px dashed #9AA7B4; border-radius: 10px; text-align: center; font-size: 14px; color: #3B4856; background: #F8FAFB">…or drag and drop .zip / .yaml files here</div>
+<label class="lbl">…or paste a single YAML document<textarea class="inp" rows="10" placeholder="version: 2&#10;assets:&#10;  - id: ..." value="{{importText}}" onChange="{{onImportText}}"></textarea></label>
+<div style="display: flex; gap: 8px; flex-wrap: wrap"><button type="button" class="btn" onClick="{{applyPaste}}">Apply YAML</button><button type="button" class="btn2" onClick="{{loadSample}}">Load Airflow + GCP example</button></div>
+<sc-if value="{{hasLoaded}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; gap: 6px; padding: 12px; background: #F4F6F8; border-radius: 8px">
+<span style="font-size: 12px; font-weight: 600; color: #3B4856">LOADED FILES (IN INCLUDE ORDER)</span>
+<sc-for list="{{loadedFiles}}" as="lf" hint-placeholder-count="3"><span class="mono" style="font-size: 12px; color: #15202B; word-break: break-all">{{lf.p}}</span></sc-for>
+<sc-if value="{{hasUnused}}" hint-placeholder-val="{{false}}"><span style="font-size: 12px; color: #9A3412">Not included by main.yaml (ignored): {{unusedText}}</span></sc-if>
+</div>
+</sc-if>
+<details style="font-size: 13px; color: #3B4856">
+<summary style="cursor: pointer; min-height: 32px">Supported structure</summary>
+<pre class="mono" style="margin: 8px 0 0; padding: 12px; background: #F4F6F8; border-radius: 8px; overflow-x: auto; font-size: 12px; line-height: 1.55">{{schemaHint}}</pre>
+</details>
+</section>
+
+<section class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 14px" aria-labelledby="exp">
+<h2 id="exp" style="margin: 0; font-size: 17px; font-weight: 600">Export</h2>
+<p style="margin: 0; font-size: 14px; color: #4A5765; line-height: 1.5">Single file: everything in one YAML. Multi-file .zip: <span class="mono">main.yaml</span> + <span class="mono">asset_types.yaml</span> + one file per platform under <span class="mono">assets/</span> + <span class="mono">lineage.yaml</span>.</p>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<button type="button" class="btn" onClick="{{downloadZip}}">Download .zip (multi-file)</button>
+<button type="button" class="btn2" onClick="{{download}}">Download single .yaml</button>
+<button type="button" class="btn2" onClick="{{copy}}">Copy text</button>
+</div>
+<textarea class="inp" rows="22" readOnly="{{true}}" aria-label="Exported YAML (single file)" value="{{yaml}}"></textarea>
+</section>
+</div>
+</sc-if>
+
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      tab: 'yaml', types: this.defaultTypes(), datasets: [], lineage: [], tf: '', hideIso: true,
+      sel: null, linSel: null, linCol: null, q: '', fq: '', lq: '', zoom: 0.9, showCols: true, focusOnly: false,
+      dsForm: this.emptyDs(), fieldForm: this.emptyField(), edgeForm: { from: '', to: '', type: '', process: '' },
+      importText: '', mode: 'replace', msg: '', msgKind: 'ok', loaded: [], unused: [], sourceName: ''
+    };
+  }
+
+  emptyDs() { return { id: '', type: 'bigquery.table', parent: '', name: '', domain: '', owner: '', source: '', tags: '', description: '', properties: '' }; }
+  emptyField() { return { name: '', type: 'STRING', nullable: true, pii: false, description: '', expression: '', sources: '' }; }
+  mergeTypes(base, inc) { var out = base.slice(); (inc || []).forEach(function (t) { var i = out.findIndex(function (x) { return x.id === t.id; }); if (i >= 0) out[i] = t; else out.push(t); }); return out; }
+  defaultTypes() {
+    return [
+      ['airflow.dag', 'Airflow DAG', 'Airflow', '#0B5CAD'], ['airflow.task_group', 'Airflow Task Group', 'Airflow', '#1E40AF'], ['airflow.task', 'Airflow Task', 'Airflow', '#1D4ED8'],
+      ['airflow.variable', 'Airflow Variable', 'Airflow', '#3730A3'], ['airflow.connection', 'Airflow Connection', 'Airflow', '#3730A3'],
+      ['bigquery.project', 'BigQuery Project', 'BigQuery', '#115E59'], ['bigquery.dataset', 'BigQuery Dataset', 'BigQuery', '#0F766E'], ['bigquery.table', 'BigQuery Table', 'BigQuery', '#0F766E'],
+      ['bigquery.view', 'BigQuery View', 'BigQuery', '#0E7490'], ['bigquery.materialized_view', 'BigQuery Materialized View', 'BigQuery', '#0E7490'],
+      ['bigquery.stored_procedure', 'BigQuery Stored Procedure', 'BigQuery', '#155E75'], ['bigquery.udf', 'BigQuery UDF', 'BigQuery', '#155E75'],
+      ['vertex.pipeline', 'Vertex AI Pipeline', 'Vertex AI', '#6D28D9'], ['vertex.pipeline_component', 'Vertex Pipeline Component', 'Vertex AI', '#6D28D9'],
+      ['vertex.model', 'Model Registry Model', 'Vertex AI', '#7E22CE'], ['vertex.endpoint', 'Vertex AI Endpoint', 'Vertex AI', '#86198F'], ['vertex.feature_view', 'Vertex Feature View', 'Vertex AI', '#86198F'],
+      ['artifact_registry.repository', 'Artifact Registry Repository', 'Artifact Registry', '#9A3412'], ['artifact_registry.image', 'Artifact Registry Image', 'Artifact Registry', '#C2410C'],
+      ['gcs.bucket', 'GCS Bucket', 'Cloud Storage', '#A16207'], ['gcs.object', 'GCS Object / Path', 'Cloud Storage', '#A16207'],
+      ['dataset', 'Dataset (generic)', 'Generic', '#475569'], ['external', 'External system', 'Generic', '#475569']
+    ].map(function (t) { return { id: t[0], label: t[1], category: t[2], color: t[3] }; });
+  }
+
+  sample() {
+    var F = function (name, type, nullable, pii, description, expression, sources) { return { name: name, type: type, nullable: nullable, pii: pii, description: description, expression: expression || '', sources: sources || [] }; };
+    var A = function (id, type, name, o) { return Object.assign({ id: id, type: type, name: name, parent: '', domain: '', owner: '', source: '', description: '', tags: [], properties: {}, fields: [], file: 'example' }, o || {}); };
+    var E = function (from, to, type, process) { return { from: from, to: to, type: type, process: process || '', properties: {} }; };
+    var doms = [
+      { k: 'sales', T: 'Sales', ent: 'customer', ev: 'order', ts: 'order_ts', m: 'amount', adj: 'discount', U: 'NUMERIC', owner: 'sales-data', src: 'ERP', model: 'sales_forecast' },
+      { k: 'inventory', T: 'Inventory', ent: 'sku', ev: 'movement', ts: 'movement_ts', m: 'quantity', adj: 'damaged_qty', U: 'INT64', owner: 'supply-data', src: 'WMS', model: 'stock_forecast' },
+      { k: 'finance', T: 'Finance', ent: 'account', ev: 'txn', ts: 'txn_ts', m: 'amount', adj: 'fee', U: 'NUMERIC', owner: 'finance-data', src: 'Core banking', model: 'cashflow_forecast' },
+      { k: 'marketing', T: 'Marketing', ent: 'campaign', ev: 'click', ts: 'click_ts', m: 'cost', adj: 'refund', U: 'NUMERIC', owner: 'growth-data', src: 'Ads platform', model: 'roas_forecast' },
+      { k: 'support', T: 'Support', ent: 'customer', ev: 'ticket', ts: 'opened_ts', m: 'handle_minutes', adj: 'wait_minutes', U: 'INT64', owner: 'cx-data', src: 'Helpdesk', model: 'ticket_volume_forecast' }
+    ];
+    var assets = [], lin = [];
+    doms.forEach(function (o) {
+      var k = o.k, T = o.T, U = o.U, P = 'acme-' + k, ev = o.ev, ent = o.ent, idc = ev + '_id', entc = ent + '_id';
+      var raw = P + '.raw.' + ev + 's', stg = P + '.staging.' + ev + 's_clean', mart = P + '.mart.' + k + '_daily', view = P + '.mart.v_' + k + '_features', mv = P + '.mart.mv_' + k + '_monthly', sp = P + '.mart.sp_build_' + k + '_daily', udf = P + '.staging.fn_clean_' + o.m;
+      var dag = 'airflow.' + k + '_daily', tg = dag + '.tg_transform', tLoad = tg + '.load_staging', tSp = tg + '.call_sp', tTrain = dag + '.trigger_training';
+      var vVar = 'airflow.variable.' + k + '_gcp_project', vCon = 'airflow.connection.bq_' + k;
+      var vp = 'vertex.pipeline.' + o.model, vc = vp + '.train', mdl = 'vertex.model.' + o.model, ep = 'vertex.endpoint.' + o.model, fv = 'vertex.feature_view.' + k + '_features';
+      var repo = 'artifact_registry.ml-' + k, img = repo + '.' + k + '-trainer';
+      var bkt = 'gcs.acme-' + k + '-landing', obj = bkt + '/' + ev + 's', ext = 'external.' + o.src.toLowerCase().replace(/[^a-z]+/g, '_'), sheet = 'sheet.' + k + '_targets';
+      assets.push(
+        A(ext, 'external', o.src + ' system', { domain: T, owner: o.owner, description: 'Operational source system for ' + k + ' data.', properties: { vendor: o.src, extract: 'daily file export' } }),
+        A(sheet, 'dataset', T + ' targets sheet', { domain: T, owner: o.owner, source: 'Google Sheets', description: 'Monthly targets maintained by the business.', fields: [F('month', 'DATE', false, false, 'Target month.'), F('target_value', U, false, false, 'Monthly target.')] }),
+        A(bkt, 'gcs.bucket', 'Landing bucket ' + k, { domain: T, owner: 'platform', properties: { location: 'asia-southeast2', storage_class: 'STANDARD' } }),
+        A(obj, 'gcs.object', ev + 's landing files', { parent: bkt, domain: T, properties: { pattern: ev + 's/dt={{ ds }}/*.parquet', format: 'parquet' } }),
+        A(P, 'bigquery.project', 'GCP project ' + k, { domain: T, owner: 'platform', properties: { region: 'asia-southeast2', billing_account: 'acme-billing' } }),
+        A(P + '.raw', 'bigquery.dataset', 'raw', { parent: P, domain: T, properties: { location: 'asia-southeast2', default_table_expiration_days: 400 } }),
+        A(P + '.staging', 'bigquery.dataset', 'staging', { parent: P, domain: T, properties: { location: 'asia-southeast2' } }),
+        A(P + '.mart', 'bigquery.dataset', 'mart', { parent: P, domain: T, properties: { location: 'asia-southeast2' } }),
+        A(raw, 'bigquery.table', T + ' ' + ev + 's (raw)', { parent: P + '.raw', domain: T, owner: o.owner, source: o.src + ' via GCS', description: 'As-is ' + ev + ' records loaded from the landing bucket.', tags: ['raw'], properties: { partition_by: 'DATE(' + o.ts + ')' }, fields: [
+          F(idc, 'INT64', false, false, 'Unique ' + ev + ' ID.'),
+          F(entc, 'INT64', false, ent === 'customer', 'Reference to the ' + ent + '.'),
+          F(o.ts, 'TIMESTAMP', false, false, 'Event time (UTC).'),
+          F(o.m, U, true, false, 'Raw ' + o.m.replace(/_/g, ' ') + '.'),
+          F(o.adj, U, true, false, 'Adjustment (' + o.adj.replace(/_/g, ' ') + ').')
+        ] }),
+        A(udf, 'bigquery.udf', 'fn_clean_' + o.m, { parent: P + '.staging', domain: T, owner: 'analytics-eng', properties: { language: 'SQL', returns: U, body: 'GREATEST(IFNULL(x, 0), 0)' } }),
+        A(stg, 'bigquery.table', T + ' ' + ev + 's (clean)', { parent: P + '.staging', domain: T, owner: 'analytics-eng', description: 'Deduplicated, normalised ' + ev + 's.', tags: ['staging'], fields: [
+          F(idc, 'INT64', false, false, 'Unique ' + ev + ' ID.', 'QUALIFY ROW_NUMBER() OVER (PARTITION BY ' + idc + ' ORDER BY ' + o.ts + ' DESC) = 1', [raw + '.' + idc]),
+          F(entc, 'INT64', false, ent === 'customer', 'Reference to the ' + ent + '.', '', [raw + '.' + entc]),
+          F('event_date', 'DATE', false, false, 'Event date (Asia/Jakarta).', 'DATE(' + o.ts + ", 'Asia/Jakarta')", [raw + '.' + o.ts]),
+          F('net_value', U, false, false, 'Value after adjustment.', 'fn_clean_' + o.m + '(' + o.m + ') - IFNULL(' + o.adj + ', 0)', [raw + '.' + o.m, raw + '.' + o.adj])
+        ] }),
+        A(sp, 'bigquery.stored_procedure', 'sp_build_' + k + '_daily', { parent: P + '.mart', domain: T, owner: 'analytics-eng', properties: { language: 'SQL', args: ['run_date DATE'] } }),
+        A(mart, 'bigquery.table', T + ' daily', { parent: P + '.mart', domain: T, owner: 'bi-team', description: T + ' aggregated per day, built by a stored procedure.', tags: ['mart', 'dashboard'], fields: [
+          F('event_date', 'DATE', false, false, 'Date.', 'GROUP BY event_date', [stg + '.event_date']),
+          F('total_' + k, U, false, false, 'Total net value per day.', 'SUM(net_value)', [stg + '.net_value']),
+          F('active_' + ent + 's', 'INT64', false, false, 'Distinct ' + ent + 's per day.', 'COUNT(DISTINCT ' + entc + ')', [stg + '.' + entc]),
+          F('avg_per_' + ev, 'FLOAT64', true, false, 'Average value per ' + ev + '.', 'SAFE_DIVIDE(SUM(net_value), COUNT(' + idc + '))', [stg + '.net_value', stg + '.' + idc]),
+          F('target_attainment', 'FLOAT64', true, false, 'Month-to-date share of the monthly target.', 'SAFE_DIVIDE(SUM(SUM(net_value)) OVER (PARTITION BY DATE_TRUNC(event_date, MONTH) ORDER BY event_date), t.target_value)', [stg + '.net_value', sheet + '.target_value'])
+        ] }),
+        A(view, 'bigquery.view', T + ' features', { parent: P + '.mart', domain: T, owner: 'ml-team', fields: [
+          F('event_date', 'DATE', false, false, 'Date.', '', [mart + '.event_date']),
+          F(k + '_7d_avg', 'FLOAT64', true, false, '7-day moving average.', 'AVG(total_' + k + ') OVER (ORDER BY event_date ROWS 6 PRECEDING)', [mart + '.total_' + k])
+        ] }),
+        A(mv, 'bigquery.materialized_view', T + ' monthly', { parent: P + '.mart', domain: T, owner: 'bi-team', properties: { refresh_interval_minutes: 60 }, fields: [
+          F('month', 'DATE', false, false, 'Month.', 'DATE_TRUNC(event_date, MONTH)', [mart + '.event_date']),
+          F('monthly_total', U, false, false, 'Monthly total.', 'SUM(total_' + k + ')', [mart + '.total_' + k])
+        ] }),
+        A(vVar, 'airflow.variable', k + '_gcp_project', { domain: T, owner: 'platform', properties: { key: k + '_gcp_project', value: P } }),
+        A(vCon, 'airflow.connection', 'bq_' + k, { domain: T, owner: 'platform', properties: { conn_type: 'google_cloud_platform', project: P } }),
+        A(dag, 'airflow.dag', k + '_daily', { domain: T, owner: o.owner, description: 'Daily ' + k + ' pipeline, from landing files to model training.', tags: ['daily'], properties: { schedule: '0 1 * * *', catchup: false, max_active_runs: 1 } }),
+        A(tg, 'airflow.task_group', 'tg_transform', { parent: dag, domain: T }),
+        A(tLoad, 'airflow.task', 'load_staging', { parent: tg, domain: T, properties: { operator: 'BigQueryInsertJobOperator', retries: 2 } }),
+        A(tSp, 'airflow.task', 'call_sp', { parent: tg, domain: T, properties: { operator: 'BigQueryInsertJobOperator', sql: 'CALL mart.sp_build_' + k + '_daily(@run_date)' } }),
+        A(tTrain, 'airflow.task', 'trigger_training', { parent: dag, domain: T, properties: { operator: 'RunPipelineJobOperator' } }),
+        A(repo, 'artifact_registry.repository', 'ml-' + k, { domain: T, owner: 'ml-team', properties: { format: 'DOCKER', location: 'asia-southeast2' } }),
+        A(img, 'artifact_registry.image', k + '-trainer', { parent: repo, domain: T, owner: 'ml-team', properties: { uri: 'asia-southeast2-docker.pkg.dev/' + P + '/ml-' + k + '/' + k + '-trainer', tag: 'v1.0.0' } }),
+        A(fv, 'vertex.feature_view', k + '_features', { domain: T, owner: 'ml-team', properties: { online_store: 'acme_online', sync: 'daily' } }),
+        A(vc, 'vertex.pipeline_component', 'train', { parent: vp, domain: T, owner: 'ml-team', properties: { image: img } }),
+        A(vp, 'vertex.pipeline', o.model, { domain: T, owner: 'ml-team', properties: { template: 'gs://acme-' + k + '-pipelines/' + o.model + '.json' } }),
+        A(mdl, 'vertex.model', o.model, { domain: T, owner: 'ml-team', properties: { version: 1, framework: 'xgboost' } }),
+        A(ep, 'vertex.endpoint', o.model + '-endpoint', { domain: T, owner: 'ml-team', properties: { machine_type: 'n1-standard-2', min_replicas: 1 } })
+      );
+      lin.push(
+        E(ext, obj, 'writes', 'Daily file export'), E(obj, raw, 'writes', 'BigQuery load job'), E(vVar, dag, 'configures'), E(vCon, tLoad, 'uses'),
+        E(raw, tLoad, 'reads'), E(tLoad, stg, 'writes', 'Daily MERGE'), E(udf, stg, 'used_by'), E(tSp, sp, 'calls'), E(stg, sp, 'reads'), E(sheet, sp, 'reads'), E(sp, mart, 'writes'),
+        E(mart, view, 'reads'), E(mart, mv, 'reads'), E(view, fv, 'syncs'), E(fv, vp, 'reads'), E(img, vc, 'uses'), E(vc, vp, 'part_of'), E(tTrain, vp, 'triggers'), E(vp, mdl, 'produces'), E(mdl, ep, 'deploys')
+      );
+    });
+    return { types: this.defaultTypes(), datasets: assets, lineage: lin };
+  }
+
+  /* ---------- YAML parser (subset: maps, lists, scalars, flow lists) ---------- */
+  stripComment(line) {
+    var q = null;
+    for (var i = 0; i < line.length; i++) {
+      var ch = line[i];
+      if (q) { if (ch === q && !(q === '"' && line[i - 1] === '\\')) q = null; }
+      else if (ch === '"' || ch === "'") { if (i === 0 || /[\s:\[,\-]/.test(line[i - 1])) q = ch; }
+      else if (ch === '#' && (i === 0 || /\s/.test(line[i - 1]))) return line.slice(0, i);
+    }
+    return line;
+  }
+  splitFlow(s) {
+    var out = [], cur = '', q = null;
+    for (var i = 0; i < s.length; i++) {
+      var ch = s[i];
+      if (q) { cur += ch; if (ch === q) q = null; }
+      else if (ch === '"' || ch === "'") { q = ch; cur += ch; }
+      else if (ch === ',') { out.push(cur); cur = ''; }
+      else cur += ch;
+    }
+    if (cur.trim() !== '') out.push(cur);
+    return out;
+  }
+  scalar(s) {
+    s = s.trim();
+    if (s === '' || s === '~' || /^null$/i.test(s)) return null;
+    if (s[0] === '"') { try { return JSON.parse(s); } catch (e) { return s.slice(1, -1); } }
+    if (s[0] === "'") return s.slice(1, -1).replace(/''/g, "'");
+    if (s[0] === '[' && s[s.length - 1] === ']') { var self = this; return this.splitFlow(s.slice(1, -1)).map(function (x) { return self.scalar(x); }); }
+    if (s === '{}') return {};
+    if (/^(true|yes)$/i.test(s)) return true;
+    if (/^(false|no)$/i.test(s)) return false;
+    if (/^-?\d+(\.\d+)?$/.test(s)) return Number(s);
+    return s;
+  }
+  keyMatch(t) { return t.match(/^("(?:[^"\\]|\\.)*"|'[^']*'|[^\s"'#\[\]{},][^:]*?)\s*:(?=\s|$)/); }
+  isSeq(t) { return t === '-' || t.indexOf('- ') === 0; }
+  yParse(text) {
+    var L = [];
+    String(text).replace(/\r/g, '').split('\n').forEach(function (raw, n) {
+      if (/\t/.test(raw.match(/^\s*/)[0])) throw new Error('line ' + (n + 1) + ': use spaces, not tabs.');
+      var line = this.stripComment(raw).replace(/\s+$/, '');
+      var t = line.trim();
+      if (t === '' || t === '---' || t === '...') return;
+      L.push({ ind: line.length - line.replace(/^ +/, '').length, t: t, n: n + 1 });
+    }, this);
+    if (!L.length) return {};
+    var r = this.pBlock(L, 0);
+    if (r[1] < L.length) throw new Error('line ' + L[r[1]].n + ': invalid indentation.');
+    return r[0];
+  }
+  pBlock(L, p) { return this.isSeq(L[p].t) ? this.pSeq(L, p, L[p].ind) : this.pMap(L, p, L[p].ind); }
+  pSeq(L, p, ind) {
+    var arr = [];
+    while (p < L.length && L[p].ind === ind && this.isSeq(L[p].t)) {
+      var t = L[p].t, rest = t === '-' ? '' : t.slice(1).replace(/^ +/, '');
+      var off = ind + (t.length - rest.length);
+      if (rest === '') {
+        p++;
+        if (p < L.length && L[p].ind > ind) { var r = this.pBlock(L, p); arr.push(r[0]); p = r[1]; } else arr.push(null);
+      } else if (this.isSeq(rest)) {
+        L[p] = { ind: off, t: rest, n: L[p].n }; var r2 = this.pSeq(L, p, off); arr.push(r2[0]); p = r2[1];
+      } else if (rest[0] !== '[' && this.keyMatch(rest)) {
+        L[p] = { ind: off, t: rest, n: L[p].n }; var r3 = this.pMap(L, p, off); arr.push(r3[0]); p = r3[1];
+      } else { arr.push(this.scalar(rest)); p++; }
+    }
+    return [arr, p];
+  }
+  pMap(L, p, ind) {
+    var obj = {};
+    while (p < L.length && L[p].ind === ind && !this.isSeq(L[p].t)) {
+      var m = this.keyMatch(L[p].t);
+      if (!m) throw new Error('line ' + L[p].n + ': expected "key: value".');
+      var key = m[1];
+      if (key[0] === '"') key = JSON.parse(key); else if (key[0] === "'") key = key.slice(1, -1);
+      var rest = L[p].t.slice(m[0].length).trim();
+      p++;
+      if (rest === '') {
+        if (p < L.length && (L[p].ind > ind || (L[p].ind === ind && this.isSeq(L[p].t)))) { var r = this.pBlock(L, p); obj[key] = r[0]; p = r[1]; }
+        else obj[key] = null;
+      } else if (rest === '|' || rest === '>' || rest === '|-' || rest === '>-') {
+        throw new Error('line ' + (L[p - 1].n) + ': block scalars (| or >) are not supported yet — use a quoted string.');
+      } else obj[key] = this.scalar(rest);
+    }
+    return [obj, p];
+  }
+
+  /* ---------- YAML writer ---------- */
+  yStr(v) {
+    if (v === null || v === undefined) return 'null';
+    if (typeof v === 'boolean' || typeof v === 'number') return String(v);
+    var s = String(v);
+    if (s === '' || /^\s|\s$|^[-?:,\[\]{}#&*!|>'"%@`]|: | #|\n|:$/.test(s) || /^(true|false|yes|no|null|~)$/i.test(s) || /^-?\d+(\.\d+)?$/.test(s)) return JSON.stringify(s);
+    return s;
+  }
+  yKey(k) { return /^[A-Za-z0-9_][A-Za-z0-9_.\-]*$/.test(k) ? k : JSON.stringify(k); }
+  emit(v, ind, out) {
+    var pad = new Array(ind + 1).join(' '), self = this;
+    var isObj = function (x) { return x && typeof x === 'object' && !Array.isArray(x); };
+    var inl = function (x) { return Array.isArray(x) ? '[]' : isObj(x) ? '{}' : self.yStr(x); };
+    if (Array.isArray(v)) {
+      v.forEach(function (it) {
+        if (isObj(it) && Object.keys(it).length) { var sub = []; self.emit(it, ind + 2, sub); sub[0] = pad + '- ' + sub[0].slice(ind + 2); Array.prototype.push.apply(out, sub); }
+        else if (Array.isArray(it) && it.length) { out.push(pad + '-'); self.emit(it, ind + 2, out); }
+        else out.push(pad + '- ' + inl(it));
+      });
+    } else {
+      Object.keys(v).forEach(function (k) {
+        var val = v[k], kk = pad + self.yKey(k) + ':';
+        if (Array.isArray(val)) {
+          if (!val.length) out.push(kk + ' []');
+          else if (val.every(function (x) { return x === null || typeof x !== 'object'; }) && val.length <= 8) out.push(kk + ' [' + val.map(function (x) { return typeof x === 'string' && /[,\[\]{}]/.test(x) ? JSON.stringify(x) : self.yStr(x); }).join(', ') + ']');
+          else { out.push(kk); self.emit(val, ind + 2, out); }
+        } else if (isObj(val)) {
+          if (!Object.keys(val).length) out.push(kk + ' {}'); else { out.push(kk); self.emit(val, ind + 2, out); }
+        } else out.push(kk + ' ' + self.yStr(val));
+      });
+    }
+    return out;
+  }
+  cleanAsset(d) {
+    var o = { id: d.id, type: d.type, name: d.name };
+    ['parent', 'domain', 'owner', 'source', 'description'].forEach(function (k) { if (d[k]) o[k] = d[k]; });
+    if (d.tags && d.tags.length) o.tags = d.tags;
+    if (d.properties && Object.keys(d.properties).length) o.properties = d.properties;
+    if (d.fields && d.fields.length) o.fields = d.fields.map(function (f) {
+      var x = { name: f.name, type: f.type, nullable: f.nullable, pii: f.pii };
+      if (f.description) x.description = f.description;
+      if (f.expression) x.expression = f.expression;
+      if (f.sources && f.sources.length) x.sources = f.sources;
+      return x;
+    });
+    return o;
+  }
+  cleanEdge(e) { var o = { from: e.from, to: e.to }; if (e.type) o.type = e.type; if (e.process) o.process = e.process; if (e.properties && Object.keys(e.properties).length) o.properties = e.properties; return o; }
+  dump(doc, title) { return '# ' + title + '\n' + this.emit(doc, 0, []).join('\n') + '\n'; }
+  toYaml() {
+    var s = this.state, self = this;
+    return this.dump({ version: 2, generated_at: new Date().toISOString(), asset_types: s.types, assets: s.datasets.map(function (d) { return self.cleanAsset(d); }), lineage: s.lineage.map(function (e) { return self.cleanEdge(e); }) }, 'Metadata Hub — data catalog, data dictionary, data lineage (schema v2, single file)');
+  }
+  toFiles() {
+    var s = this.state, self = this, files = {}, groups = {};
+    s.datasets.forEach(function (d) { var g = (d.type || 'dataset').split('.')[0].replace(/[^A-Za-z0-9_-]+/g, '-') || 'misc'; (groups[g] = groups[g] || []).push(self.cleanAsset(d)); });
+    files['main.yaml'] = this.dump({ version: 2, generated_at: new Date().toISOString(), include: ['asset_types.yaml', 'assets/*.yaml', 'lineage.yaml'] }, 'Metadata Hub — entry point. Every file listed under include is loaded in order.');
+    files['asset_types.yaml'] = this.dump({ asset_types: s.types }, 'Asset type registry — add your own types here.');
+    Object.keys(groups).sort().forEach(function (g) { files['assets/' + g + '.yaml'] = self.dump({ assets: groups[g] }, g + ' assets'); });
+    files['lineage.yaml'] = this.dump({ lineage: s.lineage.map(function (e) { return self.cleanEdge(e); }) }, 'Asset-level lineage. Column-level lineage lives in each field (expression + sources).');
+    return files;
+  }
+
+  /* ---------- zip ---------- */
+  crc32(u8) {
+    var t = this._crcT;
+    if (!t) { t = this._crcT = []; for (var n = 0; n < 256; n++) { var c = n; for (var k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } }
+    var crc = 0xFFFFFFFF;
+    for (var i = 0; i < u8.length; i++) crc = t[(crc ^ u8[i]) & 0xFF] ^ (crc >>> 8);
+    return (crc ^ 0xFFFFFFFF) >>> 0;
+  }
+  makeZip(files) {
+    var self = this, enc = new TextEncoder(), parts = [], central = [], offset = 0;
+    Object.keys(files).forEach(function (name) {
+      var nb = enc.encode(name), data = enc.encode(files[name]), crc = self.crc32(data);
+      var lh = new Uint8Array(30 + nb.length), v = new DataView(lh.buffer);
+      v.setUint32(0, 0x04034b50, true); v.setUint16(4, 20, true); v.setUint16(6, 0x0800, true); v.setUint16(12, 0x21, true);
+      v.setUint32(14, crc, true); v.setUint32(18, data.length, true); v.setUint32(22, data.length, true); v.setUint16(26, nb.length, true); lh.set(nb, 30);
+      var ch = new Uint8Array(46 + nb.length), c = new DataView(ch.buffer);
+      c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(14, 0x21, true);
+      c.setUint32(16, crc, true); c.setUint32(20, data.length, true); c.setUint32(24, data.length, true); c.setUint16(28, nb.length, true); c.setUint32(42, offset, true); ch.set(nb, 46);
+      parts.push(lh, data); central.push(ch); offset += lh.length + data.length;
+    });
+    var cs = central.reduce(function (a, b) { return a + b.length; }, 0), end = new Uint8Array(22), ev = new DataView(end.buffer);
+    ev.setUint32(0, 0x06054b50, true); ev.setUint16(8, central.length, true); ev.setUint16(10, central.length, true); ev.setUint32(12, cs, true); ev.setUint32(16, offset, true);
+    return new Blob(parts.concat(central, [end]), { type: 'application/zip' });
+  }
+  async readZip(buf) {
+    var dv = new DataView(buf), u8 = new Uint8Array(buf), e = -1, dec = new TextDecoder(), files = {};
+    for (var i = u8.length - 22; i >= Math.max(0, u8.length - 65557); i--) { if (dv.getUint32(i, true) === 0x06054b50) { e = i; break; } }
+    if (e < 0) throw new Error('Not a valid .zip file.');
+    var n = dv.getUint16(e + 10, true), off = dv.getUint32(e + 16, true);
+    for (var k = 0; k < n; k++) {
+      if (dv.getUint32(off, true) !== 0x02014b50) throw new Error('Corrupt .zip central directory.');
+      var method = dv.getUint16(off + 10, true), csize = dv.getUint32(off + 20, true);
+      var nlen = dv.getUint16(off + 28, true), elen = dv.getUint16(off + 30, true), clen = dv.getUint16(off + 32, true), lho = dv.getUint32(off + 42, true);
+      var name = dec.decode(u8.subarray(off + 46, off + 46 + nlen));
+      off += 46 + nlen + elen + clen;
+      if (/\/$/.test(name) || !/\.ya?ml$/i.test(name) || /(^|\/)(__MACOSX|\.)/.test(name)) continue;
+      var start = lho + 30 + dv.getUint16(lho + 26, true) + dv.getUint16(lho + 28, true), data = u8.subarray(start, start + csize), out;
+      if (method === 0) out = data;
+      else if (method === 8) {
+        if (typeof DecompressionStream === 'undefined') throw new Error('This browser cannot unzip — upload the .yaml files directly instead.');
+        out = new Uint8Array(await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+      } else throw new Error('Unsupported compression method in ' + name + '.');
+      files[name] = dec.decode(out);
+    }
+    return files;
+  }
+
+  /* ---------- multi-file project loader ---------- */
+  joinPath(dir, p) {
+    var parts = (p[0] === '/' ? p.slice(1) : dir + p).split('/'), out = [];
+    parts.forEach(function (s) { if (s === '..') out.pop(); else if (s && s !== '.') out.push(s); });
+    return out.join('/');
+  }
+  globRe(pat) {
+    var re = pat.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*\*\//g, '\u0001').replace(/\*\*/g, '\u0002').replace(/\*/g, '[^/]*').replace(/\?/g, '[^/]').replace(/\u0001/g, '(?:.*/)?').replace(/\u0002/g, '.*');
+    return new RegExp('^' + re + '$');
+  }
+  loadProject(raw) {
+    var self = this, files = {};
+    Object.keys(raw).forEach(function (k) { files[k.replace(/\\/g, '/').replace(/^\.\//, '')] = raw[k]; });
+    var paths = Object.keys(files);
+    if (!paths.length) throw new Error('No .yaml files found in the upload.');
+    var mains = paths.filter(function (p) { return /(^|\/)main\.ya?ml$/i.test(p); }).sort(function (a, b) { return a.split('/').length - b.split('/').length; });
+    var entry = mains[0] || (paths.length === 1 ? paths[0] : null);
+    if (!entry) throw new Error('main.yaml not found. With several files, main.yaml is the entry point that includes the others.');
+    var acc = { asset_types: [], assets: [], lineage: [] }, loaded = [], stack = [];
+    var visit = function (path) {
+      if (stack.indexOf(path) >= 0) throw new Error('Include cycle: ' + stack.concat([path]).join(' → '));
+      if (loaded.indexOf(path) >= 0) return;
+      var doc;
+      try { doc = self.yParse(files[path]); } catch (e) { throw new Error(path + ', ' + e.message); }
+      if (!doc || typeof doc !== 'object' || Array.isArray(doc)) throw new Error(path + ': the root must be a mapping (keys such as include, assets, lineage).');
+      loaded.push(path); stack.push(path);
+      [['asset_types', 'asset_types'], ['assets', 'assets'], ['datasets', 'assets'], ['lineage', 'lineage']].forEach(function (kv) {
+        var v = doc[kv[0]]; if (v === null || v === undefined) return;
+        if (!Array.isArray(v)) throw new Error(path + ': "' + kv[0] + '" must be a list.');
+        acc[kv[1]] = acc[kv[1]].concat(v.map(function (x) { return x && typeof x === 'object' && !Array.isArray(x) && kv[1] === 'assets' ? Object.assign({ __file: path }, x) : x; }));
+      });
+      var inc = doc.include !== undefined ? doc.include : doc.includes;
+      var list = inc === null || inc === undefined ? [] : Array.isArray(inc) ? inc : [inc];
+      var dir = path.indexOf('/') >= 0 ? path.slice(0, path.lastIndexOf('/') + 1) : '';
+      list.forEach(function (pat) {
+        var full = self.joinPath(dir, String(pat));
+        var matches = /[*?]/.test(full) ? paths.filter(function (p) { return p !== path && self.globRe(full).test(p); }).sort() : (files[full] !== undefined ? [full] : []);
+        if (!matches.length) throw new Error(path + ': include "' + pat + '" matched no file.');
+        matches.forEach(visit);
+      });
+      stack.pop();
+    };
+    visit(entry);
+    var norm = this.normalize({ asset_types: acc.asset_types, assets: acc.assets, lineage: acc.lineage });
+    norm.loaded = loaded; norm.unused = paths.filter(function (p) { return loaded.indexOf(p) < 0; });
+    return norm;
+  }
+
+  /* ---------- model ---------- */
+  normalize(doc) {
+    if (!doc || typeof doc !== 'object' || Array.isArray(doc)) throw new Error('The YAML root must be a mapping (version, assets, lineage).');
+    var str = function (x) { return x === null || x === undefined ? '' : String(x); };
+    var isObj = function (v) { return v && typeof v === 'object' && !Array.isArray(v); };
+    var list = function (v) { return Array.isArray(v) ? v.map(str) : (v ? str(v).split(',').map(function (s) { return s.trim(); }).filter(Boolean) : []); };
+    var types = (Array.isArray(doc.asset_types) ? doc.asset_types : []).filter(function (t) { return t && t.id; }).map(function (t) {
+      return { id: str(t.id), label: str(t.label || t.id), category: str(t.category || 'Other'), color: /^#[0-9a-fA-F]{6}$/.test(str(t.color)) ? str(t.color) : '#475569' };
+    });
+    var KNOWN = ['id', 'type', 'parent', 'name', 'domain', 'owner', 'source', 'description', 'tags', 'fields', 'columns', 'properties', '__file'];
+    var dsIn = Array.isArray(doc.assets) ? doc.assets : Array.isArray(doc.datasets) ? doc.datasets : [];
+    var seen = {};
+    var datasets = dsIn.map(function (d, i) {
+      var where = d && d.__file ? ' (' + d.__file + ')' : '';
+      if (!d || typeof d !== 'object' || !d.id) throw new Error('assets[' + i + ']' + where + ': "id" is required.');
+      var id = str(d.id);
+      if (seen[id]) throw new Error('Duplicate asset id "' + id + '" in ' + (d.__file || '?') + ' (first defined in ' + seen[id] + ').');
+      seen[id] = d.__file || 'the same file';
+      var props = Object.assign({}, isObj(d.properties) ? d.properties : {});
+      Object.keys(d).forEach(function (k) { if (KNOWN.indexOf(k) < 0) props[k] = d[k]; });
+      var fields = (Array.isArray(d.fields) ? d.fields : Array.isArray(d.columns) ? d.columns : []).map(function (f, j) {
+        if (!f || typeof f !== 'object' || !f.name) throw new Error(id + where + ': fields[' + j + '] needs a "name".');
+        return { name: str(f.name), type: str(f.type || 'STRING'), nullable: f.nullable !== false, pii: f.pii === true, description: str(f.description), expression: str(f.expression), sources: list(f.sources) };
+      });
+      return { id: id, type: str(d.type || 'dataset'), parent: str(d.parent), name: str(d.name || id), domain: str(d.domain), owner: str(d.owner), source: str(d.source), description: str(d.description), tags: list(d.tags), properties: props, fields: fields, file: str(d.__file) };
+    });
+    var lineage = (Array.isArray(doc.lineage) ? doc.lineage : []).map(function (e, i) {
+      if (!e || !e.from || !e.to) throw new Error('lineage[' + i + ']: "from" and "to" are required.');
+      var ep = Object.assign({}, isObj(e.properties) ? e.properties : {});
+      Object.keys(e).forEach(function (k) { if (['from', 'to', 'type', 'process', 'properties'].indexOf(k) < 0) ep[k] = e[k]; });
+      return { from: str(e.from), to: str(e.to), type: str(e.type), process: str(e.process), properties: ep };
+    });
+    return { types: types, datasets: datasets, lineage: lineage };
+  }
+  applyLoaded(d, sourceName) {
+    var s = this.state, datasets, lineage;
+    var types = s.mode === 'replace' ? this.mergeTypes(this.defaultTypes(), d.types) : this.mergeTypes(s.types, d.types);
+    if (s.mode === 'replace') { datasets = d.datasets; lineage = d.lineage; }
+    else {
+      datasets = s.datasets.slice();
+      d.datasets.forEach(function (n) { var i = datasets.findIndex(function (x) { return x.id === n.id; }); if (i >= 0) datasets[i] = n; else datasets.push(n); });
+      lineage = s.lineage.slice();
+      d.lineage.forEach(function (n) { if (!lineage.some(function (x) { return x.from === n.from && x.to === n.to; })) lineage.push(n); });
+    }
+    var sel = datasets.some(function (x) { return x.id === s.sel; }) ? s.sel : (datasets[0] ? datasets[0].id : null);
+    var files = d.loaded || [];
+    this.setState({ types: types, datasets: datasets, lineage: lineage, sel: sel, linSel: null, linCol: null, importText: '', loaded: files, unused: d.unused || [], sourceName: sourceName,
+      msg: 'Loaded ' + d.datasets.length + ' assets, ' + d.lineage.length + ' lineage relations and ' + d.types.length + ' custom types from ' + (files.length || 1) + ' file(s) (' + (s.mode === 'replace' ? 'replaced' : 'merged') + ').', msgKind: 'ok' });
+  }
+
+  renderVals() {
+    var self = this, s = this.state, ds = s.datasets, edges = s.lineage;
+    var set = function (p) { self.setState(p); };
+    var say = function (m, k) { self.setState({ msg: m, msgKind: k || 'ok' }); };
+    var form = function (name, key, chk) { return function (e) { var o = Object.assign({}, self.state[name]); o[key] = chk ? e.target.checked : e.target.value; var p = {}; p[name] = o; self.setState(p); }; };
+    var totalFields = ds.reduce(function (a, d) { return a + d.fields.length; }, 0);
+    var tmap = {}; s.types.forEach(function (t) { tmap[t.id] = t; });
+    var tinfo = function (id) { return tmap[id] || { id: id, label: id || 'dataset', category: 'Other', color: '#475569' }; };
+
+    var tabsDef = [['catalog', 'Data Catalog', ds.length], ['dictionary', 'Data Dictionary', totalFields], ['lineage', 'Data Lineage', edges.length], ['yaml', 'Import / Export', 'YAML']];
+    var tabs = tabsDef.map(function (t) { var on = s.tab === t[0]; return { label: t[1], count: String(t[2]), bg: on ? '#0F766E' : 'transparent', fg: on ? '#FFFFFF' : '#C9D3DD', go: function () { set({ tab: t[0], msg: '' }); } }; });
+    var titles = {
+      catalog: ['Data Catalog', 'Inventory of every data and pipeline asset — tables, views, stored procedures, DAGs, tasks, Vertex pipelines, models, images — with owners and properties.'],
+      dictionary: ['Data Dictionary', 'Column definitions: data type, nullability, PII flag, business meaning, and the expression and source columns behind each value.'],
+      lineage: ['Data Lineage', 'How data flows from source to consumption. Trace any asset or column upstream to its origin and downstream to its impact.'],
+      yaml: ['Import / Export YAML', 'YAML is the only store. Load one file or a .zip project with main.yaml, and export your changes back out.']
+    };
+    var fieldMap = {};
+    ds.forEach(function (d) { d.fields.forEach(function (f) { fieldMap[d.id + '.' + f.name] = { ds: d.id, f: f }; }); });
+    var refDs = function (r) { var i = r.lastIndexOf('.'); return i < 0 ? r : r.slice(0, i); };
+    var allEdges = edges.slice();
+    ds.forEach(function (d) { d.fields.forEach(function (f) { (f.sources || []).forEach(function (src) { var sd = refDs(src); if (sd !== d.id && !allEdges.some(function (e) { return e.from === sd && e.to === d.id; })) allEdges.push({ from: sd, to: d.id, process: '(implied by columns)' }); }); }); });
+    var countUp = function (id) { return allEdges.filter(function (e) { return e.to === id; }).length; };
+    var countDown = function (id) { return allEdges.filter(function (e) { return e.from === id; }).length; };
+
+    // catalog
+    var q = s.q.trim().toLowerCase();
+    var filtered = ds.filter(function (d) { return (!s.tf || d.type === s.tf) && (!q || [d.id, d.name, d.type, tinfo(d.type).label, d.parent, d.domain, d.owner, d.description, d.tags.join(' '), JSON.stringify(d.properties || {})].join(' ').toLowerCase().indexOf(q) >= 0); });
+    var cards = filtered.map(function (d) {
+      return {
+        id: d.id, name: d.name, domain: d.domain || '—', owner: d.owner || '—', source: d.source || '—', description: d.description || 'No description yet.',
+        typeLabel: tinfo(d.type).label, tcolor: tinfo(d.type).color, parent: d.parent || '—', file: d.file || 'added in this session',
+        props: Object.keys(d.properties || {}).slice(0, 8).map(function (k) { var v = d.properties[k]; return { k: k, v: v !== null && typeof v === 'object' ? JSON.stringify(v) : String(v) }; }),
+        fieldCount: d.fields.length + ' columns', linkCount: countUp(d.id) + ' upstream, ' + countDown(d.id) + ' downstream',
+        tagList: d.tags.map(function (t) { return { t: t }; }),
+        toDict: function () { set({ tab: 'dictionary', sel: d.id, msg: '' }); },
+        toLin: function () { set({ tab: 'lineage', linSel: d.id, linCol: null, msg: '' }); },
+        del: function () {
+          var rest = self.state.datasets.filter(function (x) { return x.id !== d.id; });
+          set({ datasets: rest, lineage: self.state.lineage.filter(function (e) { return e.from !== d.id && e.to !== d.id; }), sel: self.state.sel === d.id ? (rest[0] ? rest[0].id : null) : self.state.sel, linSel: null, linCol: null, msg: 'Deleted ' + d.id + ' and its lineage relations. Export to keep this change.', msgKind: 'ok' });
+        }
+      };
+    });
+    var dsF = {};
+    ['id', 'type', 'parent', 'name', 'domain', 'owner', 'source', 'tags', 'description', 'properties'].forEach(function (k) { dsF[k] = form('dsForm', k); });
+    var addDataset = function () {
+      var f = self.state.dsForm, id = f.id.trim();
+      if (!id) return say('Asset id is required.', 'err');
+      if (self.state.datasets.some(function (x) { return x.id === id; })) return say('Id ' + id + ' is already in use.', 'err');
+      var props = {};
+      if (f.properties.trim()) {
+        try { props = self.yParse(f.properties); } catch (e) { return say('Invalid properties: ' + e.message, 'err'); }
+        if (!props || typeof props !== 'object' || Array.isArray(props)) return say('Properties must be "key: value" pairs.', 'err');
+      }
+      var d = { id: id, type: f.type || 'dataset', parent: f.parent.trim(), name: f.name.trim() || id, domain: f.domain.trim(), owner: f.owner.trim(), source: f.source.trim(), description: f.description.trim(), tags: f.tags.split(',').map(function (t) { return t.trim(); }).filter(Boolean), properties: props, fields: [], file: '' };
+      set({ datasets: self.state.datasets.concat([d]), dsForm: self.emptyDs(), sel: id, msg: 'Added ' + id + '. Add its columns in the Data Dictionary, then export to keep it.', msgKind: 'ok' });
+    };
+
+    // dictionary
+    var cur = ds.find(function (d) { return d.id === s.sel; }) || ds[0] || null;
+    var fq = s.fq.trim().toLowerCase();
+    var fieldRows = cur ? cur.fields.filter(function (f) { return !fq || [f.name, f.type, f.description, f.expression].join(' ').toLowerCase().indexOf(fq) >= 0; }).map(function (f) {
+      return { name: f.name, type: f.type, description: f.description || '—', nullText: f.nullable ? 'Yes' : 'No', piiText: f.pii ? 'PII' : 'No', piiBg: f.pii ? '#FFEDD5' : '#EEF1F4', piiFg: f.pii ? '#9A3412' : '#4A5765',
+        hasExpr: !!f.expression, expr: f.expression || '', srcText: (f.sources || []).length ? '← ' + f.sources.join(', ') : 'source column',
+        trace: function () { set({ tab: 'lineage', linCol: cur.id + '.' + f.name, linSel: cur.id, focusOnly: false, msg: '' }); },
+        del: function () { self.updateFields(cur.id, function (fs) { return fs.filter(function (x) { return x.name !== f.name; }); }); } };
+    }) : [];
+    var addField = function () {
+      var f = self.state.fieldForm, n = f.name.trim();
+      if (!cur) return;
+      if (!n) return say('Column name is required.', 'err');
+      if (cur.fields.some(function (x) { return x.name === n; })) return say('Column ' + n + ' already exists in ' + cur.id + '.', 'err');
+      var srcs = f.sources.split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+      self.updateFields(cur.id, function (fs) { return fs.concat([{ name: n, type: f.type.trim() || 'STRING', nullable: f.nullable, pii: f.pii, description: f.description.trim(), expression: f.expression.trim(), sources: srcs }]); });
+      set({ fieldForm: self.emptyField(), msg: 'Added column ' + n + ' to ' + cur.id + '.', msgKind: 'ok' });
+    };
+
+    // lineage
+    var ids = ds.map(function (d) { return d.id; });
+    allEdges.forEach(function (e) { [e.from, e.to].forEach(function (x) { if (ids.indexOf(x) < 0) ids.push(x); }); });
+    var memo = {};
+    var depth = function (id, seen) {
+      if (memo[id] !== undefined) return memo[id];
+      if (seen[id]) return 0;
+      seen[id] = 1;
+      var upE = allEdges.filter(function (e) { return e.to === id; });
+      var dd = upE.length ? 1 + Math.max.apply(null, upE.map(function (e) { return depth(e.from, seen); })) : 0;
+      seen[id] = 0; memo[id] = dd; return dd;
+    };
+    var walk = function (start, dir) {
+      var out = [], stack = [start];
+      while (stack.length) { var x = stack.pop(); allEdges.forEach(function (e) { var a = dir === 'up' ? e.to : e.from, b = dir === 'up' ? e.from : e.to; if (a === x && out.indexOf(b) < 0 && b !== start) { out.push(b); stack.push(b); } }); }
+      return out;
+    };
+    var consumers = function (ref) { return Object.keys(fieldMap).filter(function (k) { return (fieldMap[k].f.sources || []).indexOf(ref) >= 0; }); };
+    var lc = s.linCol && fieldMap[s.linCol] ? s.linCol : null;
+    var colUp = [], colDown = [], st, xr;
+    if (lc) {
+      st = [lc]; while (st.length) { xr = st.pop(); (fieldMap[xr] ? fieldMap[xr].f.sources : []).forEach(function (r) { if (r !== lc && colUp.indexOf(r) < 0) { colUp.push(r); st.push(r); } }); }
+      st = [lc]; while (st.length) { xr = st.pop(); consumers(xr).forEach(function (r) { if (r !== lc && colDown.indexOf(r) < 0) { colDown.push(r); st.push(r); } }); }
+    }
+    var ls = lc ? refDs(lc) : (s.linSel && ids.indexOf(s.linSel) >= 0 ? s.linSel : null);
+    var ups = [], downs = [];
+    if (lc) {
+      colUp.forEach(function (r) { var d0 = refDs(r); if (d0 !== ls && ups.indexOf(d0) < 0) ups.push(d0); });
+      colDown.forEach(function (r) { var d0 = refDs(r); if (d0 !== ls && downs.indexOf(d0) < 0) downs.push(d0); });
+    } else if (ls) { ups = walk(ls, 'up'); downs = walk(ls, 'down'); }
+    var kindOf = function (id) { return !ls ? 'all' : id === ls ? 'sel' : ups.indexOf(id) >= 0 ? 'up' : downs.indexOf(id) >= 0 ? 'down' : 'other'; };
+    var visible = ids.filter(function (id) {
+      if (s.focusOnly && ls && kindOf(id) === 'other') return false;
+      if (s.hideIso && id !== ls && !allEdges.some(function (e) { return e.from === id || e.to === id; })) return false;
+      return true;
+    });
+    var lq = s.lq.trim().toLowerCase();
+
+    var NW = 240, GX = 120, HEAD = 58, ROW = 26, GY = 28, PAD = 28;
+    var lvOf = {}; visible.forEach(function (id) { lvOf[id] = depth(id, {}); });
+    var usedLv = []; visible.forEach(function (id) { if (usedLv.indexOf(lvOf[id]) < 0) usedLv.push(lvOf[id]); });
+    usedLv.sort(function (a, b) { return a - b; });
+    var colY = usedLv.map(function () { return PAD; });
+    var pos = {}, nodes = [], baseH = PAD;
+    var pal = { all: ['#FFFFFF', '#15202B', '#C5CED8', 1], sel: ['#0F766E', '#FFFFFF', '#0F766E', 1], up: ['#DBEAFE', '#1E3A8A', '#1D4ED8', 1], down: ['#FFEDD5', '#7C2D12', '#C2410C', 1], other: ['#FFFFFF', '#15202B', '#DCE3EA', 0.4] };
+    visible.forEach(function (id) {
+      var li = usedLv.indexOf(lvOf[id]);
+      var d = ds.find(function (x) { return x.id === id; });
+      var fields = d ? d.fields : [];
+      var showC = s.showCols && fields.length > 0;
+      var h = 4 + HEAD + (showC ? 9 + fields.length * ROW : 0);
+      var x = PAD + li * (NW + GX), y = colY[li];
+      colY[li] += h + GY; baseH = Math.max(baseH, colY[li]);
+      var rows = {};
+      var k = kindOf(id), p = pal[k];
+      var hit = lq && (id + ' ' + (d ? d.name : '')).toLowerCase().indexOf(lq) >= 0;
+      var cols = fields.map(function (f, i) {
+        var ref = id + '.' + f.name;
+        rows[f.name] = y + 2 + HEAD + 5 + i * ROW + ROW / 2;
+        var ck = !lc ? 'none' : ref === lc ? 'sel' : colUp.indexOf(ref) >= 0 ? 'up' : colDown.indexOf(ref) >= 0 ? 'down' : 'dim';
+        var chit = lq && (ref + ' ' + (f.expression || '') + ' ' + f.description).toLowerCase().indexOf(lq) >= 0;
+        var cp = { none: [chit ? '#FEF08A' : 'transparent', '#15202B', 400], sel: ['#0F766E', '#FFFFFF', 600], up: ['#DBEAFE', '#1E3A8A', 500], down: ['#FFEDD5', '#7C2D12', 500], dim: [chit ? '#FEF08A' : 'transparent', '#6B7785', 400] }[ck];
+        return { name: f.name, badge: f.expression ? 'ƒx' : f.type, title: ref + (f.expression ? ' = ' + f.expression : ''), bg: cp[0], fg: cp[1], fw: cp[2],
+          pick: function () { set({ linCol: self.state.linCol === ref ? null : ref, linSel: id }); } };
+      });
+      pos[id] = { x: x, y: y, showC: showC, rows: rows };
+      nodes.push({ id: id, name: d ? d.name : 'not in catalog', typeLabel: d ? tinfo(d.type).label : 'External', tcolor: d ? tinfo(d.type).color : '#94A3B8', x: x, y: y, h: h, bg: p[0], fg: p[1], bd: hit ? '#CA8A04' : p[2], op: p[3], showCols: showC, cols: cols,
+        pick: function () { set({ linSel: self.state.linSel === id && !self.state.linCol ? null : id, linCol: null }); } });
+    });
+    var baseW = usedLv.length ? PAD * 2 + usedLv.length * NW + (usedLv.length - 1) * GX : 400;
+    baseH = Math.max(baseH + PAD - GY, 200);
+    var paths = [];
+    var curve = function (x1, y1, x2, y2, color, w, op) {
+      var dx = Math.max(40, (x2 - x1) / 2), xe = x2 - 8;
+      paths.push({ d: 'M' + x1 + ' ' + y1 + ' C' + (x1 + dx) + ' ' + y1 + ' ' + (xe - dx) + ' ' + y2 + ' ' + xe + ' ' + y2, head: 'M' + x2 + ' ' + y2 + ' L' + (x2 - 10) + ' ' + (y2 - 5) + ' L' + (x2 - 10) + ' ' + (y2 + 5) + ' Z', color: color, w: w, op: op });
+    };
+    allEdges.forEach(function (e) {
+      var a = pos[e.from], b = pos[e.to]; if (!a || !b || a.x >= b.x) return;
+      var color = '#A3AFBB', w = 1.5, op = lc ? 0.3 : 1;
+      if (!lc && ls) {
+        var inUp = (e.to === ls || ups.indexOf(e.to) >= 0) && ups.indexOf(e.from) >= 0;
+        var inDown = (e.from === ls || downs.indexOf(e.from) >= 0) && downs.indexOf(e.to) >= 0;
+        if (inUp) { color = '#1D4ED8'; w = 2.5; } else if (inDown) { color = '#C2410C'; w = 2.5; } else op = 0.25;
+      }
+      curve(a.x + NW, a.y + 31, b.x, b.y + 31, color, w, op);
+    });
+    if (lc) {
+      var inTrace = [lc].concat(colUp, colDown);
+      inTrace.forEach(function (ref) {
+        var fm = fieldMap[ref]; if (!fm) return;
+        var td = refDs(ref), tc = ref.slice(td.length + 1);
+        fm.f.sources.forEach(function (src) {
+          if (inTrace.indexOf(src) < 0) return;
+          var sd = refDs(src), sc = src.slice(sd.length + 1), a = pos[sd], b = pos[td];
+          if (!a || !b || a.x >= b.x) return;
+          var y1 = a.showC && a.rows[sc] ? a.rows[sc] : a.y + 31, y2 = b.showC && b.rows[tc] ? b.rows[tc] : b.y + 31;
+          var isUp = ref === lc || colUp.indexOf(ref) >= 0;
+          curve(a.x + NW, y1, b.x, y2, isUp ? '#1D4ED8' : '#C2410C', 2.5, 1);
+        });
+      });
+    }
+    var z = s.zoom;
+
+    var goCol = function (ref) { return function () { set({ linCol: ref, linSel: refDs(ref) }); }; };
+    var exprOf = function (ref) { var fm = fieldMap[ref]; if (!fm) return 'Not defined in the data dictionary'; if (fm.f.expression) return fm.f.expression; return fm.f.sources.length ? 'Copied as-is from ' + fm.f.sources.join(', ') : 'Source column — original data from the system'; };
+    var mkItem = function (ref, dep, cyc, root) { var fm = fieldMap[ref], he = !cyc && !!(fm && fm.f.expression); return { ref: ref, indent: Math.min(dep, 8) * 22, line: cyc ? '(cycle detected — stopping)' : exprOf(ref), type: fm ? fm.f.type : '?', hasExpr: he, noExpr: !he, pick: goCol(ref), arrow: dep === 0 ? '●' : '↳', bg: root ? '#E7F4F2' : '#F5F9FF', bd: root ? '#0F766E' : '#C7D7F5' }; };
+    var traceUp = [], traceDown = [];
+    var visitUp = function (ref, dep, path) { var cyc = path.indexOf(ref) >= 0; traceUp.push(mkItem(ref, dep, cyc, dep === 0)); if (cyc || dep > 15) return; (fieldMap[ref] ? fieldMap[ref].f.sources : []).forEach(function (r) { visitUp(r, dep + 1, path.concat([ref])); }); };
+    var visitDown = function (ref, dep, path) { var cyc = path.indexOf(ref) >= 0; traceDown.push(mkItem(ref, dep - 1, cyc, false)); if (cyc || dep > 15) return; consumers(ref).forEach(function (r) { visitDown(r, dep + 1, path.concat([ref])); }); };
+    var summary = '';
+    if (lc) {
+      visitUp(lc, 0, []); consumers(lc).forEach(function (r) { visitDown(r, 1, [lc]); });
+      var roots = colUp.filter(function (r) { return !fieldMap[r] || !fieldMap[r].f.sources.length; });
+      summary = 'Depends on ' + colUp.length + ' upstream columns across ' + ups.length + ' assets; ' + roots.length + ' of them are original source columns. Feeds ' + colDown.length + ' downstream columns.';
+    }
+    var chips = function (arr) { return arr.map(function (id) { return { id: id, pick: function () { set({ linSel: id, linCol: null }); } }; }); };
+
+    var sugg = [];
+    if (lq) {
+      ds.forEach(function (d) {
+        if ((d.id + ' ' + d.name + ' ' + d.domain + ' ' + tinfo(d.type).label).toLowerCase().indexOf(lq) >= 0) sugg.push({ kind: tinfo(d.type).label, kbg: '#E7F4F2', kfg: '#115E59', ref: d.id, sub: d.name, pick: function () { set({ linSel: d.id, linCol: null, lq: '' }); } });
+        d.fields.forEach(function (f) {
+          var r = d.id + '.' + f.name;
+          if ((r + ' ' + f.description + ' ' + (f.expression || '')).toLowerCase().indexOf(lq) >= 0) sugg.push({ kind: f.expression ? 'Column ƒx' : 'Column', kbg: '#DBEAFE', kfg: '#1E3A8A', ref: r, sub: f.expression ? '= ' + f.expression : (f.description || f.type), pick: function () { set({ linCol: r, linSel: d.id, lq: '' }); } });
+        });
+      });
+      sugg = sugg.slice(0, 12);
+    }
+    var edgeRows = edges.map(function (e, i) { return { from: e.from, to: e.to, type: e.type || '—', process: e.process || '—', del: function () { set({ lineage: self.state.lineage.filter(function (_, j) { return j !== i; }), msg: 'Deleted relation ' + e.from + ' → ' + e.to + '.', msgKind: 'ok' }); } }; });
+    var addEdge = function () {
+      var f = self.state.edgeForm;
+      if (!f.from || !f.to) return say('Choose a source and a target asset.', 'err');
+      if (f.from === f.to) return say('Source and target must differ.', 'err');
+      if (self.state.lineage.some(function (e) { return e.from === f.from && e.to === f.to; })) return say('That relation already exists.', 'err');
+      if (walk(f.from, 'up').indexOf(f.to) >= 0) return say('This would create a cycle (' + f.to + ' is already upstream of ' + f.from + ').', 'err');
+      set({ lineage: self.state.lineage.concat([{ from: f.from, to: f.to, type: f.type.trim(), process: f.process.trim(), properties: {} }]), edgeForm: { from: '', to: '', type: '', process: '' }, linSel: f.to, linCol: null, msg: 'Added relation ' + f.from + ' → ' + f.to + '.', msgKind: 'ok' });
+    };
+
+    // yaml
+    var save = function (blob, name, okMsg) {
+      try {
+        var u = URL.createObjectURL(blob), a = document.createElement('a');
+        a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function () { URL.revokeObjectURL(u); }, 2000);
+        say(okMsg + ' If nothing downloads in this view, use "Copy text".');
+      } catch (e) { say('Download is blocked in this view — use "Copy text".', 'err'); }
+    };
+    var stamp = new Date().toISOString().slice(0, 10);
+    var download = function () { save(new Blob([self.toYaml()], { type: 'application/x-yaml' }), 'metadata-hub-' + stamp + '.yaml', 'Single YAML file downloaded.'); };
+    var downloadZip = function () { var f = self.toFiles(); save(self.makeZip(f), 'metadata-hub-' + stamp + '.zip', 'Zip downloaded with ' + Object.keys(f).length + ' files (main.yaml is the entry point).'); };
+    var copy = function () {
+      try { navigator.clipboard.writeText(self.toYaml()).then(function () { say('YAML copied to the clipboard.'); }, function () { say('Could not copy automatically — select the text in the box and copy it.', 'err'); }); }
+      catch (e) { say('Could not copy automatically — select the text in the box and copy it.', 'err'); }
+    };
+    var readList = function (list, input) {
+      if (!list.length) return;
+      if (self._busy) return; self._busy = true;
+      say('Reading ' + list.length + ' file(s)…');
+      var raw = {};
+      Promise.all(list.map(function (file) {
+        if (/\.zip$/i.test(file.name)) return file.arrayBuffer().then(function (b) { return self.readZip(b); }).then(function (fs) { Object.assign(raw, fs); });
+        return file.text().then(function (t) { raw[file.webkitRelativePath || file.name] = t; });
+      })).then(function () {
+        self.applyLoaded(self.loadProject(raw), list.map(function (f) { return f.name; }).join(', '));
+      }).catch(function (err) { say('Import failed — ' + (err && err.message ? err.message : String(err)), 'err'); }).then(function () { self._busy = false; if (input) { try { input.value = ''; } catch (x) {} } });
+    };
+    var onFile = function (e) { readList(Array.prototype.slice.call((e.target && e.target.files) || []), e.target); };
+    var onDragOver = function (e) { e.preventDefault(); };
+    var onDrop = function (e) { e.preventDefault(); readList(Array.prototype.slice.call((e.dataTransfer && e.dataTransfer.files) || []), null); };
+    var msgPal = s.msgKind === 'err' ? ['#FEF3F2', '#912018', '#F3C1BC'] : ['#ECFDF3', '#05603A', '#A6E9C5'];
+
+    return {
+      tabs: tabs, pageTitle: titles[s.tab][0], pageDesc: titles[s.tab][1],
+      hasMsg: !!s.msg, msg: s.msg, msgBg: msgPal[0], msgFg: msgPal[1], msgBd: msgPal[2],
+      showEmpty: ds.length === 0 && s.tab !== 'yaml', goImport: function () { set({ tab: 'yaml', msg: '' }); },
+      sourceText: s.sourceName ? 'Loaded from: ' + s.sourceName : (ds.length ? '' : 'Nothing loaded.'),
+      isCatalog: s.tab === 'catalog', isDict: s.tab === 'dictionary', isLin: s.tab === 'lineage', isYaml: s.tab === 'yaml',
+      q: s.q, onQ: function (e) { set({ q: e.target.value }); }, catalogCount: filtered.length + ' of ' + ds.length + ' assets',
+      tf: s.tf, onTf: function (e) { set({ tf: e.target.value }); },
+      tfOptions: s.types.filter(function (t) { return ds.some(function (d) { return d.type === t.id; }); }).concat(ds.filter(function (d) { return !tmap[d.type]; }).map(function (d) { return tinfo(d.type); }).filter(function (t, i, a) { return a.findIndex(function (x) { return x.id === t.id; }) === i; })).map(function (t) { return { id: t.id, label: t.label + ' (' + ds.filter(function (d) { return d.type === t.id; }).length + ')' }; }),
+      typeOptions: s.types.slice().sort(function (a, b) { return a.category === b.category ? 0 : a.category < b.category ? -1 : 1; }).map(function (t) { return { id: t.id, label: t.category + ' — ' + t.label }; }),
+      assetIds: ds.map(function (d) { return { id: d.id }; }),
+      cards: cards, noCards: cards.length === 0 && ds.length > 0, dsForm: s.dsForm, dsF: dsF, addDataset: addDataset,
+      hasDatasets: ds.length > 0,
+      sel: cur ? cur.id : '', onSel: function (e) { set({ sel: e.target.value }); },
+      dsOptions: ds.map(function (d) { return { id: d.id, label: d.id + ' — ' + d.name }; }),
+      fq: s.fq, onFq: function (e) { set({ fq: e.target.value }); },
+      cur: cur ? { id: cur.id, name: cur.name, description: cur.description || 'No description yet.', meta: tinfo(cur.type).label + ' · Parent: ' + (cur.parent || '—') + ' · Domain: ' + (cur.domain || '—') + ' · Owner: ' + (cur.owner || '—') + ' · ' + cur.fields.length + ' columns · ' + cur.fields.filter(function (f) { return f.pii; }).length + ' PII' } : { id: '', name: '', description: '', meta: '' },
+      fieldRows: fieldRows, noFields: fieldRows.length === 0,
+      fieldForm: s.fieldForm, ffName: form('fieldForm', 'name'), ffType: form('fieldForm', 'type'), ffNull: form('fieldForm', 'nullable', true), ffPii: form('fieldForm', 'pii', true), ffDesc: form('fieldForm', 'description'), ffExpr: form('fieldForm', 'expression'), ffSrc: form('fieldForm', 'sources'),
+      types: ['STRING', 'INT64', 'NUMERIC', 'BIGNUMERIC', 'FLOAT64', 'BOOL', 'DATE', 'DATETIME', 'TIMESTAMP', 'TIME', 'JSON', 'BYTES', 'GEOGRAPHY', 'ARRAY', 'STRUCT'].map(function (v) { return { v: v }; }),
+      addField: addField,
+      nodes: nodes, paths: paths, noNodes: visible.length === 0,
+      baseW: baseW, baseH: baseH, cw: Math.round(baseW * z), chh: Math.round(baseH * z), zoom: z, zoomText: Math.round(z * 100) + '%',
+      zoomIn: function () { set({ zoom: Math.min(1.6, Math.round((self.state.zoom + 0.1) * 10) / 10) }); },
+      zoomOut: function () { set({ zoom: Math.max(0.4, Math.round((self.state.zoom - 0.1) * 10) / 10) }); },
+      colsLabel: s.showCols ? 'Hide columns' : 'Show columns', toggleCols: function () { set({ showCols: !self.state.showCols }); },
+      isoLabel: s.hideIso ? 'Show unlinked assets' : 'Hide unlinked assets', toggleIso: function () { set({ hideIso: !self.state.hideIso }); },
+      focusOnly: s.focusOnly, focusBg: s.focusOnly ? '#0F766E' : '#FFFFFF', focusFg: s.focusOnly ? '#FFFFFF' : '#15202B', toggleFocus: function () { set({ focusOnly: !self.state.focusOnly }); },
+      resetView: function () { set({ linSel: null, linCol: null, zoom: 0.9, focusOnly: false, lq: '' }); },
+      lq: s.lq, onLq: function (e) { set({ lq: e.target.value }); },
+      onLqKey: function (e) { if (e.key === 'Enter' && sugg[0]) { e.preventDefault(); sugg[0].pick(); } else if (e.key === 'Escape') set({ lq: '' }); },
+      sugg: sugg, hasSugg: sugg.length > 0, noSugg: !!lq && sugg.length === 0,
+      hasColTrace: !!lc, ct: { ref: lc || '', summary: summary }, traceUp: traceUp, traceDown: traceDown, noDown: traceDown.length === 0,
+      hasDsFocus: !!ls && !lc, focus: { id: ls || '' }, upChips: chips(ups), downChips: chips(downs), noUpChips: ups.length === 0, noDownChips: downs.length === 0,
+      edgeRows: edgeRows, edgeForm: s.edgeForm, efFrom: form('edgeForm', 'from'), efTo: form('edgeForm', 'to'), efProc: form('edgeForm', 'process'), efType: form('edgeForm', 'type'), addEdge: addEdge,
+      relTypes: ['reads', 'writes', 'calls', 'triggers', 'uses', 'produces', 'configures', 'deploys', 'depends_on'].map(function (v) { return { v: v }; }),
+      loadSample: function () { var d = self.sample(); set({ types: d.types, datasets: d.datasets, lineage: d.lineage, sel: 'acme-sales.mart.sales_daily', linSel: null, linCol: 'acme-sales.mart.sales_daily.total_sales', focusOnly: true, tf: '', loaded: [], unused: [], sourceName: 'built-in example', tab: 'lineage', msg: 'Loaded the example: 5 domains, ' + d.datasets.length + ' assets, at least 5 of every asset type (replaced the current data). Showing the trace of total_sales — press Reset to see everything.', msgKind: 'ok' }); },
+      yaml: this.toYaml(), download: download, downloadZip: downloadZip, copy: copy, onFile: onFile, onDragOver: onDragOver, onDrop: onDrop,
+      importText: s.importText, onImportText: function (e) { set({ importText: e.target.value }); },
+      applyPaste: function () {
+        if (!self.state.importText.trim()) return say('Paste some YAML first.', 'err');
+        try { self.applyLoaded(self.loadProject({ 'main.yaml': self.state.importText }), 'pasted text'); } catch (err) { say('Import failed — ' + err.message, 'err'); }
+      },
+      modeMerge: s.mode === 'merge', modeReplace: s.mode === 'replace',
+      setMerge: function () { set({ mode: 'merge' }); }, setReplace: function () { set({ mode: 'replace' }); },
+      hasLoaded: s.loaded.length > 0, loadedFiles: s.loaded.map(function (p) { return { p: p }; }), hasUnused: s.unused.length > 0, unusedText: s.unused.join(', '),
+      schemaHint: '# main.yaml  (entry point of a .zip)\nversion: 2\ninclude:                     # paths relative to this file\n  - asset_types.yaml\n  - airflow/**/*.yaml          # * and ** globs\n  - bigquery/*.yaml\n  - lineage.yaml\n\n# any included file may hold any of:\nasset_types:                 # optional — your own types\n  - id: dbt.model\n    label: dbt Model\n    category: dbt\n    color: "#B45309"\nassets:                      # (legacy alias: datasets)\n  - id: proj.mart.sales_daily  # required, unique\n    type: bigquery.table       # any type id\n    name: Daily sales\n    parent: proj.mart          # hierarchy (DAG > group > task)\n    owner: bi-team\n    properties:                # free-form, may be nested\n      partition_by: order_date\n    retention_days: 400        # unknown keys -> properties\n    fields:                    # (alias: columns)\n      - name: total_sales\n        type: NUMERIC\n        expression: SUM(net_amount)\n        sources: [proj.staging.orders.net_amount]\nlineage:\n  - from: airflow.dag_x.task_y\n    to: proj.mart.sales_daily\n    type: writes               # reads, writes, calls, triggers…\n    process: Daily MERGE\ninclude: [more/*.yaml]       # nested includes are allowed'
+    };
+  }
+
+  updateFields(id, fn) {
+    this.setState({ datasets: this.state.datasets.map(function (d) { return d.id === id ? Object.assign({}, d, { fields: fn(d.fields) }) : d; }) });
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,87 @@
+# artifact_registry assets
+assets:
+  - id: artifact_registry.ml-sales
+    type: artifact_registry.repository
+    name: ml-sales
+    domain: Sales
+    owner: ml-team
+    properties:
+      format: DOCKER
+      location: asia-southeast2
+  - id: artifact_registry.ml-sales.sales-trainer
+    type: artifact_registry.image
+    name: sales-trainer
+    parent: artifact_registry.ml-sales
+    domain: Sales
+    owner: ml-team
+    properties:
+      uri: asia-southeast2-docker.pkg.dev/acme-sales/ml-sales/sales-trainer
+      tag: v1.0.0
+  - id: artifact_registry.ml-inventory
+    type: artifact_registry.repository
+    name: ml-inventory
+    domain: Inventory
+    owner: ml-team
+    properties:
+      format: DOCKER
+      location: asia-southeast2
+  - id: artifact_registry.ml-inventory.inventory-trainer
+    type: artifact_registry.image
+    name: inventory-trainer
+    parent: artifact_registry.ml-inventory
+    domain: Inventory
+    owner: ml-team
+    properties:
+      uri: asia-southeast2-docker.pkg.dev/acme-inventory/ml-inventory/inventory-trainer
+      tag: v1.0.0
+  - id: artifact_registry.ml-finance
+    type: artifact_registry.repository
+    name: ml-finance
+    domain: Finance
+    owner: ml-team
+    properties:
+      format: DOCKER
+      location: asia-southeast2
+  - id: artifact_registry.ml-finance.finance-trainer
+    type: artifact_registry.image
+    name: finance-trainer
+    parent: artifact_registry.ml-finance
+    domain: Finance
+    owner: ml-team
+    properties:
+      uri: asia-southeast2-docker.pkg.dev/acme-finance/ml-finance/finance-trainer
+      tag: v1.0.0
+  - id: artifact_registry.ml-marketing
+    type: artifact_registry.repository
+    name: ml-marketing
+    domain: Marketing
+    owner: ml-team
+    properties:
+      format: DOCKER
+      location: asia-southeast2
+  - id: artifact_registry.ml-marketing.marketing-trainer
+    type: artifact_registry.image
+    name: marketing-trainer
+    parent: artifact_registry.ml-marketing
+    domain: Marketing
+    owner: ml-team
+    properties:
+      uri: asia-southeast2-docker.pkg.dev/acme-marketing/ml-marketing/marketing-trainer
+      tag: v1.0.0
+  - id: artifact_registry.ml-support
+    type: artifact_registry.repository
+    name: ml-support
+    domain: Support
+    owner: ml-team
+    properties:
+      format: DOCKER
+      location: asia-southeast2
+  - id: artifact_registry.ml-support.support-trainer
+    type: artifact_registry.image
+    name: support-trainer
+    parent: artifact_registry.ml-support
+    domain: Support
+    owner: ml-team
+    properties:
+      uri: asia-southeast2-docker.pkg.dev/acme-support/ml-support/support-trainer
+      tag: v1.0.0

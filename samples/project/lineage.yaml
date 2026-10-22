@@ -1,0 +1,317 @@
+# Asset-level lineage. Column-level lineage lives in each field (expression + sources).
+lineage:
+  - from: external.erp
+    to: gcs.acme-sales-landing/orders
+    type: writes
+    process: Daily file export
+  - from: gcs.acme-sales-landing/orders
+    to: acme-sales.raw.orders
+    type: writes
+    process: BigQuery load job
+  - from: airflow.variable.sales_gcp_project
+    to: airflow.sales_daily
+    type: configures
+  - from: airflow.connection.bq_sales
+    to: airflow.sales_daily.tg_transform.load_staging
+    type: uses
+  - from: acme-sales.raw.orders
+    to: airflow.sales_daily.tg_transform.load_staging
+    type: reads
+  - from: airflow.sales_daily.tg_transform.load_staging
+    to: acme-sales.staging.orders_clean
+    type: writes
+    process: Daily MERGE
+  - from: acme-sales.staging.fn_clean_amount
+    to: acme-sales.staging.orders_clean
+    type: used_by
+  - from: airflow.sales_daily.tg_transform.call_sp
+    to: acme-sales.mart.sp_build_sales_daily
+    type: calls
+  - from: acme-sales.staging.orders_clean
+    to: acme-sales.mart.sp_build_sales_daily
+    type: reads
+  - from: sheet.sales_targets
+    to: acme-sales.mart.sp_build_sales_daily
+    type: reads
+  - from: acme-sales.mart.sp_build_sales_daily
+    to: acme-sales.mart.sales_daily
+    type: writes
+  - from: acme-sales.mart.sales_daily
+    to: acme-sales.mart.v_sales_features
+    type: reads
+  - from: acme-sales.mart.sales_daily
+    to: acme-sales.mart.mv_sales_monthly
+    type: reads
+  - from: acme-sales.mart.v_sales_features
+    to: vertex.feature_view.sales_features
+    type: syncs
+  - from: vertex.feature_view.sales_features
+    to: vertex.pipeline.sales_forecast
+    type: reads
+  - from: artifact_registry.ml-sales.sales-trainer
+    to: vertex.pipeline.sales_forecast.train
+    type: uses
+  - from: vertex.pipeline.sales_forecast.train
+    to: vertex.pipeline.sales_forecast
+    type: part_of
+  - from: airflow.sales_daily.trigger_training
+    to: vertex.pipeline.sales_forecast
+    type: triggers
+  - from: vertex.pipeline.sales_forecast
+    to: vertex.model.sales_forecast
+    type: produces
+  - from: vertex.model.sales_forecast
+    to: vertex.endpoint.sales_forecast
+    type: deploys
+  - from: external.wms
+    to: gcs.acme-inventory-landing/movements
+    type: writes
+    process: Daily file export
+  - from: gcs.acme-inventory-landing/movements
+    to: acme-inventory.raw.movements
+    type: writes
+    process: BigQuery load job
+  - from: airflow.variable.inventory_gcp_project
+    to: airflow.inventory_daily
+    type: configures
+  - from: airflow.connection.bq_inventory
+    to: airflow.inventory_daily.tg_transform.load_staging
+    type: uses
+  - from: acme-inventory.raw.movements
+    to: airflow.inventory_daily.tg_transform.load_staging
+    type: reads
+  - from: airflow.inventory_daily.tg_transform.load_staging
+    to: acme-inventory.staging.movements_clean
+    type: writes
+    process: Daily MERGE
+  - from: acme-inventory.staging.fn_clean_quantity
+    to: acme-inventory.staging.movements_clean
+    type: used_by
+  - from: airflow.inventory_daily.tg_transform.call_sp
+    to: acme-inventory.mart.sp_build_inventory_daily
+    type: calls
+  - from: acme-inventory.staging.movements_clean
+    to: acme-inventory.mart.sp_build_inventory_daily
+    type: reads
+  - from: sheet.inventory_targets
+    to: acme-inventory.mart.sp_build_inventory_daily
+    type: reads
+  - from: acme-inventory.mart.sp_build_inventory_daily
+    to: acme-inventory.mart.inventory_daily
+    type: writes
+  - from: acme-inventory.mart.inventory_daily
+    to: acme-inventory.mart.v_inventory_features
+    type: reads
+  - from: acme-inventory.mart.inventory_daily
+    to: acme-inventory.mart.mv_inventory_monthly
+    type: reads
+  - from: acme-inventory.mart.v_inventory_features
+    to: vertex.feature_view.inventory_features
+    type: syncs
+  - from: vertex.feature_view.inventory_features
+    to: vertex.pipeline.stock_forecast
+    type: reads
+  - from: artifact_registry.ml-inventory.inventory-trainer
+    to: vertex.pipeline.stock_forecast.train
+    type: uses
+  - from: vertex.pipeline.stock_forecast.train
+    to: vertex.pipeline.stock_forecast
+    type: part_of
+  - from: airflow.inventory_daily.trigger_training
+    to: vertex.pipeline.stock_forecast
+    type: triggers
+  - from: vertex.pipeline.stock_forecast
+    to: vertex.model.stock_forecast
+    type: produces
+  - from: vertex.model.stock_forecast
+    to: vertex.endpoint.stock_forecast
+    type: deploys
+  - from: external.core_banking
+    to: gcs.acme-finance-landing/txns
+    type: writes
+    process: Daily file export
+  - from: gcs.acme-finance-landing/txns
+    to: acme-finance.raw.txns
+    type: writes
+    process: BigQuery load job
+  - from: airflow.variable.finance_gcp_project
+    to: airflow.finance_daily
+    type: configures
+  - from: airflow.connection.bq_finance
+    to: airflow.finance_daily.tg_transform.load_staging
+    type: uses
+  - from: acme-finance.raw.txns
+    to: airflow.finance_daily.tg_transform.load_staging
+    type: reads
+  - from: airflow.finance_daily.tg_transform.load_staging
+    to: acme-finance.staging.txns_clean
+    type: writes
+    process: Daily MERGE
+  - from: acme-finance.staging.fn_clean_amount
+    to: acme-finance.staging.txns_clean
+    type: used_by
+  - from: airflow.finance_daily.tg_transform.call_sp
+    to: acme-finance.mart.sp_build_finance_daily
+    type: calls
+  - from: acme-finance.staging.txns_clean
+    to: acme-finance.mart.sp_build_finance_daily
+    type: reads
+  - from: sheet.finance_targets
+    to: acme-finance.mart.sp_build_finance_daily
+    type: reads
+  - from: acme-finance.mart.sp_build_finance_daily
+    to: acme-finance.mart.finance_daily
+    type: writes
+  - from: acme-finance.mart.finance_daily
+    to: acme-finance.mart.v_finance_features
+    type: reads
+  - from: acme-finance.mart.finance_daily
+    to: acme-finance.mart.mv_finance_monthly
+    type: reads
+  - from: acme-finance.mart.v_finance_features
+    to: vertex.feature_view.finance_features
+    type: syncs
+  - from: vertex.feature_view.finance_features
+    to: vertex.pipeline.cashflow_forecast
+    type: reads
+  - from: artifact_registry.ml-finance.finance-trainer
+    to: vertex.pipeline.cashflow_forecast.train
+    type: uses
+  - from: vertex.pipeline.cashflow_forecast.train
+    to: vertex.pipeline.cashflow_forecast
+    type: part_of
+  - from: airflow.finance_daily.trigger_training
+    to: vertex.pipeline.cashflow_forecast
+    type: triggers
+  - from: vertex.pipeline.cashflow_forecast
+    to: vertex.model.cashflow_forecast
+    type: produces
+  - from: vertex.model.cashflow_forecast
+    to: vertex.endpoint.cashflow_forecast
+    type: deploys
+  - from: external.ads_platform
+    to: gcs.acme-marketing-landing/clicks
+    type: writes
+    process: Daily file export
+  - from: gcs.acme-marketing-landing/clicks
+    to: acme-marketing.raw.clicks
+    type: writes
+    process: BigQuery load job
+  - from: airflow.variable.marketing_gcp_project
+    to: airflow.marketing_daily
+    type: configures
+  - from: airflow.connection.bq_marketing
+    to: airflow.marketing_daily.tg_transform.load_staging
+    type: uses
+  - from: acme-marketing.raw.clicks
+    to: airflow.marketing_daily.tg_transform.load_staging
+    type: reads
+  - from: airflow.marketing_daily.tg_transform.load_staging
+    to: acme-marketing.staging.clicks_clean
+    type: writes
+    process: Daily MERGE
+  - from: acme-marketing.staging.fn_clean_cost
+    to: acme-marketing.staging.clicks_clean
+    type: used_by
+  - from: airflow.marketing_daily.tg_transform.call_sp
+    to: acme-marketing.mart.sp_build_marketing_daily
+    type: calls
+  - from: acme-marketing.staging.clicks_clean
+    to: acme-marketing.mart.sp_build_marketing_daily
+    type: reads
+  - from: sheet.marketing_targets
+    to: acme-marketing.mart.sp_build_marketing_daily
+    type: reads
+  - from: acme-marketing.mart.sp_build_marketing_daily
+    to: acme-marketing.mart.marketing_daily
+    type: writes
+  - from: acme-marketing.mart.marketing_daily
+    to: acme-marketing.mart.v_marketing_features
+    type: reads
+  - from: acme-marketing.mart.marketing_daily
+    to: acme-marketing.mart.mv_marketing_monthly
+    type: reads
+  - from: acme-marketing.mart.v_marketing_features
+    to: vertex.feature_view.marketing_features
+    type: syncs
+  - from: vertex.feature_view.marketing_features
+    to: vertex.pipeline.roas_forecast
+    type: reads
+  - from: artifact_registry.ml-marketing.marketing-trainer
+    to: vertex.pipeline.roas_forecast.train
+    type: uses
+  - from: vertex.pipeline.roas_forecast.train
+    to: vertex.pipeline.roas_forecast
+    type: part_of
+  - from: airflow.marketing_daily.trigger_training
+    to: vertex.pipeline.roas_forecast
+    type: triggers
+  - from: vertex.pipeline.roas_forecast
+    to: vertex.model.roas_forecast
+    type: produces
+  - from: vertex.model.roas_forecast
+    to: vertex.endpoint.roas_forecast
+    type: deploys
+  - from: external.helpdesk
+    to: gcs.acme-support-landing/tickets
+    type: writes
+    process: Daily file export
+  - from: gcs.acme-support-landing/tickets
+    to: acme-support.raw.tickets
+    type: writes
+    process: BigQuery load job
+  - from: airflow.variable.support_gcp_project
+    to: airflow.support_daily
+    type: configures
+  - from: airflow.connection.bq_support
+    to: airflow.support_daily.tg_transform.load_staging
+    type: uses
+  - from: acme-support.raw.tickets
+    to: airflow.support_daily.tg_transform.load_staging
+    type: reads
+  - from: airflow.support_daily.tg_transform.load_staging
+    to: acme-support.staging.tickets_clean
+    type: writes
+    process: Daily MERGE
+  - from: acme-support.staging.fn_clean_handle_minutes
+    to: acme-support.staging.tickets_clean
+    type: used_by
+  - from: airflow.support_daily.tg_transform.call_sp
+    to: acme-support.mart.sp_build_support_daily
+    type: calls
+  - from: acme-support.staging.tickets_clean
+    to: acme-support.mart.sp_build_support_daily
+    type: reads
+  - from: sheet.support_targets
+    to: acme-support.mart.sp_build_support_daily
+    type: reads
+  - from: acme-support.mart.sp_build_support_daily
+    to: acme-support.mart.support_daily
+    type: writes
+  - from: acme-support.mart.support_daily
+    to: acme-support.mart.v_support_features
+    type: reads
+  - from: acme-support.mart.support_daily
+    to: acme-support.mart.mv_support_monthly
+    type: reads
+  - from: acme-support.mart.v_support_features
+    to: vertex.feature_view.support_features
+    type: syncs
+  - from: vertex.feature_view.support_features
+    to: vertex.pipeline.ticket_volume_forecast
+    type: reads
+  - from: artifact_registry.ml-support.support-trainer
+    to: vertex.pipeline.ticket_volume_forecast.train
+    type: uses
+  - from: vertex.pipeline.ticket_volume_forecast.train
+    to: vertex.pipeline.ticket_volume_forecast
+    type: part_of
+  - from: airflow.support_daily.trigger_training
+    to: vertex.pipeline.ticket_volume_forecast
+    type: triggers
+  - from: vertex.pipeline.ticket_volume_forecast
+    to: vertex.model.ticket_volume_forecast
+    type: produces
+  - from: vertex.model.ticket_volume_forecast
+    to: vertex.endpoint.ticket_volume_forecast
+    type: deploys

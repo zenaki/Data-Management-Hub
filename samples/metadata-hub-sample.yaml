@@ -1,0 +1,2228 @@
+# Metadata Hub — data catalog, data dictionary, data lineage (schema v2, single file)
+version: 2
+generated_at: 2026-10-22T07:27:43.813Z
+asset_types:
+  - id: airflow.dag
+    label: Airflow DAG
+    category: Airflow
+    color: "#0B5CAD"
+  - id: airflow.task_group
+    label: Airflow Task Group
+    category: Airflow
+    color: "#1E40AF"
+  - id: airflow.task
+    label: Airflow Task
+    category: Airflow
+    color: "#1D4ED8"
+  - id: airflow.variable
+    label: Airflow Variable
+    category: Airflow
+    color: "#3730A3"
+  - id: airflow.connection
+    label: Airflow Connection
+    category: Airflow
+    color: "#3730A3"
+  - id: bigquery.project
+    label: BigQuery Project
+    category: BigQuery
+    color: "#115E59"
+  - id: bigquery.dataset
+    label: BigQuery Dataset
+    category: BigQuery
+    color: "#0F766E"
+  - id: bigquery.table
+    label: BigQuery Table
+    category: BigQuery
+    color: "#0F766E"
+  - id: bigquery.view
+    label: BigQuery View
+    category: BigQuery
+    color: "#0E7490"
+  - id: bigquery.materialized_view
+    label: BigQuery Materialized View
+    category: BigQuery
+    color: "#0E7490"
+  - id: bigquery.stored_procedure
+    label: BigQuery Stored Procedure
+    category: BigQuery
+    color: "#155E75"
+  - id: bigquery.udf
+    label: BigQuery UDF
+    category: BigQuery
+    color: "#155E75"
+  - id: vertex.pipeline
+    label: Vertex AI Pipeline
+    category: Vertex AI
+    color: "#6D28D9"
+  - id: vertex.pipeline_component
+    label: Vertex Pipeline Component
+    category: Vertex AI
+    color: "#6D28D9"
+  - id: vertex.model
+    label: Model Registry Model
+    category: Vertex AI
+    color: "#7E22CE"
+  - id: vertex.endpoint
+    label: Vertex AI Endpoint
+    category: Vertex AI
+    color: "#86198F"
+  - id: vertex.feature_view
+    label: Vertex Feature View
+    category: Vertex AI
+    color: "#86198F"
+  - id: artifact_registry.repository
+    label: Artifact Registry Repository
+    category: Artifact Registry
+    color: "#9A3412"
+  - id: artifact_registry.image
+    label: Artifact Registry Image
+    category: Artifact Registry
+    color: "#C2410C"
+  - id: gcs.bucket
+    label: GCS Bucket
+    category: Cloud Storage
+    color: "#A16207"
+  - id: gcs.object
+    label: GCS Object / Path
+    category: Cloud Storage
+    color: "#A16207"
+  - id: dataset
+    label: Dataset (generic)
+    category: Generic
+    color: "#475569"
+  - id: external
+    label: External system
+    category: Generic
+    color: "#475569"
+assets:
+  - id: external.erp
+    type: external
+    name: ERP system
+    domain: Sales
+    owner: sales-data
+    description: Operational source system for sales data.
+    properties:
+      vendor: ERP
+      extract: daily file export
+  - id: sheet.sales_targets
+    type: dataset
+    name: Sales targets sheet
+    domain: Sales
+    owner: sales-data
+    source: Google Sheets
+    description: Monthly targets maintained by the business.
+    fields:
+      - name: month
+        type: DATE
+        nullable: false
+        pii: false
+        description: Target month.
+      - name: target_value
+        type: NUMERIC
+        nullable: false
+        pii: false
+        description: Monthly target.
+  - id: gcs.acme-sales-landing
+    type: gcs.bucket
+    name: Landing bucket sales
+    domain: Sales
+    owner: platform
+    properties:
+      location: asia-southeast2
+      storage_class: STANDARD
+  - id: gcs.acme-sales-landing/orders
+    type: gcs.object
+    name: orders landing files
+    parent: gcs.acme-sales-landing
+    domain: Sales
+    properties:
+      pattern: orders/dt={{ ds }}/*.parquet
+      format: parquet
+  - id: acme-sales
+    type: bigquery.project
+    name: GCP project sales
+    domain: Sales
+    owner: platform
+    properties:
+      region: asia-southeast2
+      billing_account: acme-billing
+  - id: acme-sales.raw
+    type: bigquery.dataset
+    name: raw
+    parent: acme-sales
+    domain: Sales
+    properties:
+      location: asia-southeast2
+      default_table_expiration_days: 400
+  - id: acme-sales.staging
+    type: bigquery.dataset
+    name: staging
+    parent: acme-sales
+    domain: Sales
+    properties:
+      location: asia-southeast2
+  - id: acme-sales.mart
+    type: bigquery.dataset
+    name: mart
+    parent: acme-sales
+    domain: Sales
+    properties:
+      location: asia-southeast2
+  - id: acme-sales.raw.orders
+    type: bigquery.table
+    name: Sales orders (raw)
+    parent: acme-sales.raw
+    domain: Sales
+    owner: sales-data
+    source: ERP via GCS
+    description: As-is order records loaded from the landing bucket.
+    tags: [raw]
+    properties:
+      partition_by: DATE(order_ts)
+    fields:
+      - name: order_id
+        type: INT64
+        nullable: false
+        pii: false
+        description: Unique order ID.
+      - name: customer_id
+        type: INT64
+        nullable: false
+        pii: true
+        description: Reference to the customer.
+      - name: order_ts
+        type: TIMESTAMP
+        nullable: false
+        pii: false
+        description: Event time (UTC).
+      - name: amount
+        type: NUMERIC
+        nullable: true
+        pii: false
+        description: Raw amount.
+      - name: discount
+        type: NUMERIC
+        nullable: true
+        pii: false
+        description: Adjustment (discount).
+  - id: acme-sales.staging.fn_clean_amount
+    type: bigquery.udf
+    name: fn_clean_amount
+    parent: acme-sales.staging
+    domain: Sales
+    owner: analytics-eng
+    properties:
+      language: SQL
+      returns: NUMERIC
+      body: GREATEST(IFNULL(x, 0), 0)
+  - id: acme-sales.staging.orders_clean
+    type: bigquery.table
+    name: Sales orders (clean)
+    parent: acme-sales.staging
+    domain: Sales
+    owner: analytics-eng
+    description: Deduplicated, normalised orders.
+    tags: [staging]
+    fields:
+      - name: order_id
+        type: INT64
+        nullable: false
+        pii: false
+        description: Unique order ID.
+        expression: QUALIFY ROW_NUMBER() OVER (PARTITION BY order_id ORDER BY order_ts DESC) = 1
+        sources: [acme-sales.raw.orders.order_id]
+      - name: customer_id
+        type: INT64
+        nullable: false
+        pii: true
+        description: Reference to the customer.
+        sources: [acme-sales.raw.orders.customer_id]
+      - name: event_date
+        type: DATE
+        nullable: false
+        pii: false
+        description: Event date (Asia/Jakarta).
+        expression: DATE(order_ts, 'Asia/Jakarta')
+        sources: [acme-sales.raw.orders.order_ts]
+      - name: net_value
+        type: NUMERIC
+        nullable: false
+        pii: false
+        description: Value after adjustment.
+        expression: fn_clean_amount(amount) - IFNULL(discount, 0)
+        sources: [acme-sales.raw.orders.amount, acme-sales.raw.orders.discount]
+  - id: acme-sales.mart.sp_build_sales_daily
+    type: bigquery.stored_procedure
+    name: sp_build_sales_daily
+    parent: acme-sales.mart
+    domain: Sales
+    owner: analytics-eng
+    properties:
+      language: SQL
+      args: [run_date DATE]
+  - id: acme-sales.mart.sales_daily
+    type: bigquery.table
+    name: Sales daily
+    parent: acme-sales.mart
+    domain: Sales
+    owner: bi-team
+    description: Sales aggregated per day, built by a stored procedure.
+    tags: [mart, dashboard]
+    fields:
+      - name: event_date
+        type: DATE
+        nullable: false
+        pii: false
+        description: Date.
+        expression: GROUP BY event_date
+        sources: [acme-sales.staging.orders_clean.event_date]
+      - name: total_sales
+        type: NUMERIC
+        nullable: false
+        pii: false
+        description: Total net value per day.
+        expression: SUM(net_value)
+        sources: [acme-sales.staging.orders_clean.net_value]
+      - name: active_customers
+        type: INT64
+        nullable: false
+        pii: false
+        description: Distinct customers per day.
+        expression: COUNT(DISTINCT customer_id)
+        sources: [acme-sales.staging.orders_clean.customer_id]
+      - name: avg_per_order
+        type: FLOAT64
+        nullable: true
+        pii: false
+        description: Average value per order.
+        expression: SAFE_DIVIDE(SUM(net_value), COUNT(order_id))
+        sources: [acme-sales.staging.orders_clean.net_value, acme-sales.staging.orders_clean.order_id]
+      - name: target_attainment
+        type: FLOAT64
+        nullable: true
+        pii: false
+        description: Month-to-date share of the monthly target.
+        expression: SAFE_DIVIDE(SUM(SUM(net_value)) OVER (PARTITION BY DATE_TRUNC(event_date, MONTH) ORDER BY event_date), t.target_value)
+        sources: [acme-sales.staging.orders_clean.net_value, sheet.sales_targets.target_value]
+  - id: acme-sales.mart.v_sales_features
+    type: bigquery.view
+    name: Sales features
+    parent: acme-sales.mart
+    domain: Sales
+    owner: ml-team
+    fields:
+      - name: event_date
+        type: DATE
+        nullable: false
+        pii: false
+        description: Date.
+        sources: [acme-sales.mart.sales_daily.event_date]
+      - name: sales_7d_avg
+        type: FLOAT64
+        nullable: true
+        pii: false
+        description: 7-day moving average.
+        expression: AVG(total_sales) OVER (ORDER BY event_date ROWS 6 PRECEDING)
+        sources: [acme-sales.mart.sales_daily.total_sales]
+  - id: acme-sales.mart.mv_sales_monthly
+    type: bigquery.materialized_view
+    name: Sales monthly
+    parent: acme-sales.mart
+    domain: Sales
+    owner: bi-team
+    properties:
+      refresh_interval_minutes: 60
+    fields:
+      - name: month
+        type: DATE
+        nullable: false
+        pii: false
+        description: Month.
+        expression: DATE_TRUNC(event_date, MONTH)
+        sources: [acme-sales.mart.sales_daily.event_date]
+      - name: monthly_total
+        type: NUMERIC
+        nullable: false
+        pii: false
+        description: Monthly total.
+        expression: SUM(total_sales)
+        sources: [acme-sales.mart.sales_daily.total_sales]
+  - id: airflow.variable.sales_gcp_project
+    type: airflow.variable
+    name: sales_gcp_project
+    domain: Sales
+    owner: platform
+    properties:
+      key: sales_gcp_project
+      value: acme-sales
+  - id: airflow.connection.bq_sales
+    type: airflow.connection
+    name: bq_sales
+    domain: Sales
+    owner: platform
+    properties:
+      conn_type: google_cloud_platform
+      project: acme-sales
+  - id: airflow.sales_daily
+    type: airflow.dag
+    name: sales_daily
+    domain: Sales
+    owner: sales-data
+    description: Daily sales pipeline, from landing files to model training.
+    tags: [daily]
+    properties:
+      schedule: 0 1 * * *
+      catchup: false
+      max_active_runs: 1
+  - id: airflow.sales_daily.tg_transform
+    type: airflow.task_group
+    name: tg_transform
+    parent: airflow.sales_daily
+    domain: Sales
+  - id: airflow.sales_daily.tg_transform.load_staging
+    type: airflow.task
+    name: load_staging
+    parent: airflow.sales_daily.tg_transform
+    domain: Sales
+    properties:
+      operator: BigQueryInsertJobOperator
+      retries: 2
+  - id: airflow.sales_daily.tg_transform.call_sp
+    type: airflow.task
+    name: call_sp
+    parent: airflow.sales_daily.tg_transform
+    domain: Sales
+    properties:
+      operator: BigQueryInsertJobOperator
+      sql: CALL mart.sp_build_sales_daily(@run_date)
+  - id: airflow.sales_daily.trigger_training
+    type: airflow.task
+    name: trigger_training
+    parent: airflow.sales_daily
+    domain: Sales
+    properties:
+      operator: RunPipelineJobOperator
+  - id: artifact_registry.ml-sales
+    type: artifact_registry.repository
+    name: ml-sales
+    domain: Sales
+    owner: ml-team
+    properties:
+      format: DOCKER
+      location: asia-southeast2
+  - id: artifact_registry.ml-sales.sales-trainer
+    type: artifact_registry.image
+    name: sales-trainer
+    parent: artifact_registry.ml-sales
+    domain: Sales
+    owner: ml-team
+    properties:
+      uri: asia-southeast2-docker.pkg.dev/acme-sales/ml-sales/sales-trainer
+      tag: v1.0.0
+  - id: vertex.feature_view.sales_features
+    type: vertex.feature_view
+    name: sales_features
+    domain: Sales
+    owner: ml-team
+    properties:
+      online_store: acme_online
+      sync: daily
+  - id: vertex.pipeline.sales_forecast.train
+    type: vertex.pipeline_component
+    name: train
+    parent: vertex.pipeline.sales_forecast
+    domain: Sales
+    owner: ml-team
+    properties:
+      image: artifact_registry.ml-sales.sales-trainer
+  - id: vertex.pipeline.sales_forecast
+    type: vertex.pipeline
+    name: sales_forecast
+    domain: Sales
+    owner: ml-team
+    properties:
+      template: gs://acme-sales-pipelines/sales_forecast.json
+  - id: vertex.model.sales_forecast
+    type: vertex.model
+    name: sales_forecast
+    domain: Sales
+    owner: ml-team
+    properties:
+      version: 1
+      framework: xgboost
+  - id: vertex.endpoint.sales_forecast
+    type: vertex.endpoint
+    name: sales_forecast-endpoint
+    domain: Sales
+    owner: ml-team
+    properties:
+      machine_type: n1-standard-2
+      min_replicas: 1
+  - id: external.wms
+    type: external
+    name: WMS system
+    domain: Inventory
+    owner: supply-data
+    description: Operational source system for inventory data.
+    properties:
+      vendor: WMS
+      extract: daily file export
+  - id: sheet.inventory_targets
+    type: dataset
+    name: Inventory targets sheet
+    domain: Inventory
+    owner: supply-data
+    source: Google Sheets
+    description: Monthly targets maintained by the business.
+    fields:
+      - name: month
+        type: DATE
+        nullable: false
+        pii: false
+        description: Target month.
+      - name: target_value
+        type: INT64
+        nullable: false
+        pii: false
+        description: Monthly target.
+  - id: gcs.acme-inventory-landing
+    type: gcs.bucket
+    name: Landing bucket inventory
+    domain: Inventory
+    owner: platform
+    properties:
+      location: asia-southeast2
+      storage_class: STANDARD
+  - id: gcs.acme-inventory-landing/movements
+    type: gcs.object
+    name: movements landing files
+    parent: gcs.acme-inventory-landing
+    domain: Inventory
+    properties:
+      pattern: movements/dt={{ ds }}/*.parquet
+      format: parquet
+  - id: acme-inventory
+    type: bigquery.project
+    name: GCP project inventory
+    domain: Inventory
+    owner: platform
+    properties:
+      region: asia-southeast2
+      billing_account: acme-billing
+  - id: acme-inventory.raw
+    type: bigquery.dataset
+    name: raw
+    parent: acme-inventory
+    domain: Inventory
+    properties:
+      location: asia-southeast2
+      default_table_expiration_days: 400
+  - id: acme-inventory.staging
+    type: bigquery.dataset
+    name: staging
+    parent: acme-inventory
+    domain: Inventory
+    properties:
+      location: asia-southeast2
+  - id: acme-inventory.mart
+    type: bigquery.dataset
+    name: mart
+    parent: acme-inventory
+    domain: Inventory
+    properties:
+      location: asia-southeast2
+  - id: acme-inventory.raw.movements
+    type: bigquery.table
+    name: Inventory movements (raw)
+    parent: acme-inventory.raw
+    domain: Inventory
+    owner: supply-data
+    source: WMS via GCS
+    description: As-is movement records loaded from the landing bucket.
+    tags: [raw]
+    properties:
+      partition_by: DATE(movement_ts)
+    fields:
+      - name: movement_id
+        type: INT64
+        nullable: false
+        pii: false
+        description: Unique movement ID.
+      - name: sku_id
+        type: INT64
+        nullable: false
+        pii: false
+        description: Reference to the sku.
+      - name: movement_ts
+        type: TIMESTAMP
+        nullable: false
+        pii: false
+        description: Event time (UTC).
+      - name: quantity
+        type: INT64
+        nullable: true
+        pii: false
+        description: Raw quantity.
+      - name: damaged_qty
+        type: INT64
+        nullable: true
+        pii: false
+        description: Adjustment (damaged qty).
+  - id: acme-inventory.staging.fn_clean_quantity
+    type: bigquery.udf
+    name: fn_clean_quantity
+    parent: acme-inventory.staging
+    domain: Inventory
+    owner: analytics-eng
+    properties:
+      language: SQL
+      returns: INT64
+      body: GREATEST(IFNULL(x, 0), 0)
+  - id: acme-inventory.staging.movements_clean
+    type: bigquery.table
+    name: Inventory movements (clean)
+    parent: acme-inventory.staging
+    domain: Inventory
+    owner: analytics-eng
+    description: Deduplicated, normalised movements.
+    tags: [staging]
+    fields:
+      - name: movement_id
+        type: INT64
+        nullable: false
+        pii: false
+        description: Unique movement ID.
+        expression: QUALIFY ROW_NUMBER() OVER (PARTITION BY movement_id ORDER BY movement_ts DESC) = 1
+        sources: [acme-inventory.raw.movements.movement_id]
+      - name: sku_id
+        type: INT64
+        nullable: false
+        pii: false
+        description: Reference to the sku.
+        sources: [acme-inventory.raw.movements.sku_id]
+      - name: event_date
+        type: DATE
+        nullable: false
+        pii: false
+        description: Event date (Asia/Jakarta).
+        expression: DATE(movement_ts, 'Asia/Jakarta')
+        sources: [acme-inventory.raw.movements.movement_ts]
+      - name: net_value
+        type: INT64
+        nullable: false
+        pii: false
+        description: Value after adjustment.
+        expression: fn_clean_quantity(quantity) - IFNULL(damaged_qty, 0)
+        sources: [acme-inventory.raw.movements.quantity, acme-inventory.raw.movements.damaged_qty]
+  - id: acme-inventory.mart.sp_build_inventory_daily
+    type: bigquery.stored_procedure
+    name: sp_build_inventory_daily
+    parent: acme-inventory.mart
+    domain: Inventory
+    owner: analytics-eng
+    properties:
+      language: SQL
+      args: [run_date DATE]
+  - id: acme-inventory.mart.inventory_daily
+    type: bigquery.table
+    name: Inventory daily
+    parent: acme-inventory.mart
+    domain: Inventory
+    owner: bi-team
+    description: Inventory aggregated per day, built by a stored procedure.
+    tags: [mart, dashboard]
+    fields:
+      - name: event_date
+        type: DATE
+        nullable: false
+        pii: false
+        description: Date.
+        expression: GROUP BY event_date
+        sources: [acme-inventory.staging.movements_clean.event_date]
+      - name: total_inventory
+        type: INT64
+        nullable: false
+        pii: false
+        description: Total net value per day.
+        expression: SUM(net_value)
+        sources: [acme-inventory.staging.movements_clean.net_value]
+      - name: active_skus
+        type: INT64
+        nullable: false
+        pii: false
+        description: Distinct skus per day.
+        expression: COUNT(DISTINCT sku_id)
+        sources: [acme-inventory.staging.movements_clean.sku_id]
+      - name: avg_per_movement
+        type: FLOAT64
+        nullable: true
+        pii: false
+        description: Average value per movement.
+        expression: SAFE_DIVIDE(SUM(net_value), COUNT(movement_id))
+        sources: [acme-inventory.staging.movements_clean.net_value, acme-inventory.staging.movements_clean.movement_id]
+      - name: target_attainment
+        type: FLOAT64
+        nullable: true
+        pii: false
+        description: Month-to-date share of the monthly target.
+        expression: SAFE_DIVIDE(SUM(SUM(net_value)) OVER (PARTITION BY DATE_TRUNC(event_date, MONTH) ORDER BY event_date), t.target_value)
+        sources: [acme-inventory.staging.movements_clean.net_value, sheet.inventory_targets.target_value]
+  - id: acme-inventory.mart.v_inventory_features
+    type: bigquery.view
+    name: Inventory features
+    parent: acme-inventory.mart
+    domain: Inventory
+    owner: ml-team
+    fields:
+      - name: event_date
+        type: DATE
+        nullable: false
+        pii: false
+        description: Date.
+        sources: [acme-inventory.mart.inventory_daily.event_date]
+      - name: inventory_7d_avg
+        type: FLOAT64
+        nullable: true
+        pii: false
+        description: 7-day moving average.
+        expression: AVG(total_inventory) OVER (ORDER BY event_date ROWS 6 PRECEDING)
+        sources: [acme-inventory.mart.inventory_daily.total_inventory]
+  - id: acme-inventory.mart.mv_inventory_monthly
+    type: bigquery.materialized_view
+    name: Inventory monthly
+    parent: acme-inventory.mart
+    domain: Inventory
+    owner: bi-team
+    properties:
+      refresh_interval_minutes: 60
+    fields:
+      - name: month
+        type: DATE
+        nullable: false
+        pii: false
+        description: Month.
+        expression: DATE_TRUNC(event_date, MONTH)
+        sources: [acme-inventory.mart.inventory_daily.event_date]
+      - name: monthly_total
+        type: INT64
+        nullable: false
+        pii: false
+        description: Monthly total.
+        expression: SUM(total_inventory)
+        sources: [acme-inventory.mart.inventory_daily.total_inventory]
+  - id: airflow.variable.inventory_gcp_project
+    type: airflow.variable
+    name: inventory_gcp_project
+    domain: Inventory
+    owner: platform
+    properties:
+      key: inventory_gcp_project
+      value: acme-inventory
+  - id: airflow.connection.bq_inventory
+    type: airflow.connection
+    name: bq_inventory
+    domain: Inventory
+    owner: platform
+    properties:
+      conn_type: google_cloud_platform
+      project: acme-inventory
+  - id: airflow.inventory_daily
+    type: airflow.dag
+    name: inventory_daily
+    domain: Inventory
+    owner: supply-data
+    description: Daily inventory pipeline, from landing files to model training.
+    tags: [daily]
+    properties:
+      schedule: 0 1 * * *
+      catchup: false
+      max_active_runs: 1
+  - id: airflow.inventory_daily.tg_transform
+    type: airflow.task_group
+    name: tg_transform
+    parent: airflow.inventory_daily
+    domain: Inventory
+  - id: airflow.inventory_daily.tg_transform.load_staging
+    type: airflow.task
+    name: load_staging
+    parent: airflow.inventory_daily.tg_transform
+    domain: Inventory
+    properties:
+      operator: BigQueryInsertJobOperator
+      retries: 2
+  - id: airflow.inventory_daily.tg_transform.call_sp
+    type: airflow.task
+    name: call_sp
+    parent: airflow.inventory_daily.tg_transform
+    domain: Inventory
+    properties:
+      operator: BigQueryInsertJobOperator
+      sql: CALL mart.sp_build_inventory_daily(@run_date)
+  - id: airflow.inventory_daily.trigger_training
+    type: airflow.task
+    name: trigger_training
+    parent: airflow.inventory_daily
+    domain: Inventory
+    properties:
+      operator: RunPipelineJobOperator
+  - id: artifact_registry.ml-inventory
+    type: artifact_registry.repository
+    name: ml-inventory
+    domain: Inventory
+    owner: ml-team
+    properties:
+      format: DOCKER
+      location: asia-southeast2
+  - id: artifact_registry.ml-inventory.inventory-trainer
+    type: artifact_registry.image
+    name: inventory-trainer
+    parent: artifact_registry.ml-inventory
+    domain: Inventory
+    owner: ml-team
+    properties:
+      uri: asia-southeast2-docker.pkg.dev/acme-inventory/ml-inventory/inventory-trainer
+      tag: v1.0.0
+  - id: vertex.feature_view.inventory_features
+    type: vertex.feature_view
+    name: inventory_features
+    domain: Inventory
+    owner: ml-team
+    properties:
+      online_store: acme_online
+      sync: daily
+  - id: vertex.pipeline.stock_forecast.train
+    type: vertex.pipeline_component
+    name: train
+    parent: vertex.pipeline.stock_forecast
+    domain: Inventory
+    owner: ml-team
+    properties:
+      image: artifact_registry.ml-inventory.inventory-trainer
+  - id: vertex.pipeline.stock_forecast
+    type: vertex.pipeline
+    name: stock_forecast
+    domain: Inventory
+    owner: ml-team
+    properties:
+      template: gs://acme-inventory-pipelines/stock_forecast.json
+  - id: vertex.model.stock_forecast
+    type: vertex.model
+    name: stock_forecast
+    domain: Inventory
+    owner: ml-team
+    properties:
+      version: 1
+      framework: xgboost
+  - id: vertex.endpoint.stock_forecast
+    type: vertex.endpoint
+    name: stock_forecast-endpoint
+    domain: Inventory
+    owner: ml-team
+    properties:
+      machine_type: n1-standard-2
+      min_replicas: 1
+  - id: external.core_banking
+    type: external
+    name: Core banking system
+    domain: Finance
+    owner: finance-data
+    description: Operational source system for finance data.
+    properties:
+      vendor: Core banking
+      extract: daily file export
+  - id: sheet.finance_targets
+    type: dataset
+    name: Finance targets sheet
+    domain: Finance
+    owner: finance-data
+    source: Google Sheets
+    description: Monthly targets maintained by the business.
+    fields:
+      - name: month
+        type: DATE
+        nullable: false
+        pii: false
+        description: Target month.
+      - name: target_value
+        type: NUMERIC
+        nullable: false
+        pii: false
+        description: Monthly target.
+  - id: gcs.acme-finance-landing
+    type: gcs.bucket
+    name: Landing bucket finance
+    domain: Finance
+    owner: platform
+    properties:
+      location: asia-southeast2
+      storage_class: STANDARD
+  - id: gcs.acme-finance-landing/txns
+    type: gcs.object
+    name: txns landing files
+    parent: gcs.acme-finance-landing
+    domain: Finance
+    properties:
+      pattern: txns/dt={{ ds }}/*.parquet
+      format: parquet
+  - id: acme-finance
+    type: bigquery.project
+    name: GCP project finance
+    domain: Finance
+    owner: platform
+    properties:
+      region: asia-southeast2
+      billing_account: acme-billing
+  - id: acme-finance.raw
+    type: bigquery.dataset
+    name: raw
+    parent: acme-finance
+    domain: Finance
+    properties:
+      location: asia-southeast2
+      default_table_expiration_days: 400
+  - id: acme-finance.staging
+    type: bigquery.dataset
+    name: staging
+    parent: acme-finance
+    domain: Finance
+    properties:
+      location: asia-southeast2
+  - id: acme-finance.mart
+    type: bigquery.dataset
+    name: mart
+    parent: acme-finance
+    domain: Finance
+    properties:
+      location: asia-southeast2
+  - id: acme-finance.raw.txns
+    type: bigquery.table
+    name: Finance txns (raw)
+    parent: acme-finance.raw
+    domain: Finance
+    owner: finance-data
+    source: Core banking via GCS
+    description: As-is txn records loaded from the landing bucket.
+    tags: [raw]
+    properties:
+      partition_by: DATE(txn_ts)
+    fields:
+      - name: txn_id
+        type: INT64
+        nullable: false
+        pii: false
+        description: Unique txn ID.
+      - name: account_id
+        type: INT64
+        nullable: false
+        pii: false
+        description: Reference to the account.
+      - name: txn_ts
+        type: TIMESTAMP
+        nullable: false
+        pii: false
+        description: Event time (UTC).
+      - name: amount
+        type: NUMERIC
+        nullable: true
+        pii: false
+        description: Raw amount.
+      - name: fee
+        type: NUMERIC
+        nullable: true
+        pii: false
+        description: Adjustment (fee).
+  - id: acme-finance.staging.fn_clean_amount
+    type: bigquery.udf
+    name: fn_clean_amount
+    parent: acme-finance.staging
+    domain: Finance
+    owner: analytics-eng
+    properties:
+      language: SQL
+      returns: NUMERIC
+      body: GREATEST(IFNULL(x, 0), 0)
+  - id: acme-finance.staging.txns_clean
+    type: bigquery.table
+    name: Finance txns (clean)
+    parent: acme-finance.staging
+    domain: Finance
+    owner: analytics-eng
+    description: Deduplicated, normalised txns.
+    tags: [staging]
+    fields:
+      - name: txn_id
+        type: INT64
+        nullable: false
+        pii: false
+        description: Unique txn ID.
+        expression: QUALIFY ROW_NUMBER() OVER (PARTITION BY txn_id ORDER BY txn_ts DESC) = 1
+        sources: [acme-finance.raw.txns.txn_id]
+      - name: account_id
+        type: INT64
+        nullable: false
+        pii: false
+        description: Reference to the account.
+        sources: [acme-finance.raw.txns.account_id]
+      - name: event_date
+        type: DATE
+        nullable: false
+        pii: false
+        description: Event date (Asia/Jakarta).
+        expression: DATE(txn_ts, 'Asia/Jakarta')
+        sources: [acme-finance.raw.txns.txn_ts]
+      - name: net_value
+        type: NUMERIC
+        nullable: false
+        pii: false
+        description: Value after adjustment.
+        expression: fn_clean_amount(amount) - IFNULL(fee, 0)
+        sources: [acme-finance.raw.txns.amount, acme-finance.raw.txns.fee]
+  - id: acme-finance.mart.sp_build_finance_daily
+    type: bigquery.stored_procedure
+    name: sp_build_finance_daily
+    parent: acme-finance.mart
+    domain: Finance
+    owner: analytics-eng
+    properties:
+      language: SQL
+      args: [run_date DATE]
+  - id: acme-finance.mart.finance_daily
+    type: bigquery.table
+    name: Finance daily
+    parent: acme-finance.mart
+    domain: Finance
+    owner: bi-team
+    description: Finance aggregated per day, built by a stored procedure.
+    tags: [mart, dashboard]
+    fields:
+      - name: event_date
+        type: DATE
+        nullable: false
+        pii: false
+        description: Date.
+        expression: GROUP BY event_date
+        sources: [acme-finance.staging.txns_clean.event_date]
+      - name: total_finance
+        type: NUMERIC
+        nullable: false
+        pii: false
+        description: Total net value per day.
+        expression: SUM(net_value)
+        sources: [acme-finance.staging.txns_clean.net_value]
+      - name: active_accounts
+        type: INT64
+        nullable: false
+        pii: false
+        description: Distinct accounts per day.
+        expression: COUNT(DISTINCT account_id)
+        sources: [acme-finance.staging.txns_clean.account_id]
+      - name: avg_per_txn
+        type: FLOAT64
+        nullable: true
+        pii: false
+        description: Average value per txn.
+        expression: SAFE_DIVIDE(SUM(net_value), COUNT(txn_id))
+        sources: [acme-finance.staging.txns_clean.net_value, acme-finance.staging.txns_clean.txn_id]
+      - name: target_attainment
+        type: FLOAT64
+        nullable: true
+        pii: false
+        description: Month-to-date share of the monthly target.
+        expression: SAFE_DIVIDE(SUM(SUM(net_value)) OVER (PARTITION BY DATE_TRUNC(event_date, MONTH) ORDER BY event_date), t.target_value)
+        sources: [acme-finance.staging.txns_clean.net_value, sheet.finance_targets.target_value]
+  - id: acme-finance.mart.v_finance_features
+    type: bigquery.view
+    name: Finance features
+    parent: acme-finance.mart
+    domain: Finance
+    owner: ml-team
+    fields:
+      - name: event_date
+        type: DATE
+        nullable: false
+        pii: false
+        description: Date.
+        sources: [acme-finance.mart.finance_daily.event_date]
+      - name: finance_7d_avg
+        type: FLOAT64
+        nullable: true
+        pii: false
+        description: 7-day moving average.
+        expression: AVG(total_finance) OVER (ORDER BY event_date ROWS 6 PRECEDING)
+        sources: [acme-finance.mart.finance_daily.total_finance]
+  - id: acme-finance.mart.mv_finance_monthly
+    type: bigquery.materialized_view
+    name: Finance monthly
+    parent: acme-finance.mart
+    domain: Finance
+    owner: bi-team
+    properties:
+      refresh_interval_minutes: 60
+    fields:
+      - name: month
+        type: DATE
+        nullable: false
+        pii: false
+        description: Month.
+        expression: DATE_TRUNC(event_date, MONTH)
+        sources: [acme-finance.mart.finance_daily.event_date]
+      - name: monthly_total
+        type: NUMERIC
+        nullable: false
+        pii: false
+        description: Monthly total.
+        expression: SUM(total_finance)
+        sources: [acme-finance.mart.finance_daily.total_finance]
+  - id: airflow.variable.finance_gcp_project
+    type: airflow.variable
+    name: finance_gcp_project
+    domain: Finance
+    owner: platform
+    properties:
+      key: finance_gcp_project
+      value: acme-finance
+  - id: airflow.connection.bq_finance
+    type: airflow.connection
+    name: bq_finance
+    domain: Finance
+    owner: platform
+    properties:
+      conn_type: google_cloud_platform
+      project: acme-finance
+  - id: airflow.finance_daily
+    type: airflow.dag
+    name: finance_daily
+    domain: Finance
+    owner: finance-data
+    description: Daily finance pipeline, from landing files to model training.
+    tags: [daily]
+    properties:
+      schedule: 0 1 * * *
+      catchup: false
+      max_active_runs: 1
+  - id: airflow.finance_daily.tg_transform
+    type: airflow.task_group
+    name: tg_transform
+    parent: airflow.finance_daily
+    domain: Finance
+  - id: airflow.finance_daily.tg_transform.load_staging
+    type: airflow.task
+    name: load_staging
+    parent: airflow.finance_daily.tg_transform
+    domain: Finance
+    properties:
+      operator: BigQueryInsertJobOperator
+      retries: 2
+  - id: airflow.finance_daily.tg_transform.call_sp
+    type: airflow.task
+    name: call_sp
+    parent: airflow.finance_daily.tg_transform
+    domain: Finance
+    properties:
+      operator: BigQueryInsertJobOperator
+      sql: CALL mart.sp_build_finance_daily(@run_date)
+  - id: airflow.finance_daily.trigger_training
+    type: airflow.task
+    name: trigger_training
+    parent: airflow.finance_daily
+    domain: Finance
+    properties:
+      operator: RunPipelineJobOperator
+  - id: artifact_registry.ml-finance
+    type: artifact_registry.repository
+    name: ml-finance
+    domain: Finance
+    owner: ml-team
+    properties:
+      format: DOCKER
+      location: asia-southeast2
+  - id: artifact_registry.ml-finance.finance-trainer
+    type: artifact_registry.image
+    name: finance-trainer
+    parent: artifact_registry.ml-finance
+    domain: Finance
+    owner: ml-team
+    properties:
+      uri: asia-southeast2-docker.pkg.dev/acme-finance/ml-finance/finance-trainer
+      tag: v1.0.0
+  - id: vertex.feature_view.finance_features
+    type: vertex.feature_view
+    name: finance_features
+    domain: Finance
+    owner: ml-team
+    properties:
+      online_store: acme_online
+      sync: daily
+  - id: vertex.pipeline.cashflow_forecast.train
+    type: vertex.pipeline_component
+    name: train
+    parent: vertex.pipeline.cashflow_forecast
+    domain: Finance
+    owner: ml-team
+    properties:
+      image: artifact_registry.ml-finance.finance-trainer
+  - id: vertex.pipeline.cashflow_forecast
+    type: vertex.pipeline
+    name: cashflow_forecast
+    domain: Finance
+    owner: ml-team
+    properties:
+      template: gs://acme-finance-pipelines/cashflow_forecast.json
+  - id: vertex.model.cashflow_forecast
+    type: vertex.model
+    name: cashflow_forecast
+    domain: Finance
+    owner: ml-team
+    properties:
+      version: 1
+      framework: xgboost
+  - id: vertex.endpoint.cashflow_forecast
+    type: vertex.endpoint
+    name: cashflow_forecast-endpoint
+    domain: Finance
+    owner: ml-team
+    properties:
+      machine_type: n1-standard-2
+      min_replicas: 1
+  - id: external.ads_platform
+    type: external
+    name: Ads platform system
+    domain: Marketing
+    owner: growth-data
+    description: Operational source system for marketing data.
+    properties:
+      vendor: Ads platform
+      extract: daily file export
+  - id: sheet.marketing_targets
+    type: dataset
+    name: Marketing targets sheet
+    domain: Marketing
+    owner: growth-data
+    source: Google Sheets
+    description: Monthly targets maintained by the business.
+    fields:
+      - name: month
+        type: DATE
+        nullable: false
+        pii: false
+        description: Target month.
+      - name: target_value
+        type: NUMERIC
+        nullable: false
+        pii: false
+        description: Monthly target.
+  - id: gcs.acme-marketing-landing
+    type: gcs.bucket
+    name: Landing bucket marketing
+    domain: Marketing
+    owner: platform
+    properties:
+      location: asia-southeast2
+      storage_class: STANDARD
+  - id: gcs.acme-marketing-landing/clicks
+    type: gcs.object
+    name: clicks landing files
+    parent: gcs.acme-marketing-landing
+    domain: Marketing
+    properties:
+      pattern: clicks/dt={{ ds }}/*.parquet
+      format: parquet
+  - id: acme-marketing
+    type: bigquery.project
+    name: GCP project marketing
+    domain: Marketing
+    owner: platform
+    properties:
+      region: asia-southeast2
+      billing_account: acme-billing
+  - id: acme-marketing.raw
+    type: bigquery.dataset
+    name: raw
+    parent: acme-marketing
+    domain: Marketing
+    properties:
+      location: asia-southeast2
+      default_table_expiration_days: 400
+  - id: acme-marketing.staging
+    type: bigquery.dataset
+    name: staging
+    parent: acme-marketing
+    domain: Marketing
+    properties:
+      location: asia-southeast2
+  - id: acme-marketing.mart
+    type: bigquery.dataset
+    name: mart
+    parent: acme-marketing
+    domain: Marketing
+    properties:
+      location: asia-southeast2
+  - id: acme-marketing.raw.clicks
+    type: bigquery.table
+    name: Marketing clicks (raw)
+    parent: acme-marketing.raw
+    domain: Marketing
+    owner: growth-data
+    source: Ads platform via GCS
+    description: As-is click records loaded from the landing bucket.
+    tags: [raw]
+    properties:
+      partition_by: DATE(click_ts)
+    fields:
+      - name: click_id
+        type: INT64
+        nullable: false
+        pii: false
+        description: Unique click ID.
+      - name: campaign_id
+        type: INT64
+        nullable: false
+        pii: false
+        description: Reference to the campaign.
+      - name: click_ts
+        type: TIMESTAMP
+        nullable: false
+        pii: false
+        description: Event time (UTC).
+      - name: cost
+        type: NUMERIC
+        nullable: true
+        pii: false
+        description: Raw cost.
+      - name: refund
+        type: NUMERIC
+        nullable: true
+        pii: false
+        description: Adjustment (refund).
+  - id: acme-marketing.staging.fn_clean_cost
+    type: bigquery.udf
+    name: fn_clean_cost
+    parent: acme-marketing.staging
+    domain: Marketing
+    owner: analytics-eng
+    properties:
+      language: SQL
+      returns: NUMERIC
+      body: GREATEST(IFNULL(x, 0), 0)
+  - id: acme-marketing.staging.clicks_clean
+    type: bigquery.table
+    name: Marketing clicks (clean)
+    parent: acme-marketing.staging
+    domain: Marketing
+    owner: analytics-eng
+    description: Deduplicated, normalised clicks.
+    tags: [staging]
+    fields:
+      - name: click_id
+        type: INT64
+        nullable: false
+        pii: false
+        description: Unique click ID.
+        expression: QUALIFY ROW_NUMBER() OVER (PARTITION BY click_id ORDER BY click_ts DESC) = 1
+        sources: [acme-marketing.raw.clicks.click_id]
+      - name: campaign_id
+        type: INT64
+        nullable: false
+        pii: false
+        description: Reference to the campaign.
+        sources: [acme-marketing.raw.clicks.campaign_id]
+      - name: event_date
+        type: DATE
+        nullable: false
+        pii: false
+        description: Event date (Asia/Jakarta).
+        expression: DATE(click_ts, 'Asia/Jakarta')
+        sources: [acme-marketing.raw.clicks.click_ts]
+      - name: net_value
+        type: NUMERIC
+        nullable: false
+        pii: false
+        description: Value after adjustment.
+        expression: fn_clean_cost(cost) - IFNULL(refund, 0)
+        sources: [acme-marketing.raw.clicks.cost, acme-marketing.raw.clicks.refund]
+  - id: acme-marketing.mart.sp_build_marketing_daily
+    type: bigquery.stored_procedure
+    name: sp_build_marketing_daily
+    parent: acme-marketing.mart
+    domain: Marketing
+    owner: analytics-eng
+    properties:
+      language: SQL
+      args: [run_date DATE]
+  - id: acme-marketing.mart.marketing_daily
+    type: bigquery.table
+    name: Marketing daily
+    parent: acme-marketing.mart
+    domain: Marketing
+    owner: bi-team
+    description: Marketing aggregated per day, built by a stored procedure.
+    tags: [mart, dashboard]
+    fields:
+      - name: event_date
+        type: DATE
+        nullable: false
+        pii: false
+        description: Date.
+        expression: GROUP BY event_date
+        sources: [acme-marketing.staging.clicks_clean.event_date]
+      - name: total_marketing
+        type: NUMERIC
+        nullable: false
+        pii: false
+        description: Total net value per day.
+        expression: SUM(net_value)
+        sources: [acme-marketing.staging.clicks_clean.net_value]
+      - name: active_campaigns
+        type: INT64
+        nullable: false
+        pii: false
+        description: Distinct campaigns per day.
+        expression: COUNT(DISTINCT campaign_id)
+        sources: [acme-marketing.staging.clicks_clean.campaign_id]
+      - name: avg_per_click
+        type: FLOAT64
+        nullable: true
+        pii: false
+        description: Average value per click.
+        expression: SAFE_DIVIDE(SUM(net_value), COUNT(click_id))
+        sources: [acme-marketing.staging.clicks_clean.net_value, acme-marketing.staging.clicks_clean.click_id]
+      - name: target_attainment
+        type: FLOAT64
+        nullable: true
+        pii: false
+        description: Month-to-date share of the monthly target.
+        expression: SAFE_DIVIDE(SUM(SUM(net_value)) OVER (PARTITION BY DATE_TRUNC(event_date, MONTH) ORDER BY event_date), t.target_value)
+        sources: [acme-marketing.staging.clicks_clean.net_value, sheet.marketing_targets.target_value]
+  - id: acme-marketing.mart.v_marketing_features
+    type: bigquery.view
+    name: Marketing features
+    parent: acme-marketing.mart
+    domain: Marketing
+    owner: ml-team
+    fields:
+      - name: event_date
+        type: DATE
+        nullable: false
+        pii: false
+        description: Date.
+        sources: [acme-marketing.mart.marketing_daily.event_date]
+      - name: marketing_7d_avg
+        type: FLOAT64
+        nullable: true
+        pii: false
+        description: 7-day moving average.
+        expression: AVG(total_marketing) OVER (ORDER BY event_date ROWS 6 PRECEDING)
+        sources: [acme-marketing.mart.marketing_daily.total_marketing]
+  - id: acme-marketing.mart.mv_marketing_monthly
+    type: bigquery.materialized_view
+    name: Marketing monthly
+    parent: acme-marketing.mart
+    domain: Marketing
+    owner: bi-team
+    properties:
+      refresh_interval_minutes: 60
+    fields:
+      - name: month
+        type: DATE
+        nullable: false
+        pii: false
+        description: Month.
+        expression: DATE_TRUNC(event_date, MONTH)
+        sources: [acme-marketing.mart.marketing_daily.event_date]
+      - name: monthly_total
+        type: NUMERIC
+        nullable: false
+        pii: false
+        description: Monthly total.
+        expression: SUM(total_marketing)
+        sources: [acme-marketing.mart.marketing_daily.total_marketing]
+  - id: airflow.variable.marketing_gcp_project
+    type: airflow.variable
+    name: marketing_gcp_project
+    domain: Marketing
+    owner: platform
+    properties:
+      key: marketing_gcp_project
+      value: acme-marketing
+  - id: airflow.connection.bq_marketing
+    type: airflow.connection
+    name: bq_marketing
+    domain: Marketing
+    owner: platform
+    properties:
+      conn_type: google_cloud_platform
+      project: acme-marketing
+  - id: airflow.marketing_daily
+    type: airflow.dag
+    name: marketing_daily
+    domain: Marketing
+    owner: growth-data
+    description: Daily marketing pipeline, from landing files to model training.
+    tags: [daily]
+    properties:
+      schedule: 0 1 * * *
+      catchup: false
+      max_active_runs: 1
+  - id: airflow.marketing_daily.tg_transform
+    type: airflow.task_group
+    name: tg_transform
+    parent: airflow.marketing_daily
+    domain: Marketing
+  - id: airflow.marketing_daily.tg_transform.load_staging
+    type: airflow.task
+    name: load_staging
+    parent: airflow.marketing_daily.tg_transform
+    domain: Marketing
+    properties:
+      operator: BigQueryInsertJobOperator
+      retries: 2
+  - id: airflow.marketing_daily.tg_transform.call_sp
+    type: airflow.task
+    name: call_sp
+    parent: airflow.marketing_daily.tg_transform
+    domain: Marketing
+    properties:
+      operator: BigQueryInsertJobOperator
+      sql: CALL mart.sp_build_marketing_daily(@run_date)
+  - id: airflow.marketing_daily.trigger_training
+    type: airflow.task
+    name: trigger_training
+    parent: airflow.marketing_daily
+    domain: Marketing
+    properties:
+      operator: RunPipelineJobOperator
+  - id: artifact_registry.ml-marketing
+    type: artifact_registry.repository
+    name: ml-marketing
+    domain: Marketing
+    owner: ml-team
+    properties:
+      format: DOCKER
+      location: asia-southeast2
+  - id: artifact_registry.ml-marketing.marketing-trainer
+    type: artifact_registry.image
+    name: marketing-trainer
+    parent: artifact_registry.ml-marketing
+    domain: Marketing
+    owner: ml-team
+    properties:
+      uri: asia-southeast2-docker.pkg.dev/acme-marketing/ml-marketing/marketing-trainer
+      tag: v1.0.0
+  - id: vertex.feature_view.marketing_features
+    type: vertex.feature_view
+    name: marketing_features
+    domain: Marketing
+    owner: ml-team
+    properties:
+      online_store: acme_online
+      sync: daily
+  - id: vertex.pipeline.roas_forecast.train
+    type: vertex.pipeline_component
+    name: train
+    parent: vertex.pipeline.roas_forecast
+    domain: Marketing
+    owner: ml-team
+    properties:
+      image: artifact_registry.ml-marketing.marketing-trainer
+  - id: vertex.pipeline.roas_forecast
+    type: vertex.pipeline
+    name: roas_forecast
+    domain: Marketing
+    owner: ml-team
+    properties:
+      template: gs://acme-marketing-pipelines/roas_forecast.json
+  - id: vertex.model.roas_forecast
+    type: vertex.model
+    name: roas_forecast
+    domain: Marketing
+    owner: ml-team
+    properties:
+      version: 1
+      framework: xgboost
+  - id: vertex.endpoint.roas_forecast
+    type: vertex.endpoint
+    name: roas_forecast-endpoint
+    domain: Marketing
+    owner: ml-team
+    properties:
+      machine_type: n1-standard-2
+      min_replicas: 1
+  - id: external.helpdesk
+    type: external
+    name: Helpdesk system
+    domain: Support
+    owner: cx-data
+    description: Operational source system for support data.
+    properties:
+      vendor: Helpdesk
+      extract: daily file export
+  - id: sheet.support_targets
+    type: dataset
+    name: Support targets sheet
+    domain: Support
+    owner: cx-data
+    source: Google Sheets
+    description: Monthly targets maintained by the business.
+    fields:
+      - name: month
+        type: DATE
+        nullable: false
+        pii: false
+        description: Target month.
+      - name: target_value
+        type: INT64
+        nullable: false
+        pii: false
+        description: Monthly target.
+  - id: gcs.acme-support-landing
+    type: gcs.bucket
+    name: Landing bucket support
+    domain: Support
+    owner: platform
+    properties:
+      location: asia-southeast2
+      storage_class: STANDARD
+  - id: gcs.acme-support-landing/tickets
+    type: gcs.object
+    name: tickets landing files
+    parent: gcs.acme-support-landing
+    domain: Support
+    properties:
+      pattern: tickets/dt={{ ds }}/*.parquet
+      format: parquet
+  - id: acme-support
+    type: bigquery.project
+    name: GCP project support
+    domain: Support
+    owner: platform
+    properties:
+      region: asia-southeast2
+      billing_account: acme-billing
+  - id: acme-support.raw
+    type: bigquery.dataset
+    name: raw
+    parent: acme-support
+    domain: Support
+    properties:
+      location: asia-southeast2
+      default_table_expiration_days: 400
+  - id: acme-support.staging
+    type: bigquery.dataset
+    name: staging
+    parent: acme-support
+    domain: Support
+    properties:
+      location: asia-southeast2
+  - id: acme-support.mart
+    type: bigquery.dataset
+    name: mart
+    parent: acme-support
+    domain: Support
+    properties:
+      location: asia-southeast2
+  - id: acme-support.raw.tickets
+    type: bigquery.table
+    name: Support tickets (raw)
+    parent: acme-support.raw
+    domain: Support
+    owner: cx-data
+    source: Helpdesk via GCS
+    description: As-is ticket records loaded from the landing bucket.
+    tags: [raw]
+    properties:
+      partition_by: DATE(opened_ts)
+    fields:
+      - name: ticket_id
+        type: INT64
+        nullable: false
+        pii: false
+        description: Unique ticket ID.
+      - name: customer_id
+        type: INT64
+        nullable: false
+        pii: true
+        description: Reference to the customer.
+      - name: opened_ts
+        type: TIMESTAMP
+        nullable: false
+        pii: false
+        description: Event time (UTC).
+      - name: handle_minutes
+        type: INT64
+        nullable: true
+        pii: false
+        description: Raw handle minutes.
+      - name: wait_minutes
+        type: INT64
+        nullable: true
+        pii: false
+        description: Adjustment (wait minutes).
+  - id: acme-support.staging.fn_clean_handle_minutes
+    type: bigquery.udf
+    name: fn_clean_handle_minutes
+    parent: acme-support.staging
+    domain: Support
+    owner: analytics-eng
+    properties:
+      language: SQL
+      returns: INT64
+      body: GREATEST(IFNULL(x, 0), 0)
+  - id: acme-support.staging.tickets_clean
+    type: bigquery.table
+    name: Support tickets (clean)
+    parent: acme-support.staging
+    domain: Support
+    owner: analytics-eng
+    description: Deduplicated, normalised tickets.
+    tags: [staging]
+    fields:
+      - name: ticket_id
+        type: INT64
+        nullable: false
+        pii: false
+        description: Unique ticket ID.
+        expression: QUALIFY ROW_NUMBER() OVER (PARTITION BY ticket_id ORDER BY opened_ts DESC) = 1
+        sources: [acme-support.raw.tickets.ticket_id]
+      - name: customer_id
+        type: INT64
+        nullable: false
+        pii: true
+        description: Reference to the customer.
+        sources: [acme-support.raw.tickets.customer_id]
+      - name: event_date
+        type: DATE
+        nullable: false
+        pii: false
+        description: Event date (Asia/Jakarta).
+        expression: DATE(opened_ts, 'Asia/Jakarta')
+        sources: [acme-support.raw.tickets.opened_ts]
+      - name: net_value
+        type: INT64
+        nullable: false
+        pii: false
+        description: Value after adjustment.
+        expression: fn_clean_handle_minutes(handle_minutes) - IFNULL(wait_minutes, 0)
+        sources: [acme-support.raw.tickets.handle_minutes, acme-support.raw.tickets.wait_minutes]
+  - id: acme-support.mart.sp_build_support_daily
+    type: bigquery.stored_procedure
+    name: sp_build_support_daily
+    parent: acme-support.mart
+    domain: Support
+    owner: analytics-eng
+    properties:
+      language: SQL
+      args: [run_date DATE]
+  - id: acme-support.mart.support_daily
+    type: bigquery.table
+    name: Support daily
+    parent: acme-support.mart
+    domain: Support
+    owner: bi-team
+    description: Support aggregated per day, built by a stored procedure.
+    tags: [mart, dashboard]
+    fields:
+      - name: event_date
+        type: DATE
+        nullable: false
+        pii: false
+        description: Date.
+        expression: GROUP BY event_date
+        sources: [acme-support.staging.tickets_clean.event_date]
+      - name: total_support
+        type: INT64
+        nullable: false
+        pii: false
+        description: Total net value per day.
+        expression: SUM(net_value)
+        sources: [acme-support.staging.tickets_clean.net_value]
+      - name: active_customers
+        type: INT64
+        nullable: false
+        pii: false
+        description: Distinct customers per day.
+        expression: COUNT(DISTINCT customer_id)
+        sources: [acme-support.staging.tickets_clean.customer_id]
+      - name: avg_per_ticket
+        type: FLOAT64
+        nullable: true
+        pii: false
+        description: Average value per ticket.
+        expression: SAFE_DIVIDE(SUM(net_value), COUNT(ticket_id))
+        sources: [acme-support.staging.tickets_clean.net_value, acme-support.staging.tickets_clean.ticket_id]
+      - name: target_attainment
+        type: FLOAT64
+        nullable: true
+        pii: false
+        description: Month-to-date share of the monthly target.
+        expression: SAFE_DIVIDE(SUM(SUM(net_value)) OVER (PARTITION BY DATE_TRUNC(event_date, MONTH) ORDER BY event_date), t.target_value)
+        sources: [acme-support.staging.tickets_clean.net_value, sheet.support_targets.target_value]
+  - id: acme-support.mart.v_support_features
+    type: bigquery.view
+    name: Support features
+    parent: acme-support.mart
+    domain: Support
+    owner: ml-team
+    fields:
+      - name: event_date
+        type: DATE
+        nullable: false
+        pii: false
+        description: Date.
+        sources: [acme-support.mart.support_daily.event_date]
+      - name: support_7d_avg
+        type: FLOAT64
+        nullable: true
+        pii: false
+        description: 7-day moving average.
+        expression: AVG(total_support) OVER (ORDER BY event_date ROWS 6 PRECEDING)
+        sources: [acme-support.mart.support_daily.total_support]
+  - id: acme-support.mart.mv_support_monthly
+    type: bigquery.materialized_view
+    name: Support monthly
+    parent: acme-support.mart
+    domain: Support
+    owner: bi-team
+    properties:
+      refresh_interval_minutes: 60
+    fields:
+      - name: month
+        type: DATE
+        nullable: false
+        pii: false
+        description: Month.
+        expression: DATE_TRUNC(event_date, MONTH)
+        sources: [acme-support.mart.support_daily.event_date]
+      - name: monthly_total
+        type: INT64
+        nullable: false
+        pii: false
+        description: Monthly total.
+        expression: SUM(total_support)
+        sources: [acme-support.mart.support_daily.total_support]
+  - id: airflow.variable.support_gcp_project
+    type: airflow.variable
+    name: support_gcp_project
+    domain: Support
+    owner: platform
+    properties:
+      key: support_gcp_project
+      value: acme-support
+  - id: airflow.connection.bq_support
+    type: airflow.connection
+    name: bq_support
+    domain: Support
+    owner: platform
+    properties:
+      conn_type: google_cloud_platform
+      project: acme-support
+  - id: airflow.support_daily
+    type: airflow.dag
+    name: support_daily
+    domain: Support
+    owner: cx-data
+    description: Daily support pipeline, from landing files to model training.
+    tags: [daily]
+    properties:
+      schedule: 0 1 * * *
+      catchup: false
+      max_active_runs: 1
+  - id: airflow.support_daily.tg_transform
+    type: airflow.task_group
+    name: tg_transform
+    parent: airflow.support_daily
+    domain: Support
+  - id: airflow.support_daily.tg_transform.load_staging
+    type: airflow.task
+    name: load_staging
+    parent: airflow.support_daily.tg_transform
+    domain: Support
+    properties:
+      operator: BigQueryInsertJobOperator
+      retries: 2
+  - id: airflow.support_daily.tg_transform.call_sp
+    type: airflow.task
+    name: call_sp
+    parent: airflow.support_daily.tg_transform
+    domain: Support
+    properties:
+      operator: BigQueryInsertJobOperator
+      sql: CALL mart.sp_build_support_daily(@run_date)
+  - id: airflow.support_daily.trigger_training
+    type: airflow.task
+    name: trigger_training
+    parent: airflow.support_daily
+    domain: Support
+    properties:
+      operator: RunPipelineJobOperator
+  - id: artifact_registry.ml-support
+    type: artifact_registry.repository
+    name: ml-support
+    domain: Support
+    owner: ml-team
+    properties:
+      format: DOCKER
+      location: asia-southeast2
+  - id: artifact_registry.ml-support.support-trainer
+    type: artifact_registry.image
+    name: support-trainer
+    parent: artifact_registry.ml-support
+    domain: Support
+    owner: ml-team
+    properties:
+      uri: asia-southeast2-docker.pkg.dev/acme-support/ml-support/support-trainer
+      tag: v1.0.0
+  - id: vertex.feature_view.support_features
+    type: vertex.feature_view
+    name: support_features
+    domain: Support
+    owner: ml-team
+    properties:
+      online_store: acme_online
+      sync: daily
+  - id: vertex.pipeline.ticket_volume_forecast.train
+    type: vertex.pipeline_component
+    name: train
+    parent: vertex.pipeline.ticket_volume_forecast
+    domain: Support
+    owner: ml-team
+    properties:
+      image: artifact_registry.ml-support.support-trainer
+  - id: vertex.pipeline.ticket_volume_forecast
+    type: vertex.pipeline
+    name: ticket_volume_forecast
+    domain: Support
+    owner: ml-team
+    properties:
+      template: gs://acme-support-pipelines/ticket_volume_forecast.json
+  - id: vertex.model.ticket_volume_forecast
+    type: vertex.model
+    name: ticket_volume_forecast
+    domain: Support
+    owner: ml-team
+    properties:
+      version: 1
+      framework: xgboost
+  - id: vertex.endpoint.ticket_volume_forecast
+    type: vertex.endpoint
+    name: ticket_volume_forecast-endpoint
+    domain: Support
+    owner: ml-team
+    properties:
+      machine_type: n1-standard-2
+      min_replicas: 1
+lineage:
+  - from: external.erp
+    to: gcs.acme-sales-landing/orders
+    type: writes
+    process: Daily file export
+  - from: gcs.acme-sales-landing/orders
+    to: acme-sales.raw.orders
+    type: writes
+    process: BigQuery load job
+  - from: airflow.variable.sales_gcp_project
+    to: airflow.sales_daily
+    type: configures
+  - from: airflow.connection.bq_sales
+    to: airflow.sales_daily.tg_transform.load_staging
+    type: uses
+  - from: acme-sales.raw.orders
+    to: airflow.sales_daily.tg_transform.load_staging
+    type: reads
+  - from: airflow.sales_daily.tg_transform.load_staging
+    to: acme-sales.staging.orders_clean
+    type: writes
+    process: Daily MERGE
+  - from: acme-sales.staging.fn_clean_amount
+    to: acme-sales.staging.orders_clean
+    type: used_by
+  - from: airflow.sales_daily.tg_transform.call_sp
+    to: acme-sales.mart.sp_build_sales_daily
+    type: calls
+  - from: acme-sales.staging.orders_clean
+    to: acme-sales.mart.sp_build_sales_daily
+    type: reads
+  - from: sheet.sales_targets
+    to: acme-sales.mart.sp_build_sales_daily
+    type: reads
+  - from: acme-sales.mart.sp_build_sales_daily
+    to: acme-sales.mart.sales_daily
+    type: writes
+  - from: acme-sales.mart.sales_daily
+    to: acme-sales.mart.v_sales_features
+    type: reads
+  - from: acme-sales.mart.sales_daily
+    to: acme-sales.mart.mv_sales_monthly
+    type: reads
+  - from: acme-sales.mart.v_sales_features
+    to: vertex.feature_view.sales_features
+    type: syncs
+  - from: vertex.feature_view.sales_features
+    to: vertex.pipeline.sales_forecast
+    type: reads
+  - from: artifact_registry.ml-sales.sales-trainer
+    to: vertex.pipeline.sales_forecast.train
+    type: uses
+  - from: vertex.pipeline.sales_forecast.train
+    to: vertex.pipeline.sales_forecast
+    type: part_of
+  - from: airflow.sales_daily.trigger_training
+    to: vertex.pipeline.sales_forecast
+    type: triggers
+  - from: vertex.pipeline.sales_forecast
+    to: vertex.model.sales_forecast
+    type: produces
+  - from: vertex.model.sales_forecast
+    to: vertex.endpoint.sales_forecast
+    type: deploys
+  - from: external.wms
+    to: gcs.acme-inventory-landing/movements
+    type: writes
+    process: Daily file export
+  - from: gcs.acme-inventory-landing/movements
+    to: acme-inventory.raw.movements
+    type: writes
+    process: BigQuery load job
+  - from: airflow.variable.inventory_gcp_project
+    to: airflow.inventory_daily
+    type: configures
+  - from: airflow.connection.bq_inventory
+    to: airflow.inventory_daily.tg_transform.load_staging
+    type: uses
+  - from: acme-inventory.raw.movements
+    to: airflow.inventory_daily.tg_transform.load_staging
+    type: reads
+  - from: airflow.inventory_daily.tg_transform.load_staging
+    to: acme-inventory.staging.movements_clean
+    type: writes
+    process: Daily MERGE
+  - from: acme-inventory.staging.fn_clean_quantity
+    to: acme-inventory.staging.movements_clean
+    type: used_by
+  - from: airflow.inventory_daily.tg_transform.call_sp
+    to: acme-inventory.mart.sp_build_inventory_daily
+    type: calls
+  - from: acme-inventory.staging.movements_clean
+    to: acme-inventory.mart.sp_build_inventory_daily
+    type: reads
+  - from: sheet.inventory_targets
+    to: acme-inventory.mart.sp_build_inventory_daily
+    type: reads
+  - from: acme-inventory.mart.sp_build_inventory_daily
+    to: acme-inventory.mart.inventory_daily
+    type: writes
+  - from: acme-inventory.mart.inventory_daily
+    to: acme-inventory.mart.v_inventory_features
+    type: reads
+  - from: acme-inventory.mart.inventory_daily
+    to: acme-inventory.mart.mv_inventory_monthly
+    type: reads
+  - from: acme-inventory.mart.v_inventory_features
+    to: vertex.feature_view.inventory_features
+    type: syncs
+  - from: vertex.feature_view.inventory_features
+    to: vertex.pipeline.stock_forecast
+    type: reads
+  - from: artifact_registry.ml-inventory.inventory-trainer
+    to: vertex.pipeline.stock_forecast.train
+    type: uses
+  - from: vertex.pipeline.stock_forecast.train
+    to: vertex.pipeline.stock_forecast
+    type: part_of
+  - from: airflow.inventory_daily.trigger_training
+    to: vertex.pipeline.stock_forecast
+    type: triggers
+  - from: vertex.pipeline.stock_forecast
+    to: vertex.model.stock_forecast
+    type: produces
+  - from: vertex.model.stock_forecast
+    to: vertex.endpoint.stock_forecast
+    type: deploys
+  - from: external.core_banking
+    to: gcs.acme-finance-landing/txns
+    type: writes
+    process: Daily file export
+  - from: gcs.acme-finance-landing/txns
+    to: acme-finance.raw.txns
+    type: writes
+    process: BigQuery load job
+  - from: airflow.variable.finance_gcp_project
+    to: airflow.finance_daily
+    type: configures
+  - from: airflow.connection.bq_finance
+    to: airflow.finance_daily.tg_transform.load_staging
+    type: uses
+  - from: acme-finance.raw.txns
+    to: airflow.finance_daily.tg_transform.load_staging
+    type: reads
+  - from: airflow.finance_daily.tg_transform.load_staging
+    to: acme-finance.staging.txns_clean
+    type: writes
+    process: Daily MERGE
+  - from: acme-finance.staging.fn_clean_amount
+    to: acme-finance.staging.txns_clean
+    type: used_by
+  - from: airflow.finance_daily.tg_transform.call_sp
+    to: acme-finance.mart.sp_build_finance_daily
+    type: calls
+  - from: acme-finance.staging.txns_clean
+    to: acme-finance.mart.sp_build_finance_daily
+    type: reads
+  - from: sheet.finance_targets
+    to: acme-finance.mart.sp_build_finance_daily
+    type: reads
+  - from: acme-finance.mart.sp_build_finance_daily
+    to: acme-finance.mart.finance_daily
+    type: writes
+  - from: acme-finance.mart.finance_daily
+    to: acme-finance.mart.v_finance_features
+    type: reads
+  - from: acme-finance.mart.finance_daily
+    to: acme-finance.mart.mv_finance_monthly
+    type: reads
+  - from: acme-finance.mart.v_finance_features
+    to: vertex.feature_view.finance_features
+    type: syncs
+  - from: vertex.feature_view.finance_features
+    to: vertex.pipeline.cashflow_forecast
+    type: reads
+  - from: artifact_registry.ml-finance.finance-trainer
+    to: vertex.pipeline.cashflow_forecast.train
+    type: uses
+  - from: vertex.pipeline.cashflow_forecast.train
+    to: vertex.pipeline.cashflow_forecast
+    type: part_of
+  - from: airflow.finance_daily.trigger_training
+    to: vertex.pipeline.cashflow_forecast
+    type: triggers
+  - from: vertex.pipeline.cashflow_forecast
+    to: vertex.model.cashflow_forecast
+    type: produces
+  - from: vertex.model.cashflow_forecast
+    to: vertex.endpoint.cashflow_forecast
+    type: deploys
+  - from: external.ads_platform
+    to: gcs.acme-marketing-landing/clicks
+    type: writes
+    process: Daily file export
+  - from: gcs.acme-marketing-landing/clicks
+    to: acme-marketing.raw.clicks
+    type: writes
+    process: BigQuery load job
+  - from: airflow.variable.marketing_gcp_project
+    to: airflow.marketing_daily
+    type: configures
+  - from: airflow.connection.bq_marketing
+    to: airflow.marketing_daily.tg_transform.load_staging
+    type: uses
+  - from: acme-marketing.raw.clicks
+    to: airflow.marketing_daily.tg_transform.load_staging
+    type: reads
+  - from: airflow.marketing_daily.tg_transform.load_staging
+    to: acme-marketing.staging.clicks_clean
+    type: writes
+    process: Daily MERGE
+  - from: acme-marketing.staging.fn_clean_cost
+    to: acme-marketing.staging.clicks_clean
+    type: used_by
+  - from: airflow.marketing_daily.tg_transform.call_sp
+    to: acme-marketing.mart.sp_build_marketing_daily
+    type: calls
+  - from: acme-marketing.staging.clicks_clean
+    to: acme-marketing.mart.sp_build_marketing_daily
+    type: reads
+  - from: sheet.marketing_targets
+    to: acme-marketing.mart.sp_build_marketing_daily
+    type: reads
+  - from: acme-marketing.mart.sp_build_marketing_daily
+    to: acme-marketing.mart.marketing_daily
+    type: writes
+  - from: acme-marketing.mart.marketing_daily
+    to: acme-marketing.mart.v_marketing_features
+    type: reads
+  - from: acme-marketing.mart.marketing_daily
+    to: acme-marketing.mart.mv_marketing_monthly
+    type: reads
+  - from: acme-marketing.mart.v_marketing_features
+    to: vertex.feature_view.marketing_features
+    type: syncs
+  - from: vertex.feature_view.marketing_features
+    to: vertex.pipeline.roas_forecast
+    type: reads
+  - from: artifact_registry.ml-marketing.marketing-trainer
+    to: vertex.pipeline.roas_forecast.train
+    type: uses
+  - from: vertex.pipeline.roas_forecast.train
+    to: vertex.pipeline.roas_forecast
+    type: part_of
+  - from: airflow.marketing_daily.trigger_training
+    to: vertex.pipeline.roas_forecast
+    type: triggers
+  - from: vertex.pipeline.roas_forecast
+    to: vertex.model.roas_forecast
+    type: produces
+  - from: vertex.model.roas_forecast
+    to: vertex.endpoint.roas_forecast
+    type: deploys
+  - from: external.helpdesk
+    to: gcs.acme-support-landing/tickets
+    type: writes
+    process: Daily file export
+  - from: gcs.acme-support-landing/tickets
+    to: acme-support.raw.tickets
+    type: writes
+    process: BigQuery load job
+  - from: airflow.variable.support_gcp_project
+    to: airflow.support_daily
+    type: configures
+  - from: airflow.connection.bq_support
+    to: airflow.support_daily.tg_transform.load_staging
+    type: uses
+  - from: acme-support.raw.tickets
+    to: airflow.support_daily.tg_transform.load_staging
+    type: reads
+  - from: airflow.support_daily.tg_transform.load_staging
+    to: acme-support.staging.tickets_clean
+    type: writes
+    process: Daily MERGE
+  - from: acme-support.staging.fn_clean_handle_minutes
+    to: acme-support.staging.tickets_clean
+    type: used_by
+  - from: airflow.support_daily.tg_transform.call_sp
+    to: acme-support.mart.sp_build_support_daily
+    type: calls
+  - from: acme-support.staging.tickets_clean
+    to: acme-support.mart.sp_build_support_daily
+    type: reads
+  - from: sheet.support_targets
+    to: acme-support.mart.sp_build_support_daily
+    type: reads
+  - from: acme-support.mart.sp_build_support_daily
+    to: acme-support.mart.support_daily
+    type: writes
+  - from: acme-support.mart.support_daily
+    to: acme-support.mart.v_support_features
+    type: reads
+  - from: acme-support.mart.support_daily
+    to: acme-support.mart.mv_support_monthly
+    type: reads
+  - from: acme-support.mart.v_support_features
+    to: vertex.feature_view.support_features
+    type: syncs
+  - from: vertex.feature_view.support_features
+    to: vertex.pipeline.ticket_volume_forecast
+    type: reads
+  - from: artifact_registry.ml-support.support-trainer
+    to: vertex.pipeline.ticket_volume_forecast.train
+    type: uses
+  - from: vertex.pipeline.ticket_volume_forecast.train
+    to: vertex.pipeline.ticket_volume_forecast
+    type: part_of
+  - from: airflow.support_daily.trigger_training
+    to: vertex.pipeline.ticket_volume_forecast
+    type: triggers
+  - from: vertex.pipeline.ticket_volume_forecast
+    to: vertex.model.ticket_volume_forecast
+    type: produces
+  - from: vertex.model.ticket_volume_forecast
+    to: vertex.endpoint.ticket_volume_forecast
+    type: deploys

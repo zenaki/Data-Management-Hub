@@ -1,0 +1,277 @@
+# airflow assets
+assets:
+  - id: airflow.variable.sales_gcp_project
+    type: airflow.variable
+    name: sales_gcp_project
+    domain: Sales
+    owner: platform
+    properties:
+      key: sales_gcp_project
+      value: acme-sales
+  - id: airflow.connection.bq_sales
+    type: airflow.connection
+    name: bq_sales
+    domain: Sales
+    owner: platform
+    properties:
+      conn_type: google_cloud_platform
+      project: acme-sales
+  - id: airflow.sales_daily
+    type: airflow.dag
+    name: sales_daily
+    domain: Sales
+    owner: sales-data
+    description: Daily sales pipeline, from landing files to model training.
+    tags: [daily]
+    properties:
+      schedule: 0 1 * * *
+      catchup: false
+      max_active_runs: 1
+  - id: airflow.sales_daily.tg_transform
+    type: airflow.task_group
+    name: tg_transform
+    parent: airflow.sales_daily
+    domain: Sales
+  - id: airflow.sales_daily.tg_transform.load_staging
+    type: airflow.task
+    name: load_staging
+    parent: airflow.sales_daily.tg_transform
+    domain: Sales
+    properties:
+      operator: BigQueryInsertJobOperator
+      retries: 2
+  - id: airflow.sales_daily.tg_transform.call_sp
+    type: airflow.task
+    name: call_sp
+    parent: airflow.sales_daily.tg_transform
+    domain: Sales
+    properties:
+      operator: BigQueryInsertJobOperator
+      sql: CALL mart.sp_build_sales_daily(@run_date)
+  - id: airflow.sales_daily.trigger_training
+    type: airflow.task
+    name: trigger_training
+    parent: airflow.sales_daily
+    domain: Sales
+    properties:
+      operator: RunPipelineJobOperator
+  - id: airflow.variable.inventory_gcp_project
+    type: airflow.variable
+    name: inventory_gcp_project
+    domain: Inventory
+    owner: platform
+    properties:
+      key: inventory_gcp_project
+      value: acme-inventory
+  - id: airflow.connection.bq_inventory
+    type: airflow.connection
+    name: bq_inventory
+    domain: Inventory
+    owner: platform
+    properties:
+      conn_type: google_cloud_platform
+      project: acme-inventory
+  - id: airflow.inventory_daily
+    type: airflow.dag
+    name: inventory_daily
+    domain: Inventory
+    owner: supply-data
+    description: Daily inventory pipeline, from landing files to model training.
+    tags: [daily]
+    properties:
+      schedule: 0 1 * * *
+      catchup: false
+      max_active_runs: 1
+  - id: airflow.inventory_daily.tg_transform
+    type: airflow.task_group
+    name: tg_transform
+    parent: airflow.inventory_daily
+    domain: Inventory
+  - id: airflow.inventory_daily.tg_transform.load_staging
+    type: airflow.task
+    name: load_staging
+    parent: airflow.inventory_daily.tg_transform
+    domain: Inventory
+    properties:
+      operator: BigQueryInsertJobOperator
+      retries: 2
+  - id: airflow.inventory_daily.tg_transform.call_sp
+    type: airflow.task
+    name: call_sp
+    parent: airflow.inventory_daily.tg_transform
+    domain: Inventory
+    properties:
+      operator: BigQueryInsertJobOperator
+      sql: CALL mart.sp_build_inventory_daily(@run_date)
+  - id: airflow.inventory_daily.trigger_training
+    type: airflow.task
+    name: trigger_training
+    parent: airflow.inventory_daily
+    domain: Inventory
+    properties:
+      operator: RunPipelineJobOperator
+  - id: airflow.variable.finance_gcp_project
+    type: airflow.variable
+    name: finance_gcp_project
+    domain: Finance
+    owner: platform
+    properties:
+      key: finance_gcp_project
+      value: acme-finance
+  - id: airflow.connection.bq_finance
+    type: airflow.connection
+    name: bq_finance
+    domain: Finance
+    owner: platform
+    properties:
+      conn_type: google_cloud_platform
+      project: acme-finance
+  - id: airflow.finance_daily
+    type: airflow.dag
+    name: finance_daily
+    domain: Finance
+    owner: finance-data
+    description: Daily finance pipeline, from landing files to model training.
+    tags: [daily]
+    properties:
+      schedule: 0 1 * * *
+      catchup: false
+      max_active_runs: 1
+  - id: airflow.finance_daily.tg_transform
+    type: airflow.task_group
+    name: tg_transform
+    parent: airflow.finance_daily
+    domain: Finance
+  - id: airflow.finance_daily.tg_transform.load_staging
+    type: airflow.task
+    name: load_staging
+    parent: airflow.finance_daily.tg_transform
+    domain: Finance
+    properties:
+      operator: BigQueryInsertJobOperator
+      retries: 2
+  - id: airflow.finance_daily.tg_transform.call_sp
+    type: airflow.task
+    name: call_sp
+    parent: airflow.finance_daily.tg_transform
+    domain: Finance
+    properties:
+      operator: BigQueryInsertJobOperator
+      sql: CALL mart.sp_build_finance_daily(@run_date)
+  - id: airflow.finance_daily.trigger_training
+    type: airflow.task
+    name: trigger_training
+    parent: airflow.finance_daily
+    domain: Finance
+    properties:
+      operator: RunPipelineJobOperator
+  - id: airflow.variable.marketing_gcp_project
+    type: airflow.variable
+    name: marketing_gcp_project
+    domain: Marketing
+    owner: platform
+    properties:
+      key: marketing_gcp_project
+      value: acme-marketing
+  - id: airflow.connection.bq_marketing
+    type: airflow.connection
+    name: bq_marketing
+    domain: Marketing
+    owner: platform
+    properties:
+      conn_type: google_cloud_platform
+      project: acme-marketing
+  - id: airflow.marketing_daily
+    type: airflow.dag
+    name: marketing_daily
+    domain: Marketing
+    owner: growth-data
+    description: Daily marketing pipeline, from landing files to model training.
+    tags: [daily]
+    properties:
+      schedule: 0 1 * * *
+      catchup: false
+      max_active_runs: 1
+  - id: airflow.marketing_daily.tg_transform
+    type: airflow.task_group
+    name: tg_transform
+    parent: airflow.marketing_daily
+    domain: Marketing
+  - id: airflow.marketing_daily.tg_transform.load_staging
+    type: airflow.task
+    name: load_staging
+    parent: airflow.marketing_daily.tg_transform
+    domain: Marketing
+    properties:
+      operator: BigQueryInsertJobOperator
+      retries: 2
+  - id: airflow.marketing_daily.tg_transform.call_sp
+    type: airflow.task
+    name: call_sp
+    parent: airflow.marketing_daily.tg_transform
+    domain: Marketing
+    properties:
+      operator: BigQueryInsertJobOperator
+      sql: CALL mart.sp_build_marketing_daily(@run_date)
+  - id: airflow.marketing_daily.trigger_training
+    type: airflow.task
+    name: trigger_training
+    parent: airflow.marketing_daily
+    domain: Marketing
+    properties:
+      operator: RunPipelineJobOperator
+  - id: airflow.variable.support_gcp_project
+    type: airflow.variable
+    name: support_gcp_project
+    domain: Support
+    owner: platform
+    properties:
+      key: support_gcp_project
+      value: acme-support
+  - id: airflow.connection.bq_support
+    type: airflow.connection
+    name: bq_support
+    domain: Support
+    owner: platform
+    properties:
+      conn_type: google_cloud_platform
+      project: acme-support
+  - id: airflow.support_daily
+    type: airflow.dag
+    name: support_daily
+    domain: Support
+    owner: cx-data
+    description: Daily support pipeline, from landing files to model training.
+    tags: [daily]
+    properties:
+      schedule: 0 1 * * *
+      catchup: false
+      max_active_runs: 1
+  - id: airflow.support_daily.tg_transform
+    type: airflow.task_group
+    name: tg_transform
+    parent: airflow.support_daily
+    domain: Support
+  - id: airflow.support_daily.tg_transform.load_staging
+    type: airflow.task
+    name: load_staging
+    parent: airflow.support_daily.tg_transform
+    domain: Support
+    properties:
+      operator: BigQueryInsertJobOperator
+      retries: 2
+  - id: airflow.support_daily.tg_transform.call_sp
+    type: airflow.task
+    name: call_sp
+    parent: airflow.support_daily.tg_transform
+    domain: Support
+    properties:
+      operator: BigQueryInsertJobOperator
+      sql: CALL mart.sp_build_support_daily(@run_date)
+  - id: airflow.support_daily.trigger_training
+    type: airflow.task
+    name: trigger_training
+    parent: airflow.support_daily
+    domain: Support
+    properties:
+      operator: RunPipelineJobOperator

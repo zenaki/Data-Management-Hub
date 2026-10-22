@@ -1,0 +1,82 @@
+# gcs assets
+assets:
+  - id: gcs.acme-sales-landing
+    type: gcs.bucket
+    name: Landing bucket sales
+    domain: Sales
+    owner: platform
+    properties:
+      location: asia-southeast2
+      storage_class: STANDARD
+  - id: gcs.acme-sales-landing/orders
+    type: gcs.object
+    name: orders landing files
+    parent: gcs.acme-sales-landing
+    domain: Sales
+    properties:
+      pattern: orders/dt={{ ds }}/*.parquet
+      format: parquet
+  - id: gcs.acme-inventory-landing
+    type: gcs.bucket
+    name: Landing bucket inventory
+    domain: Inventory
+    owner: platform
+    properties:
+      location: asia-southeast2
+      storage_class: STANDARD
+  - id: gcs.acme-inventory-landing/movements
+    type: gcs.object
+    name: movements landing files
+    parent: gcs.acme-inventory-landing
+    domain: Inventory
+    properties:
+      pattern: movements/dt={{ ds }}/*.parquet
+      format: parquet
+  - id: gcs.acme-finance-landing
+    type: gcs.bucket
+    name: Landing bucket finance
+    domain: Finance
+    owner: platform
+    properties:
+      location: asia-southeast2
+      storage_class: STANDARD
+  - id: gcs.acme-finance-landing/txns
+    type: gcs.object
+    name: txns landing files
+    parent: gcs.acme-finance-landing
+    domain: Finance
+    properties:
+      pattern: txns/dt={{ ds }}/*.parquet
+      format: parquet
+  - id: gcs.acme-marketing-landing
+    type: gcs.bucket
+    name: Landing bucket marketing
+    domain: Marketing
+    owner: platform
+    properties:
+      location: asia-southeast2
+      storage_class: STANDARD
+  - id: gcs.acme-marketing-landing/clicks
+    type: gcs.object
+    name: clicks landing files
+    parent: gcs.acme-marketing-landing
+    domain: Marketing
+    properties:
+      pattern: clicks/dt={{ ds }}/*.parquet
+      format: parquet
+  - id: gcs.acme-support-landing
+    type: gcs.bucket
+    name: Landing bucket support
+    domain: Support
+    owner: platform
+    properties:
+      location: asia-southeast2
+      storage_class: STANDARD
+  - id: gcs.acme-support-landing/tickets
+    type: gcs.object
+    name: tickets landing files
+    parent: gcs.acme-support-landing
+    domain: Support
+    properties:
+      pattern: tickets/dt={{ ds }}/*.parquet
+      format: parquet

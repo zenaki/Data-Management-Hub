@@ -1,0 +1,1047 @@
+# bigquery assets
+assets:
+  - id: acme-sales
+    type: bigquery.project
+    name: GCP project sales
+    domain: Sales
+    owner: platform
+    properties:
+      region: asia-southeast2
+      billing_account: acme-billing
+  - id: acme-sales.raw
+    type: bigquery.dataset
+    name: raw
+    parent: acme-sales
+    domain: Sales
+    properties:
+      location: asia-southeast2
+      default_table_expiration_days: 400
+  - id: acme-sales.staging
+    type: bigquery.dataset
+    name: staging
+    parent: acme-sales
+    domain: Sales
+    properties:
+      location: asia-southeast2
+  - id: acme-sales.mart
+    type: bigquery.dataset
+    name: mart
+    parent: acme-sales
+    domain: Sales
+    properties:
+      location: asia-southeast2
+  - id: acme-sales.raw.orders
+    type: bigquery.table
+    name: Sales orders (raw)
+    parent: acme-sales.raw
+    domain: Sales
+    owner: sales-data
+    source: ERP via GCS
+    description: As-is order records loaded from the landing bucket.
+    tags: [raw]
+    properties:
+      partition_by: DATE(order_ts)
+    fields:
+      - name: order_id
+        type: INT64
+        nullable: false
+        pii: false
+        description: Unique order ID.
+      - name: customer_id
+        type: INT64
+        nullable: false
+        pii: true
+        description: Reference to the customer.
+      - name: order_ts
+        type: TIMESTAMP
+        nullable: false
+        pii: false
+        description: Event time (UTC).
+      - name: amount
+        type: NUMERIC
+        nullable: true
+        pii: false
+        description: Raw amount.
+      - name: discount
+        type: NUMERIC
+        nullable: true
+        pii: false
+        description: Adjustment (discount).
+  - id: acme-sales.staging.fn_clean_amount
+    type: bigquery.udf
+    name: fn_clean_amount
+    parent: acme-sales.staging
+    domain: Sales
+    owner: analytics-eng
+    properties:
+      language: SQL
+      returns: NUMERIC
+      body: GREATEST(IFNULL(x, 0), 0)
+  - id: acme-sales.staging.orders_clean
+    type: bigquery.table
+    name: Sales orders (clean)
+    parent: acme-sales.staging
+    domain: Sales
+    owner: analytics-eng
+    description: Deduplicated, normalised orders.
+    tags: [staging]
+    fields:
+      - name: order_id
+        type: INT64
+        nullable: false
+        pii: false
+        description: Unique order ID.
+        expression: QUALIFY ROW_NUMBER() OVER (PARTITION BY order_id ORDER BY order_ts DESC) = 1
+        sources: [acme-sales.raw.orders.order_id]
+      - name: customer_id
+        type: INT64
+        nullable: false
+        pii: true
+        description: Reference to the customer.
+        sources: [acme-sales.raw.orders.customer_id]
+      - name: event_date
+        type: DATE
+        nullable: false
+        pii: false
+        description: Event date (Asia/Jakarta).
+        expression: DATE(order_ts, 'Asia/Jakarta')
+        sources: [acme-sales.raw.orders.order_ts]
+      - name: net_value
+        type: NUMERIC
+        nullable: false
+        pii: false
+        description: Value after adjustment.
+        expression: fn_clean_amount(amount) - IFNULL(discount, 0)
+        sources: [acme-sales.raw.orders.amount, acme-sales.raw.orders.discount]
+  - id: acme-sales.mart.sp_build_sales_daily
+    type: bigquery.stored_procedure
+    name: sp_build_sales_daily
+    parent: acme-sales.mart
+    domain: Sales
+    owner: analytics-eng
+    properties:
+      language: SQL
+      args: [run_date DATE]
+  - id: acme-sales.mart.sales_daily
+    type: bigquery.table
+    name: Sales daily
+    parent: acme-sales.mart
+    domain: Sales
+    owner: bi-team
+    description: Sales aggregated per day, built by a stored procedure.
+    tags: [mart, dashboard]
+    fields:
+      - name: event_date
+        type: DATE
+        nullable: false
+        pii: false
+        description: Date.
+        expression: GROUP BY event_date
+        sources: [acme-sales.staging.orders_clean.event_date]
+      - name: total_sales
+        type: NUMERIC
+        nullable: false
+        pii: false
+        description: Total net value per day.
+        expression: SUM(net_value)
+        sources: [acme-sales.staging.orders_clean.net_value]
+      - name: active_customers
+        type: INT64
+        nullable: false
+        pii: false
+        description: Distinct customers per day.
+        expression: COUNT(DISTINCT customer_id)
+        sources: [acme-sales.staging.orders_clean.customer_id]
+      - name: avg_per_order
+        type: FLOAT64
+        nullable: true
+        pii: false
+        description: Average value per order.
+        expression: SAFE_DIVIDE(SUM(net_value), COUNT(order_id))
+        sources: [acme-sales.staging.orders_clean.net_value, acme-sales.staging.orders_clean.order_id]
+      - name: target_attainment
+        type: FLOAT64
+        nullable: true
+        pii: false
+        description: Month-to-date share of the monthly target.
+        expression: SAFE_DIVIDE(SUM(SUM(net_value)) OVER (PARTITION BY DATE_TRUNC(event_date, MONTH) ORDER BY event_date), t.target_value)
+        sources: [acme-sales.staging.orders_clean.net_value, sheet.sales_targets.target_value]
+  - id: acme-sales.mart.v_sales_features
+    type: bigquery.view
+    name: Sales features
+    parent: acme-sales.mart
+    domain: Sales
+    owner: ml-team
+    fields:
+      - name: event_date
+        type: DATE
+        nullable: false
+        pii: false
+        description: Date.
+        sources: [acme-sales.mart.sales_daily.event_date]
+      - name: sales_7d_avg
+        type: FLOAT64
+        nullable: true
+        pii: false
+        description: 7-day moving average.
+        expression: AVG(total_sales) OVER (ORDER BY event_date ROWS 6 PRECEDING)
+        sources: [acme-sales.mart.sales_daily.total_sales]
+  - id: acme-sales.mart.mv_sales_monthly
+    type: bigquery.materialized_view
+    name: Sales monthly
+    parent: acme-sales.mart
+    domain: Sales
+    owner: bi-team
+    properties:
+      refresh_interval_minutes: 60
+    fields:
+      - name: month
+        type: DATE
+        nullable: false
+        pii: false
+        description: Month.
+        expression: DATE_TRUNC(event_date, MONTH)
+        sources: [acme-sales.mart.sales_daily.event_date]
+      - name: monthly_total
+        type: NUMERIC
+        nullable: false
+        pii: false
+        description: Monthly total.
+        expression: SUM(total_sales)
+        sources: [acme-sales.mart.sales_daily.total_sales]
+  - id: acme-inventory
+    type: bigquery.project
+    name: GCP project inventory
+    domain: Inventory
+    owner: platform
+    properties:
+      region: asia-southeast2
+      billing_account: acme-billing
+  - id: acme-inventory.raw
+    type: bigquery.dataset
+    name: raw
+    parent: acme-inventory
+    domain: Inventory
+    properties:
+      location: asia-southeast2
+      default_table_expiration_days: 400
+  - id: acme-inventory.staging
+    type: bigquery.dataset
+    name: staging
+    parent: acme-inventory
+    domain: Inventory
+    properties:
+      location: asia-southeast2
+  - id: acme-inventory.mart
+    type: bigquery.dataset
+    name: mart
+    parent: acme-inventory
+    domain: Inventory
+    properties:
+      location: asia-southeast2
+  - id: acme-inventory.raw.movements
+    type: bigquery.table
+    name: Inventory movements (raw)
+    parent: acme-inventory.raw
+    domain: Inventory
+    owner: supply-data
+    source: WMS via GCS
+    description: As-is movement records loaded from the landing bucket.
+    tags: [raw]
+    properties:
+      partition_by: DATE(movement_ts)
+    fields:
+      - name: movement_id
+        type: INT64
+        nullable: false
+        pii: false
+        description: Unique movement ID.
+      - name: sku_id
+        type: INT64
+        nullable: false
+        pii: false
+        description: Reference to the sku.
+      - name: movement_ts
+        type: TIMESTAMP
+        nullable: false
+        pii: false
+        description: Event time (UTC).
+      - name: quantity
+        type: INT64
+        nullable: true
+        pii: false
+        description: Raw quantity.
+      - name: damaged_qty
+        type: INT64
+        nullable: true
+        pii: false
+        description: Adjustment (damaged qty).
+  - id: acme-inventory.staging.fn_clean_quantity
+    type: bigquery.udf
+    name: fn_clean_quantity
+    parent: acme-inventory.staging
+    domain: Inventory
+    owner: analytics-eng
+    properties:
+      language: SQL
+      returns: INT64
+      body: GREATEST(IFNULL(x, 0), 0)
+  - id: acme-inventory.staging.movements_clean
+    type: bigquery.table
+    name: Inventory movements (clean)
+    parent: acme-inventory.staging
+    domain: Inventory
+    owner: analytics-eng
+    description: Deduplicated, normalised movements.
+    tags: [staging]
+    fields:
+      - name: movement_id
+        type: INT64
+        nullable: false
+        pii: false
+        description: Unique movement ID.
+        expression: QUALIFY ROW_NUMBER() OVER (PARTITION BY movement_id ORDER BY movement_ts DESC) = 1
+        sources: [acme-inventory.raw.movements.movement_id]
+      - name: sku_id
+        type: INT64
+        nullable: false
+        pii: false
+        description: Reference to the sku.
+        sources: [acme-inventory.raw.movements.sku_id]
+      - name: event_date
+        type: DATE
+        nullable: false
+        pii: false
+        description: Event date (Asia/Jakarta).
+        expression: DATE(movement_ts, 'Asia/Jakarta')
+        sources: [acme-inventory.raw.movements.movement_ts]
+      - name: net_value
+        type: INT64
+        nullable: false
+        pii: false
+        description: Value after adjustment.
+        expression: fn_clean_quantity(quantity) - IFNULL(damaged_qty, 0)
+        sources: [acme-inventory.raw.movements.quantity, acme-inventory.raw.movements.damaged_qty]
+  - id: acme-inventory.mart.sp_build_inventory_daily
+    type: bigquery.stored_procedure
+    name: sp_build_inventory_daily
+    parent: acme-inventory.mart
+    domain: Inventory
+    owner: analytics-eng
+    properties:
+      language: SQL
+      args: [run_date DATE]
+  - id: acme-inventory.mart.inventory_daily
+    type: bigquery.table
+    name: Inventory daily
+    parent: acme-inventory.mart
+    domain: Inventory
+    owner: bi-team
+    description: Inventory aggregated per day, built by a stored procedure.
+    tags: [mart, dashboard]
+    fields:
+      - name: event_date
+        type: DATE
+        nullable: false
+        pii: false
+        description: Date.
+        expression: GROUP BY event_date
+        sources: [acme-inventory.staging.movements_clean.event_date]
+      - name: total_inventory
+        type: INT64
+        nullable: false
+        pii: false
+        description: Total net value per day.
+        expression: SUM(net_value)
+        sources: [acme-inventory.staging.movements_clean.net_value]
+      - name: active_skus
+        type: INT64
+        nullable: false
+        pii: false
+        description: Distinct skus per day.
+        expression: COUNT(DISTINCT sku_id)
+        sources: [acme-inventory.staging.movements_clean.sku_id]
+      - name: avg_per_movement
+        type: FLOAT64
+        nullable: true
+        pii: false
+        description: Average value per movement.
+        expression: SAFE_DIVIDE(SUM(net_value), COUNT(movement_id))
+        sources: [acme-inventory.staging.movements_clean.net_value, acme-inventory.staging.movements_clean.movement_id]
+      - name: target_attainment
+        type: FLOAT64
+        nullable: true
+        pii: false
+        description: Month-to-date share of the monthly target.
+        expression: SAFE_DIVIDE(SUM(SUM(net_value)) OVER (PARTITION BY DATE_TRUNC(event_date, MONTH) ORDER BY event_date), t.target_value)
+        sources: [acme-inventory.staging.movements_clean.net_value, sheet.inventory_targets.target_value]
+  - id: acme-inventory.mart.v_inventory_features
+    type: bigquery.view
+    name: Inventory features
+    parent: acme-inventory.mart
+    domain: Inventory
+    owner: ml-team
+    fields:
+      - name: event_date
+        type: DATE
+        nullable: false
+        pii: false
+        description: Date.
+        sources: [acme-inventory.mart.inventory_daily.event_date]
+      - name: inventory_7d_avg
+        type: FLOAT64
+        nullable: true
+        pii: false
+        description: 7-day moving average.
+        expression: AVG(total_inventory) OVER (ORDER BY event_date ROWS 6 PRECEDING)
+        sources: [acme-inventory.mart.inventory_daily.total_inventory]
+  - id: acme-inventory.mart.mv_inventory_monthly
+    type: bigquery.materialized_view
+    name: Inventory monthly
+    parent: acme-inventory.mart
+    domain: Inventory
+    owner: bi-team
+    properties:
+      refresh_interval_minutes: 60
+    fields:
+      - name: month
+        type: DATE
+        nullable: false
+        pii: false
+        description: Month.
+        expression: DATE_TRUNC(event_date, MONTH)
+        sources: [acme-inventory.mart.inventory_daily.event_date]
+      - name: monthly_total
+        type: INT64
+        nullable: false
+        pii: false
+        description: Monthly total.
+        expression: SUM(total_inventory)
+        sources: [acme-inventory.mart.inventory_daily.total_inventory]
+  - id: acme-finance
+    type: bigquery.project
+    name: GCP project finance
+    domain: Finance
+    owner: platform
+    properties:
+      region: asia-southeast2
+      billing_account: acme-billing
+  - id: acme-finance.raw
+    type: bigquery.dataset
+    name: raw
+    parent: acme-finance
+    domain: Finance
+    properties:
+      location: asia-southeast2
+      default_table_expiration_days: 400
+  - id: acme-finance.staging
+    type: bigquery.dataset
+    name: staging
+    parent: acme-finance
+    domain: Finance
+    properties:
+      location: asia-southeast2
+  - id: acme-finance.mart
+    type: bigquery.dataset
+    name: mart
+    parent: acme-finance
+    domain: Finance
+    properties:
+      location: asia-southeast2
+  - id: acme-finance.raw.txns
+    type: bigquery.table
+    name: Finance txns (raw)
+    parent: acme-finance.raw
+    domain: Finance
+    owner: finance-data
+    source: Core banking via GCS
+    description: As-is txn records loaded from the landing bucket.
+    tags: [raw]
+    properties:
+      partition_by: DATE(txn_ts)
+    fields:
+      - name: txn_id
+        type: INT64
+        nullable: false
+        pii: false
+        description: Unique txn ID.
+      - name: account_id
+        type: INT64
+        nullable: false
+        pii: false
+        description: Reference to the account.
+      - name: txn_ts
+        type: TIMESTAMP
+        nullable: false
+        pii: false
+        description: Event time (UTC).
+      - name: amount
+        type: NUMERIC
+        nullable: true
+        pii: false
+        description: Raw amount.
+      - name: fee
+        type: NUMERIC
+        nullable: true
+        pii: false
+        description: Adjustment (fee).
+  - id: acme-finance.staging.fn_clean_amount
+    type: bigquery.udf
+    name: fn_clean_amount
+    parent: acme-finance.staging
+    domain: Finance
+    owner: analytics-eng
+    properties:
+      language: SQL
+      returns: NUMERIC
+      body: GREATEST(IFNULL(x, 0), 0)
+  - id: acme-finance.staging.txns_clean
+    type: bigquery.table
+    name: Finance txns (clean)
+    parent: acme-finance.staging
+    domain: Finance
+    owner: analytics-eng
+    description: Deduplicated, normalised txns.
+    tags: [staging]
+    fields:
+      - name: txn_id
+        type: INT64
+        nullable: false
+        pii: false
+        description: Unique txn ID.
+        expression: QUALIFY ROW_NUMBER() OVER (PARTITION BY txn_id ORDER BY txn_ts DESC) = 1
+        sources: [acme-finance.raw.txns.txn_id]
+      - name: account_id
+        type: INT64
+        nullable: false
+        pii: false
+        description: Reference to the account.
+        sources: [acme-finance.raw.txns.account_id]
+      - name: event_date
+        type: DATE
+        nullable: false
+        pii: false
+        description: Event date (Asia/Jakarta).
+        expression: DATE(txn_ts, 'Asia/Jakarta')
+        sources: [acme-finance.raw.txns.txn_ts]
+      - name: net_value
+        type: NUMERIC
+        nullable: false
+        pii: false
+        description: Value after adjustment.
+        expression: fn_clean_amount(amount) - IFNULL(fee, 0)
+        sources: [acme-finance.raw.txns.amount, acme-finance.raw.txns.fee]
+  - id: acme-finance.mart.sp_build_finance_daily
+    type: bigquery.stored_procedure
+    name: sp_build_finance_daily
+    parent: acme-finance.mart
+    domain: Finance
+    owner: analytics-eng
+    properties:
+      language: SQL
+      args: [run_date DATE]
+  - id: acme-finance.mart.finance_daily
+    type: bigquery.table
+    name: Finance daily
+    parent: acme-finance.mart
+    domain: Finance
+    owner: bi-team
+    description: Finance aggregated per day, built by a stored procedure.
+    tags: [mart, dashboard]
+    fields:
+      - name: event_date
+        type: DATE
+        nullable: false
+        pii: false
+        description: Date.
+        expression: GROUP BY event_date
+        sources: [acme-finance.staging.txns_clean.event_date]
+      - name: total_finance
+        type: NUMERIC
+        nullable: false
+        pii: false
+        description: Total net value per day.
+        expression: SUM(net_value)
+        sources: [acme-finance.staging.txns_clean.net_value]
+      - name: active_accounts
+        type: INT64
+        nullable: false
+        pii: false
+        description: Distinct accounts per day.
+        expression: COUNT(DISTINCT account_id)
+        sources: [acme-finance.staging.txns_clean.account_id]
+      - name: avg_per_txn
+        type: FLOAT64
+        nullable: true
+        pii: false
+        description: Average value per txn.
+        expression: SAFE_DIVIDE(SUM(net_value), COUNT(txn_id))
+        sources: [acme-finance.staging.txns_clean.net_value, acme-finance.staging.txns_clean.txn_id]
+      - name: target_attainment
+        type: FLOAT64
+        nullable: true
+        pii: false
+        description: Month-to-date share of the monthly target.
+        expression: SAFE_DIVIDE(SUM(SUM(net_value)) OVER (PARTITION BY DATE_TRUNC(event_date, MONTH) ORDER BY event_date), t.target_value)
+        sources: [acme-finance.staging.txns_clean.net_value, sheet.finance_targets.target_value]
+  - id: acme-finance.mart.v_finance_features
+    type: bigquery.view
+    name: Finance features
+    parent: acme-finance.mart
+    domain: Finance
+    owner: ml-team
+    fields:
+      - name: event_date
+        type: DATE
+        nullable: false
+        pii: false
+        description: Date.
+        sources: [acme-finance.mart.finance_daily.event_date]
+      - name: finance_7d_avg
+        type: FLOAT64
+        nullable: true
+        pii: false
+        description: 7-day moving average.
+        expression: AVG(total_finance) OVER (ORDER BY event_date ROWS 6 PRECEDING)
+        sources: [acme-finance.mart.finance_daily.total_finance]
+  - id: acme-finance.mart.mv_finance_monthly
+    type: bigquery.materialized_view
+    name: Finance monthly
+    parent: acme-finance.mart
+    domain: Finance
+    owner: bi-team
+    properties:
+      refresh_interval_minutes: 60
+    fields:
+      - name: month
+        type: DATE
+        nullable: false
+        pii: false
+        description: Month.
+        expression: DATE_TRUNC(event_date, MONTH)
+        sources: [acme-finance.mart.finance_daily.event_date]
+      - name: monthly_total
+        type: NUMERIC
+        nullable: false
+        pii: false
+        description: Monthly total.
+        expression: SUM(total_finance)
+        sources: [acme-finance.mart.finance_daily.total_finance]
+  - id: acme-marketing
+    type: bigquery.project
+    name: GCP project marketing
+    domain: Marketing
+    owner: platform
+    properties:
+      region: asia-southeast2
+      billing_account: acme-billing
+  - id: acme-marketing.raw
+    type: bigquery.dataset
+    name: raw
+    parent: acme-marketing
+    domain: Marketing
+    properties:
+      location: asia-southeast2
+      default_table_expiration_days: 400
+  - id: acme-marketing.staging
+    type: bigquery.dataset
+    name: staging
+    parent: acme-marketing
+    domain: Marketing
+    properties:
+      location: asia-southeast2
+  - id: acme-marketing.mart
+    type: bigquery.dataset
+    name: mart
+    parent: acme-marketing
+    domain: Marketing
+    properties:
+      location: asia-southeast2
+  - id: acme-marketing.raw.clicks
+    type: bigquery.table
+    name: Marketing clicks (raw)
+    parent: acme-marketing.raw
+    domain: Marketing
+    owner: growth-data
+    source: Ads platform via GCS
+    description: As-is click records loaded from the landing bucket.
+    tags: [raw]
+    properties:
+      partition_by: DATE(click_ts)
+    fields:
+      - name: click_id
+        type: INT64
+        nullable: false
+        pii: false
+        description: Unique click ID.
+      - name: campaign_id
+        type: INT64
+        nullable: false
+        pii: false
+        description: Reference to the campaign.
+      - name: click_ts
+        type: TIMESTAMP
+        nullable: false
+        pii: false
+        description: Event time (UTC).
+      - name: cost
+        type: NUMERIC
+        nullable: true
+        pii: false
+        description: Raw cost.
+      - name: refund
+        type: NUMERIC
+        nullable: true
+        pii: false
+        description: Adjustment (refund).
+  - id: acme-marketing.staging.fn_clean_cost
+    type: bigquery.udf
+    name: fn_clean_cost
+    parent: acme-marketing.staging
+    domain: Marketing
+    owner: analytics-eng
+    properties:
+      language: SQL
+      returns: NUMERIC
+      body: GREATEST(IFNULL(x, 0), 0)
+  - id: acme-marketing.staging.clicks_clean
+    type: bigquery.table
+    name: Marketing clicks (clean)
+    parent: acme-marketing.staging
+    domain: Marketing
+    owner: analytics-eng
+    description: Deduplicated, normalised clicks.
+    tags: [staging]
+    fields:
+      - name: click_id
+        type: INT64
+        nullable: false
+        pii: false
+        description: Unique click ID.
+        expression: QUALIFY ROW_NUMBER() OVER (PARTITION BY click_id ORDER BY click_ts DESC) = 1
+        sources: [acme-marketing.raw.clicks.click_id]
+      - name: campaign_id
+        type: INT64
+        nullable: false
+        pii: false
+        description: Reference to the campaign.
+        sources: [acme-marketing.raw.clicks.campaign_id]
+      - name: event_date
+        type: DATE
+        nullable: false
+        pii: false
+        description: Event date (Asia/Jakarta).
+        expression: DATE(click_ts, 'Asia/Jakarta')
+        sources: [acme-marketing.raw.clicks.click_ts]
+      - name: net_value
+        type: NUMERIC
+        nullable: false
+        pii: false
+        description: Value after adjustment.
+        expression: fn_clean_cost(cost) - IFNULL(refund, 0)
+        sources: [acme-marketing.raw.clicks.cost, acme-marketing.raw.clicks.refund]
+  - id: acme-marketing.mart.sp_build_marketing_daily
+    type: bigquery.stored_procedure
+    name: sp_build_marketing_daily
+    parent: acme-marketing.mart
+    domain: Marketing
+    owner: analytics-eng
+    properties:
+      language: SQL
+      args: [run_date DATE]
+  - id: acme-marketing.mart.marketing_daily
+    type: bigquery.table
+    name: Marketing daily
+    parent: acme-marketing.mart
+    domain: Marketing
+    owner: bi-team
+    description: Marketing aggregated per day, built by a stored procedure.
+    tags: [mart, dashboard]
+    fields:
+      - name: event_date
+        type: DATE
+        nullable: false
+        pii: false
+        description: Date.
+        expression: GROUP BY event_date
+        sources: [acme-marketing.staging.clicks_clean.event_date]
+      - name: total_marketing
+        type: NUMERIC
+        nullable: false
+        pii: false
+        description: Total net value per day.
+        expression: SUM(net_value)
+        sources: [acme-marketing.staging.clicks_clean.net_value]
+      - name: active_campaigns
+        type: INT64
+        nullable: false
+        pii: false
+        description: Distinct campaigns per day.
+        expression: COUNT(DISTINCT campaign_id)
+        sources: [acme-marketing.staging.clicks_clean.campaign_id]
+      - name: avg_per_click
+        type: FLOAT64
+        nullable: true
+        pii: false
+        description: Average value per click.
+        expression: SAFE_DIVIDE(SUM(net_value), COUNT(click_id))
+        sources: [acme-marketing.staging.clicks_clean.net_value, acme-marketing.staging.clicks_clean.click_id]
+      - name: target_attainment
+        type: FLOAT64
+        nullable: true
+        pii: false
+        description: Month-to-date share of the monthly target.
+        expression: SAFE_DIVIDE(SUM(SUM(net_value)) OVER (PARTITION BY DATE_TRUNC(event_date, MONTH) ORDER BY event_date), t.target_value)
+        sources: [acme-marketing.staging.clicks_clean.net_value, sheet.marketing_targets.target_value]
+  - id: acme-marketing.mart.v_marketing_features
+    type: bigquery.view
+    name: Marketing features
+    parent: acme-marketing.mart
+    domain: Marketing
+    owner: ml-team
+    fields:
+      - name: event_date
+        type: DATE
+        nullable: false
+        pii: false
+        description: Date.
+        sources: [acme-marketing.mart.marketing_daily.event_date]
+      - name: marketing_7d_avg
+        type: FLOAT64
+        nullable: true
+        pii: false
+        description: 7-day moving average.
+        expression: AVG(total_marketing) OVER (ORDER BY event_date ROWS 6 PRECEDING)
+        sources: [acme-marketing.mart.marketing_daily.total_marketing]
+  - id: acme-marketing.mart.mv_marketing_monthly
+    type: bigquery.materialized_view
+    name: Marketing monthly
+    parent: acme-marketing.mart
+    domain: Marketing
+    owner: bi-team
+    properties:
+      refresh_interval_minutes: 60
+    fields:
+      - name: month
+        type: DATE
+        nullable: false
+        pii: false
+        description: Month.
+        expression: DATE_TRUNC(event_date, MONTH)
+        sources: [acme-marketing.mart.marketing_daily.event_date]
+      - name: monthly_total
+        type: NUMERIC
+        nullable: false
+        pii: false
+        description: Monthly total.
+        expression: SUM(total_marketing)
+        sources: [acme-marketing.mart.marketing_daily.total_marketing]
+  - id: acme-support
+    type: bigquery.project
+    name: GCP project support
+    domain: Support
+    owner: platform
+    properties:
+      region: asia-southeast2
+      billing_account: acme-billing
+  - id: acme-support.raw
+    type: bigquery.dataset
+    name: raw
+    parent: acme-support
+    domain: Support
+    properties:
+      location: asia-southeast2
+      default_table_expiration_days: 400
+  - id: acme-support.staging
+    type: bigquery.dataset
+    name: staging
+    parent: acme-support
+    domain: Support
+    properties:
+      location: asia-southeast2
+  - id: acme-support.mart
+    type: bigquery.dataset
+    name: mart
+    parent: acme-support
+    domain: Support
+    properties:
+      location: asia-southeast2
+  - id: acme-support.raw.tickets
+    type: bigquery.table
+    name: Support tickets (raw)
+    parent: acme-support.raw
+    domain: Support
+    owner: cx-data
+    source: Helpdesk via GCS
+    description: As-is ticket records loaded from the landing bucket.
+    tags: [raw]
+    properties:
+      partition_by: DATE(opened_ts)
+    fields:
+      - name: ticket_id
+        type: INT64
+        nullable: false
+        pii: false
+        description: Unique ticket ID.
+      - name: customer_id
+        type: INT64
+        nullable: false
+        pii: true
+        description: Reference to the customer.
+      - name: opened_ts
+        type: TIMESTAMP
+        nullable: false
+        pii: false
+        description: Event time (UTC).
+      - name: handle_minutes
+        type: INT64
+        nullable: true
+        pii: false
+        description: Raw handle minutes.
+      - name: wait_minutes
+        type: INT64
+        nullable: true
+        pii: false
+        description: Adjustment (wait minutes).
+  - id: acme-support.staging.fn_clean_handle_minutes
+    type: bigquery.udf
+    name: fn_clean_handle_minutes
+    parent: acme-support.staging
+    domain: Support
+    owner: analytics-eng
+    properties:
+      language: SQL
+      returns: INT64
+      body: GREATEST(IFNULL(x, 0), 0)
+  - id: acme-support.staging.tickets_clean
+    type: bigquery.table
+    name: Support tickets (clean)
+    parent: acme-support.staging
+    domain: Support
+    owner: analytics-eng
+    description: Deduplicated, normalised tickets.
+    tags: [staging]
+    fields:
+      - name: ticket_id
+        type: INT64
+        nullable: false
+        pii: false
+        description: Unique ticket ID.
+        expression: QUALIFY ROW_NUMBER() OVER (PARTITION BY ticket_id ORDER BY opened_ts DESC) = 1
+        sources: [acme-support.raw.tickets.ticket_id]
+      - name: customer_id
+        type: INT64
+        nullable: false
+        pii: true
+        description: Reference to the customer.
+        sources: [acme-support.raw.tickets.customer_id]
+      - name: event_date
+        type: DATE
+        nullable: false
+        pii: false
+        description: Event date (Asia/Jakarta).
+        expression: DATE(opened_ts, 'Asia/Jakarta')
+        sources: [acme-support.raw.tickets.opened_ts]
+      - name: net_value
+        type: INT64
+        nullable: false
+        pii: false
+        description: Value after adjustment.
+        expression: fn_clean_handle_minutes(handle_minutes) - IFNULL(wait_minutes, 0)
+        sources: [acme-support.raw.tickets.handle_minutes, acme-support.raw.tickets.wait_minutes]
+  - id: acme-support.mart.sp_build_support_daily
+    type: bigquery.stored_procedure
+    name: sp_build_support_daily
+    parent: acme-support.mart
+    domain: Support
+    owner: analytics-eng
+    properties:
+      language: SQL
+      args: [run_date DATE]
+  - id: acme-support.mart.support_daily
+    type: bigquery.table
+    name: Support daily
+    parent: acme-support.mart
+    domain: Support
+    owner: bi-team
+    description: Support aggregated per day, built by a stored procedure.
+    tags: [mart, dashboard]
+    fields:
+      - name: event_date
+        type: DATE
+        nullable: false
+        pii: false
+        description: Date.
+        expression: GROUP BY event_date
+        sources: [acme-support.staging.tickets_clean.event_date]
+      - name: total_support
+        type: INT64
+        nullable: false
+        pii: false
+        description: Total net value per day.
+        expression: SUM(net_value)
+        sources: [acme-support.staging.tickets_clean.net_value]
+      - name: active_customers
+        type: INT64
+        nullable: false
+        pii: false
+        description: Distinct customers per day.
+        expression: COUNT(DISTINCT customer_id)
+        sources: [acme-support.staging.tickets_clean.customer_id]
+      - name: avg_per_ticket
+        type: FLOAT64
+        nullable: true
+        pii: false
+        description: Average value per ticket.
+        expression: SAFE_DIVIDE(SUM(net_value), COUNT(ticket_id))
+        sources: [acme-support.staging.tickets_clean.net_value, acme-support.staging.tickets_clean.ticket_id]
+      - name: target_attainment
+        type: FLOAT64
+        nullable: true
+        pii: false
+        description: Month-to-date share of the monthly target.
+        expression: SAFE_DIVIDE(SUM(SUM(net_value)) OVER (PARTITION BY DATE_TRUNC(event_date, MONTH) ORDER BY event_date), t.target_value)
+        sources: [acme-support.staging.tickets_clean.net_value, sheet.support_targets.target_value]
+  - id: acme-support.mart.v_support_features
+    type: bigquery.view
+    name: Support features
+    parent: acme-support.mart
+    domain: Support
+    owner: ml-team
+    fields:
+      - name: event_date
+        type: DATE
+        nullable: false
+        pii: false
+        description: Date.
+        sources: [acme-support.mart.support_daily.event_date]
+      - name: support_7d_avg
+        type: FLOAT64
+        nullable: true
+        pii: false
+        description: 7-day moving average.
+        expression: AVG(total_support) OVER (ORDER BY event_date ROWS 6 PRECEDING)
+        sources: [acme-support.mart.support_daily.total_support]
+  - id: acme-support.mart.mv_support_monthly
+    type: bigquery.materialized_view
+    name: Support monthly
+    parent: acme-support.mart
+    domain: Support
+    owner: bi-team
+    properties:
+      refresh_interval_minutes: 60
+    fields:
+      - name: month
+        type: DATE
+        nullable: false
+        pii: false
+        description: Month.
+        expression: DATE_TRUNC(event_date, MONTH)
+        sources: [acme-support.mart.support_daily.event_date]
+      - name: monthly_total
+        type: INT64
+        nullable: false
+        pii: false
+        description: Monthly total.
+        expression: SUM(total_support)
+        sources: [acme-support.mart.support_daily.total_support]

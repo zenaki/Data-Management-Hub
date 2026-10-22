@@ -1,0 +1,94 @@
+# Asset type registry — add your own types here.
+asset_types:
+  - id: airflow.dag
+    label: Airflow DAG
+    category: Airflow
+    color: "#0B5CAD"
+  - id: airflow.task_group
+    label: Airflow Task Group
+    category: Airflow
+    color: "#1E40AF"
+  - id: airflow.task
+    label: Airflow Task
+    category: Airflow
+    color: "#1D4ED8"
+  - id: airflow.variable
+    label: Airflow Variable
+    category: Airflow
+    color: "#3730A3"
+  - id: airflow.connection
+    label: Airflow Connection
+    category: Airflow
+    color: "#3730A3"
+  - id: bigquery.project
+    label: BigQuery Project
+    category: BigQuery
+    color: "#115E59"
+  - id: bigquery.dataset
+    label: BigQuery Dataset
+    category: BigQuery
+    color: "#0F766E"
+  - id: bigquery.table
+    label: BigQuery Table
+    category: BigQuery
+    color: "#0F766E"
+  - id: bigquery.view
+    label: BigQuery View
+    category: BigQuery
+    color: "#0E7490"
+  - id: bigquery.materialized_view
+    label: BigQuery Materialized View
+    category: BigQuery
+    color: "#0E7490"
+  - id: bigquery.stored_procedure
+    label: BigQuery Stored Procedure
+    category: BigQuery
+    color: "#155E75"
+  - id: bigquery.udf
+    label: BigQuery UDF
+    category: BigQuery
+    color: "#155E75"
+  - id: vertex.pipeline
+    label: Vertex AI Pipeline
+    category: Vertex AI
+    color: "#6D28D9"
+  - id: vertex.pipeline_component
+    label: Vertex Pipeline Component
+    category: Vertex AI
+    color: "#6D28D9"
+  - id: vertex.model
+    label: Model Registry Model
+    category: Vertex AI
+    color: "#7E22CE"
+  - id: vertex.endpoint
+    label: Vertex AI Endpoint
+    category: Vertex AI
+    color: "#86198F"
+  - id: vertex.feature_view
+    label: Vertex Feature View
+    category: Vertex AI
+    color: "#86198F"
+  - id: artifact_registry.repository
+    label: Artifact Registry Repository
+    category: Artifact Registry
+    color: "#9A3412"
+  - id: artifact_registry.image
+    label: Artifact Registry Image
+    category: Artifact Registry
+    color: "#C2410C"
+  - id: gcs.bucket
+    label: GCS Bucket
+    category: Cloud Storage
+    color: "#A16207"
+  - id: gcs.object
+    label: GCS Object / Path
+    category: Cloud Storage
+    color: "#A16207"
+  - id: dataset
+    label: Dataset (generic)
+    category: Generic
+    color: "#475569"
+  - id: external
+    label: External system
+    category: Generic
+    color: "#475569"

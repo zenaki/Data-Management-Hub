@@ -1,0 +1,197 @@
+# vertex assets
+assets:
+  - id: vertex.feature_view.sales_features
+    type: vertex.feature_view
+    name: sales_features
+    domain: Sales
+    owner: ml-team
+    properties:
+      online_store: acme_online
+      sync: daily
+  - id: vertex.pipeline.sales_forecast.train
+    type: vertex.pipeline_component
+    name: train
+    parent: vertex.pipeline.sales_forecast
+    domain: Sales
+    owner: ml-team
+    properties:
+      image: artifact_registry.ml-sales.sales-trainer
+  - id: vertex.pipeline.sales_forecast
+    type: vertex.pipeline
+    name: sales_forecast
+    domain: Sales
+    owner: ml-team
+    properties:
+      template: gs://acme-sales-pipelines/sales_forecast.json
+  - id: vertex.model.sales_forecast
+    type: vertex.model
+    name: sales_forecast
+    domain: Sales
+    owner: ml-team
+    properties:
+      version: 1
+      framework: xgboost
+  - id: vertex.endpoint.sales_forecast
+    type: vertex.endpoint
+    name: sales_forecast-endpoint
+    domain: Sales
+    owner: ml-team
+    properties:
+      machine_type: n1-standard-2
+      min_replicas: 1
+  - id: vertex.feature_view.inventory_features
+    type: vertex.feature_view
+    name: inventory_features
+    domain: Inventory
+    owner: ml-team
+    properties:
+      online_store: acme_online
+      sync: daily
+  - id: vertex.pipeline.stock_forecast.train
+    type: vertex.pipeline_component
+    name: train
+    parent: vertex.pipeline.stock_forecast
+    domain: Inventory
+    owner: ml-team
+    properties:
+      image: artifact_registry.ml-inventory.inventory-trainer
+  - id: vertex.pipeline.stock_forecast
+    type: vertex.pipeline
+    name: stock_forecast
+    domain: Inventory
+    owner: ml-team
+    properties:
+      template: gs://acme-inventory-pipelines/stock_forecast.json
+  - id: vertex.model.stock_forecast
+    type: vertex.model
+    name: stock_forecast
+    domain: Inventory
+    owner: ml-team
+    properties:
+      version: 1
+      framework: xgboost
+  - id: vertex.endpoint.stock_forecast
+    type: vertex.endpoint
+    name: stock_forecast-endpoint
+    domain: Inventory
+    owner: ml-team
+    properties:
+      machine_type: n1-standard-2
+      min_replicas: 1
+  - id: vertex.feature_view.finance_features
+    type: vertex.feature_view
+    name: finance_features
+    domain: Finance
+    owner: ml-team
+    properties:
+      online_store: acme_online
+      sync: daily
+  - id: vertex.pipeline.cashflow_forecast.train
+    type: vertex.pipeline_component
+    name: train
+    parent: vertex.pipeline.cashflow_forecast
+    domain: Finance
+    owner: ml-team
+    properties:
+      image: artifact_registry.ml-finance.finance-trainer
+  - id: vertex.pipeline.cashflow_forecast
+    type: vertex.pipeline
+    name: cashflow_forecast
+    domain: Finance
+    owner: ml-team
+    properties:
+      template: gs://acme-finance-pipelines/cashflow_forecast.json
+  - id: vertex.model.cashflow_forecast
+    type: vertex.model
+    name: cashflow_forecast
+    domain: Finance
+    owner: ml-team
+    properties:
+      version: 1
+      framework: xgboost
+  - id: vertex.endpoint.cashflow_forecast
+    type: vertex.endpoint
+    name: cashflow_forecast-endpoint
+    domain: Finance
+    owner: ml-team
+    properties:
+      machine_type: n1-standard-2
+      min_replicas: 1
+  - id: vertex.feature_view.marketing_features
+    type: vertex.feature_view
+    name: marketing_features
+    domain: Marketing
+    owner: ml-team
+    properties:
+      online_store: acme_online
+      sync: daily
+  - id: vertex.pipeline.roas_forecast.train
+    type: vertex.pipeline_component
+    name: train
+    parent: vertex.pipeline.roas_forecast
+    domain: Marketing
+    owner: ml-team
+    properties:
+      image: artifact_registry.ml-marketing.marketing-trainer
+  - id: vertex.pipeline.roas_forecast
+    type: vertex.pipeline
+    name: roas_forecast
+    domain: Marketing
+    owner: ml-team
+    properties:
+      template: gs://acme-marketing-pipelines/roas_forecast.json
+  - id: vertex.model.roas_forecast
+    type: vertex.model
+    name: roas_forecast
+    domain: Marketing
+    owner: ml-team
+    properties:
+      version: 1
+      framework: xgboost
+  - id: vertex.endpoint.roas_forecast
+    type: vertex.endpoint
+    name: roas_forecast-endpoint
+    domain: Marketing
+    owner: ml-team
+    properties:
+      machine_type: n1-standard-2
+      min_replicas: 1
+  - id: vertex.feature_view.support_features
+    type: vertex.feature_view
+    name: support_features
+    domain: Support
+    owner: ml-team
+    properties:
+      online_store: acme_online
+      sync: daily
+  - id: vertex.pipeline.ticket_volume_forecast.train
+    type: vertex.pipeline_component
+    name: train
+    parent: vertex.pipeline.ticket_volume_forecast
+    domain: Support
+    owner: ml-team
+    properties:
+      image: artifact_registry.ml-support.support-trainer
+  - id: vertex.pipeline.ticket_volume_forecast
+    type: vertex.pipeline
+    name: ticket_volume_forecast
+    domain: Support
+    owner: ml-team
+    properties:
+      template: gs://acme-support-pipelines/ticket_volume_forecast.json
+  - id: vertex.model.ticket_volume_forecast
+    type: vertex.model
+    name: ticket_volume_forecast
+    domain: Support
+    owner: ml-team
+    properties:
+      version: 1
+      framework: xgboost
+  - id: vertex.endpoint.ticket_volume_forecast
+    type: vertex.endpoint
+    name: ticket_volume_forecast-endpoint
+    domain: Support
+    owner: ml-team
+    properties:
+      machine_type: n1-standard-2
+      min_replicas: 1
