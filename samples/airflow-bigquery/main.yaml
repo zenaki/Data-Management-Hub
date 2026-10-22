@@ -1,0 +1,7 @@
+# Metadata Hub — sample project: Airflow DAG + Variables -> Task Group -> Task -> BigQuery
+# Upload this folder as a .zip. main.yaml is the entry point; everything else is pulled in by include.
+version: 2
+include:
+  - airflow/*.yaml      # DAGs, variables, task groups, tasks (one file per DAG)
+  - bigquery/*.yaml     # project, datasets, tables, views, stored procedures
+  - lineage/*.yaml      # relations between variables, task groups, tasks and BigQuery objects

@@ -1,0 +1,25 @@
+# Lineage for DAG finance_reporting_weekly
+lineage:
+  - from: airflow.variable.bq_project
+    to: airflow.finance_reporting_weekly.tg_report
+    type: configures
+  - from: airflow.variable.finance_report_recipients
+    to: airflow.finance_reporting_weekly.tg_report
+    type: configures
+
+  # waits for the sales DAG, then reads the shared sales mart
+  - from: airflow.sales_etl_daily.tg_quality.dq_sales_daily
+    to: airflow.finance_reporting_weekly.tg_report.wait_sales_daily
+    type: triggers
+    process: ExternalTaskSensor
+  - from: acme-dwh.mart.sales_daily
+    to: airflow.finance_reporting_weekly.tg_report.build_revenue_weekly
+    type: reads
+  - from: airflow.finance_reporting_weekly.tg_report.build_revenue_weekly
+    to: acme-dwh.finance.revenue_weekly
+    type: writes
+    process: CREATE OR REPLACE TABLE
+  - from: acme-dwh.finance.revenue_weekly
+    to: airflow.finance_reporting_weekly.tg_report.email_report
+    type: reads
+    process: CSV attachment to finance_report_recipients

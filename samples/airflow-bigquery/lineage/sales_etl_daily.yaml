@@ -1,0 +1,86 @@
+# Lineage for DAG sales_etl_daily
+# variables -> task group (configures) · task -> table (writes) · table -> task (reads)
+lineage:
+  # variables configure task groups
+  - from: airflow.variable.bq_project
+    to: airflow.sales_etl_daily.tg_ingest
+    type: configures
+  - from: airflow.variable.bq_location
+    to: airflow.sales_etl_daily.tg_ingest
+    type: configures
+  - from: airflow.variable.sales_backfill_start
+    to: airflow.sales_etl_daily.tg_ingest
+    type: configures
+  - from: airflow.variable.bq_project
+    to: airflow.sales_etl_daily.tg_transform
+    type: configures
+  - from: airflow.variable.bq_project
+    to: airflow.sales_etl_daily.tg_mart
+    type: configures
+
+  # ingest: tasks write raw tables
+  - from: airflow.sales_etl_daily.tg_ingest.load_orders
+    to: acme-dwh.raw.orders
+    type: writes
+    process: GCS parquet -> append
+  - from: airflow.sales_etl_daily.tg_ingest.load_order_items
+    to: acme-dwh.raw.order_items
+    type: writes
+    process: GCS parquet -> append
+  - from: airflow.sales_etl_daily.tg_ingest.load_customers
+    to: acme-dwh.raw.customers
+    type: writes
+    process: GCS snapshot -> truncate
+
+  # transform
+  - from: acme-dwh.raw.orders
+    to: airflow.sales_etl_daily.tg_transform.stg_orders
+    type: reads
+  - from: acme-dwh.raw.order_items
+    to: airflow.sales_etl_daily.tg_transform.stg_orders
+    type: reads
+  - from: airflow.sales_etl_daily.tg_transform.stg_orders
+    to: acme-dwh.staging.orders
+    type: writes
+    process: MERGE on order_id
+  - from: acme-dwh.raw.customers
+    to: airflow.sales_etl_daily.tg_transform.stg_customers
+    type: reads
+  - from: airflow.sales_etl_daily.tg_transform.stg_customers
+    to: acme-dwh.staging.customers
+    type: writes
+    process: CREATE OR REPLACE TABLE
+
+  # mart
+  - from: acme-dwh.staging.orders
+    to: airflow.sales_etl_daily.tg_mart.build_sales_daily
+    type: reads
+  - from: airflow.sales_etl_daily.tg_mart.build_sales_daily
+    to: acme-dwh.mart.sales_daily
+    type: writes
+    process: DELETE + INSERT for the run date
+  - from: airflow.sales_etl_daily.tg_mart.call_sp_customer_ltv
+    to: acme-dwh.mart.sp_customer_ltv
+    type: calls
+  - from: acme-dwh.staging.orders
+    to: acme-dwh.mart.sp_customer_ltv
+    type: reads
+  - from: acme-dwh.staging.customers
+    to: acme-dwh.mart.sp_customer_ltv
+    type: reads
+  - from: acme-dwh.mart.sp_customer_ltv
+    to: acme-dwh.mart.customer_ltv
+    type: writes
+  - from: acme-dwh.mart.sales_daily
+    to: airflow.sales_etl_daily.tg_mart.create_kpi_view
+    type: reads
+  - from: airflow.sales_etl_daily.tg_mart.create_kpi_view
+    to: acme-dwh.mart.v_sales_kpi
+    type: writes
+    process: CREATE OR REPLACE VIEW
+
+  # quality
+  - from: acme-dwh.mart.sales_daily
+    to: airflow.sales_etl_daily.tg_quality.dq_sales_daily
+    type: reads
+    process: row-count check for the run date

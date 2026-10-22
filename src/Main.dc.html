@@ -1365,7 +1365,8 @@ class Component extends DCLogic {
         dagMemo[id] = res; return res;
       };
       var nbr = {};
-      allEdges.forEach(function (e) { (nbr[e.from] = nbr[e.from] || []).push(e.to); (nbr[e.to] = nbr[e.to] || []).push(e.from); });
+      // DAG membership follows declared relations only (column-implied links would pull in every upstream table)
+      allEdges.forEach(function (e) { if (e.process === '(implied by columns)') return; (nbr[e.from] = nbr[e.from] || []).push(e.to); (nbr[e.to] = nbr[e.to] || []).push(e.from); });
       var blocks = ds.filter(function (d) { return d.type === 'airflow.dag'; }).map(function (dg) {
         var mem = {}, queue = [];
         ds.forEach(function (d) { if (dagOf(d.id) === dg.id) { mem[d.id] = 1; queue.push(d.id); } });
@@ -1459,21 +1460,23 @@ class Component extends DCLogic {
           seen[id] = 0; cd[id] = v; return v;
         };
         // sources with no upstream inside the DAG sit right before their first consumer
+        var hasCfg = Object.keys(mem).some(function (x) { return laneOf(infoOf(x).type) === 'config'; });
         var colF = function (id) {
+          if (laneOf(infoOf(id).type) === 'config') return -1; // variables & connections: first column, left of everything they configure
           var u = (upMap[id] || []).filter(function (x) { return mem[x] && x !== blk.id; });
           if (u.length) return colOf(id, {});
           var dn = (downMap[id] || []).filter(function (x) { return mem[x] && x !== blk.id; });
           return dn.length ? Math.max(0, Math.min.apply(null, dn.map(function (x) { return colOf(x, {}); })) - 1) : 0;
         };
         var x0b = PAD + 16 + 2 * PADC;
-        var colX = function (c) { return x0b + c * (NW + GXD); };
+        var colX = function (c) { return x0b + (c + (hasCfg ? 1 : 0)) * (NW + GXD); };
         var measure = function (n) {
           var key = blk.id + '|' + n.id;
           if (!n.children.length && !n.wasContainer) { var lx = colX(colF(n.id)); return { n: n, leaf: true, key: key, x0: lx, x1: lx + NW, h: nodeH(n.id) }; }
           var kids = n.children.map(measure), isClosed = !!s.collapsed[key];
           var own = n.member && (upMap[n.id] || downMap[n.id]) ? colX(colF(n.id)) : null;
           var xs0 = kids.map(function (k) { return k.x0; }), xs1 = kids.map(function (k) { return k.x1; });
-          if (own !== null || !kids.length) { var ox = own !== null ? own : colX(colF(n.id)); xs0.push(ox); xs1.push(ox + NW); }
+          if (!kids.length) { var ox = own !== null ? own : colX(colF(n.id)); xs0.push(ox); xs1.push(ox + NW); }
           var x0 = Math.min.apply(null, xs0) - PADC, x1 = Math.max.apply(null, xs1) + PADC;
           if (x1 - x0 < NW + 2 * PADC) x1 = x0 + NW + 2 * PADC;
           var rows = isClosed ? [] : pack(kids);

@@ -1,0 +1,144 @@
+# DAG sales_etl_daily: ingest -> transform -> mart -> quality
+assets:
+  # ---- DAG ----
+  - id: airflow.sales_etl_daily
+    type: airflow.dag
+    name: sales_etl_daily
+    domain: Sales
+    owner: data-engineering
+    description: Daily sales pipeline from raw BigQuery tables to the sales marts.
+    tags: [daily, sales]
+    properties:
+      schedule: 0 2 * * *
+      catchup: false
+      max_active_runs: 1
+      dag_file: dags/sales_etl_daily.py
+
+  # ---- Airflow Variables (shared variables are listed again in every DAG file that uses them) ----
+  - id: airflow.variable.bq_project
+    type: airflow.variable
+    name: bq_project
+    owner: platform
+    description: GCP project that holds the data warehouse.
+    properties:
+      key: bq_project
+      value: acme-dwh
+  - id: airflow.variable.bq_location
+    type: airflow.variable
+    name: bq_location
+    owner: platform
+    properties:
+      key: bq_location
+      value: asia-southeast2
+  - id: airflow.variable.sales_backfill_start
+    type: airflow.variable
+    name: sales_backfill_start
+    owner: data-engineering
+    description: First date loaded when the DAG is backfilled.
+    properties:
+      key: sales_backfill_start
+      value: "2025-01-01"
+
+  # ---- Task group: ingest ----
+  - id: airflow.sales_etl_daily.tg_ingest
+    type: airflow.task_group
+    name: tg_ingest
+    parent: airflow.sales_etl_daily
+    owner: data-engineering
+  - id: airflow.sales_etl_daily.tg_ingest.load_orders
+    type: airflow.task
+    name: load_orders
+    parent: airflow.sales_etl_daily.tg_ingest
+    owner: data-engineering
+    properties:
+      operator: GCSToBigQueryOperator
+      source_objects: orders/dt={{ ds }}/*.parquet
+      write_disposition: WRITE_APPEND
+  - id: airflow.sales_etl_daily.tg_ingest.load_order_items
+    type: airflow.task
+    name: load_order_items
+    parent: airflow.sales_etl_daily.tg_ingest
+    owner: data-engineering
+    properties:
+      operator: GCSToBigQueryOperator
+      source_objects: order_items/dt={{ ds }}/*.parquet
+      write_disposition: WRITE_APPEND
+  - id: airflow.sales_etl_daily.tg_ingest.load_customers
+    type: airflow.task
+    name: load_customers
+    parent: airflow.sales_etl_daily.tg_ingest
+    owner: data-engineering
+    properties:
+      operator: GCSToBigQueryOperator
+      source_objects: customers/snapshot.parquet
+      write_disposition: WRITE_TRUNCATE
+
+  # ---- Task group: transform ----
+  - id: airflow.sales_etl_daily.tg_transform
+    type: airflow.task_group
+    name: tg_transform
+    parent: airflow.sales_etl_daily
+    owner: analytics-eng
+  - id: airflow.sales_etl_daily.tg_transform.stg_orders
+    type: airflow.task
+    name: stg_orders
+    parent: airflow.sales_etl_daily.tg_transform
+    owner: data-engineering
+    properties:
+      operator: BigQueryInsertJobOperator
+      sql: sql/staging/orders.sql
+      retries: 2
+  - id: airflow.sales_etl_daily.tg_transform.stg_customers
+    type: airflow.task
+    name: stg_customers
+    parent: airflow.sales_etl_daily.tg_transform
+    owner: data-engineering
+    properties:
+      operator: BigQueryInsertJobOperator
+      sql: sql/staging/customers.sql
+
+  # ---- Task group: mart ----
+  - id: airflow.sales_etl_daily.tg_mart
+    type: airflow.task_group
+    name: tg_mart
+    parent: airflow.sales_etl_daily
+    owner: analytics-eng
+  - id: airflow.sales_etl_daily.tg_mart.build_sales_daily
+    type: airflow.task
+    name: build_sales_daily
+    parent: airflow.sales_etl_daily.tg_mart
+    owner: data-engineering
+    properties:
+      operator: BigQueryInsertJobOperator
+      sql: sql/mart/sales_daily.sql
+  - id: airflow.sales_etl_daily.tg_mart.call_sp_customer_ltv
+    type: airflow.task
+    name: call_sp_customer_ltv
+    parent: airflow.sales_etl_daily.tg_mart
+    owner: data-engineering
+    properties:
+      operator: BigQueryInsertJobOperator
+      sql: CALL mart.sp_customer_ltv(@run_date)
+  - id: airflow.sales_etl_daily.tg_mart.create_kpi_view
+    type: airflow.task
+    name: create_kpi_view
+    parent: airflow.sales_etl_daily.tg_mart
+    owner: data-engineering
+    properties:
+      operator: BigQueryCreateTableOperator
+      table_type: VIEW
+
+  # ---- Task group: quality ----
+  - id: airflow.sales_etl_daily.tg_quality
+    type: airflow.task_group
+    name: tg_quality
+    parent: airflow.sales_etl_daily
+    owner: data-engineering
+  - id: airflow.sales_etl_daily.tg_quality.dq_sales_daily
+    type: airflow.task
+    name: dq_sales_daily
+    parent: airflow.sales_etl_daily.tg_quality
+    owner: data-engineering
+    properties:
+      operator: BigQueryCheckOperator
+      sql: SELECT COUNT(*) > 0 FROM mart.sales_daily WHERE order_date = '{{ ds }}'

@@ -16,6 +16,8 @@ One-time setup: **Settings → Pages → Build and deployment → Source: GitHub
 - `scripts/build.js` – turns the source into `public/index.html`.
 - `public/dc-runtime.js` – small template runtime (holes, `sc-for`, `sc-if`) on React 18.
 - `public/vendor/` – React 18.3.1 production builds (no CDN needed).
+- `samples/airflow-bigquery-sample.zip` – Airflow-centric sample (folder `samples/airflow-bigquery/`):
+  DAG + Variables → Task Group → Task → BigQuery, two DAGs sharing a variable and a mart table.
 - `samples/` – sample data: `metadata-hub-sample.zip` (multi-file with `main.yaml`),
   `metadata-hub-sample.yaml` (single file) and `project/` (the same files unzipped).
 

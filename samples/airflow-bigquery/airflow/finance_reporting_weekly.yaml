@@ -1,0 +1,51 @@
+# DAG finance_reporting_weekly: reads the sales mart built by sales_etl_daily
+# (airflow.variable.bq_project is defined in sales_etl_daily.yaml and reused here through lineage)
+assets:
+  - id: airflow.finance_reporting_weekly
+    type: airflow.dag
+    name: finance_reporting_weekly
+    domain: Finance
+    owner: finance-data
+    description: Weekly revenue report for the finance team.
+    tags: [weekly, finance]
+    properties:
+      schedule: 0 6 * * 1
+      catchup: false
+
+  - id: airflow.variable.finance_report_recipients
+    type: airflow.variable
+    name: finance_report_recipients
+    owner: finance-data
+    properties:
+      key: finance_report_recipients
+      value: finance-team@acme.example
+
+  - id: airflow.finance_reporting_weekly.tg_report
+    type: airflow.task_group
+    name: tg_report
+    parent: airflow.finance_reporting_weekly
+    owner: finance-data
+  - id: airflow.finance_reporting_weekly.tg_report.wait_sales_daily
+    type: airflow.task
+    name: wait_sales_daily
+    parent: airflow.finance_reporting_weekly.tg_report
+    owner: finance-data
+    properties:
+      operator: ExternalTaskSensor
+      external_dag_id: sales_etl_daily
+      external_task_id: tg_quality.dq_sales_daily
+  - id: airflow.finance_reporting_weekly.tg_report.build_revenue_weekly
+    type: airflow.task
+    name: build_revenue_weekly
+    parent: airflow.finance_reporting_weekly.tg_report
+    owner: finance-data
+    properties:
+      operator: BigQueryInsertJobOperator
+      sql: sql/finance/revenue_weekly.sql
+  - id: airflow.finance_reporting_weekly.tg_report.email_report
+    type: airflow.task
+    name: email_report
+    parent: airflow.finance_reporting_weekly.tg_report
+    owner: finance-data
+    properties:
+      operator: EmailOperator

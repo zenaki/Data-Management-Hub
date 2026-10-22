@@ -1,0 +1,318 @@
+# BigQuery project acme-dwh: datasets raw -> staging -> mart, plus finance
+# Column lineage: each field lists its source columns (asset.id.column) and the expression that builds it.
+assets:
+  - id: acme-dwh
+    type: bigquery.project
+    name: acme-dwh
+    owner: platform
+    properties:
+      region: asia-southeast2
+
+  - id: acme-dwh.raw
+    type: bigquery.dataset
+    name: raw
+    parent: acme-dwh
+    owner: data-engineering
+  - id: acme-dwh.staging
+    type: bigquery.dataset
+    name: staging
+    parent: acme-dwh
+    owner: analytics-eng
+  - id: acme-dwh.mart
+    type: bigquery.dataset
+    name: mart
+    parent: acme-dwh
+    owner: analytics-eng
+  - id: acme-dwh.finance
+    type: bigquery.dataset
+    name: finance
+    parent: acme-dwh
+    owner: finance-data
+
+  # ---------- raw ----------
+  - id: acme-dwh.raw.orders
+    type: bigquery.table
+    name: orders (raw)
+    parent: acme-dwh.raw
+    domain: Sales
+    owner: data-engineering
+    description: Order headers loaded as-is from the ERP export.
+    tags: [raw]
+    properties:
+      partition_by: DATE(order_ts)
+    fields:
+      - name: order_id
+        type: INT64
+        nullable: false
+        description: Unique order ID.
+      - name: customer_id
+        type: INT64
+        nullable: false
+        description: Customer who placed the order.
+      - name: order_ts
+        type: TIMESTAMP
+        nullable: false
+        description: Order creation time (UTC).
+      - name: status
+        type: STRING
+        description: "Order status: NEW, COMPLETED or CANCELLED."
+      - name: updated_at
+        type: TIMESTAMP
+        description: Last change in the ERP.
+
+  - id: acme-dwh.raw.order_items
+    type: bigquery.table
+    name: order items (raw)
+    parent: acme-dwh.raw
+    domain: Sales
+    owner: data-engineering
+    description: Order lines loaded as-is from the ERP export.
+    tags: [raw]
+    fields:
+      - name: order_id
+        type: INT64
+        nullable: false
+        description: Order the line belongs to.
+      - name: product_id
+        type: INT64
+        nullable: false
+        description: Product sold.
+      - name: qty
+        type: INT64
+        nullable: false
+        description: Quantity sold.
+      - name: unit_price
+        type: NUMERIC
+        nullable: false
+        description: Price per unit before discount.
+      - name: discount
+        type: NUMERIC
+        description: Discount on the line.
+
+  - id: acme-dwh.raw.customers
+    type: bigquery.table
+    name: customers (raw)
+    parent: acme-dwh.raw
+    domain: Customer
+    owner: data-engineering
+    description: Daily snapshot of the CRM customer table.
+    tags: [raw, pii]
+    fields:
+      - name: customer_id
+        type: INT64
+        nullable: false
+        description: Unique customer ID.
+      - name: full_name
+        type: STRING
+        pii: true
+        description: Customer full name.
+      - name: email
+        type: STRING
+        pii: true
+        description: Customer email address.
+      - name: city
+        type: STRING
+        description: City as typed in the CRM.
+      - name: created_at
+        type: TIMESTAMP
+        description: When the customer signed up.
+
+  # ---------- staging ----------
+  - id: acme-dwh.staging.orders
+    type: bigquery.table
+    name: orders (staging)
+    parent: acme-dwh.staging
+    domain: Sales
+    owner: analytics-eng
+    description: One row per order, deduplicated, with amounts summed from the order lines.
+    tags: [staging]
+    fields:
+      - name: order_id
+        type: INT64
+        nullable: false
+        description: Unique order ID.
+        expression: QUALIFY ROW_NUMBER() OVER (PARTITION BY order_id ORDER BY updated_at DESC) = 1
+        sources: [acme-dwh.raw.orders.order_id, acme-dwh.raw.orders.updated_at]
+      - name: customer_id
+        type: INT64
+        nullable: false
+        sources: [acme-dwh.raw.orders.customer_id]
+      - name: order_date
+        type: DATE
+        nullable: false
+        description: Order date in Asia/Jakarta time.
+        expression: DATE(order_ts, 'Asia/Jakarta')
+        sources: [acme-dwh.raw.orders.order_ts]
+      - name: is_completed
+        type: BOOL
+        nullable: false
+        description: True when the order is completed.
+        expression: status = 'COMPLETED'
+        sources: [acme-dwh.raw.orders.status]
+      - name: gross_amount
+        type: NUMERIC
+        nullable: false
+        description: Order value before discount.
+        expression: SUM(qty * unit_price)
+        sources: [acme-dwh.raw.order_items.qty, acme-dwh.raw.order_items.unit_price]
+      - name: discount_amount
+        type: NUMERIC
+        nullable: false
+        description: Total discount on the order.
+        expression: SUM(IFNULL(discount, 0))
+        sources: [acme-dwh.raw.order_items.discount]
+      - name: net_amount
+        type: NUMERIC
+        nullable: false
+        description: Order value after discount.
+        expression: SUM(qty * unit_price) - SUM(IFNULL(discount, 0))
+        sources: [acme-dwh.raw.order_items.qty, acme-dwh.raw.order_items.unit_price, acme-dwh.raw.order_items.discount]
+
+  - id: acme-dwh.staging.customers
+    type: bigquery.table
+    name: customers (staging)
+    parent: acme-dwh.staging
+    domain: Customer
+    owner: analytics-eng
+    description: Cleaned customers without direct identifiers.
+    tags: [staging]
+    fields:
+      - name: customer_id
+        type: INT64
+        nullable: false
+        sources: [acme-dwh.raw.customers.customer_id]
+      - name: city
+        type: STRING
+        description: Normalised city name.
+        expression: UPPER(TRIM(city))
+        sources: [acme-dwh.raw.customers.city]
+      - name: signup_date
+        type: DATE
+        expression: DATE(created_at, 'Asia/Jakarta')
+        sources: [acme-dwh.raw.customers.created_at]
+
+  # ---------- mart ----------
+  - id: acme-dwh.mart.sp_customer_ltv
+    type: bigquery.stored_procedure
+    name: sp_customer_ltv
+    parent: acme-dwh.mart
+    owner: analytics-eng
+    description: Rebuilds mart.customer_ltv for the run date.
+    properties:
+      language: SQL
+      args: [run_date DATE]
+
+  - id: acme-dwh.mart.sales_daily
+    type: bigquery.table
+    name: sales daily
+    parent: acme-dwh.mart
+    domain: Sales
+    owner: bi-team
+    description: Completed sales per day. Read by the finance DAG.
+    tags: [mart, dashboard]
+    properties:
+      partition_by: order_date
+    fields:
+      - name: order_date
+        type: DATE
+        nullable: false
+        sources: [acme-dwh.staging.orders.order_date]
+      - name: total_orders
+        type: INT64
+        nullable: false
+        description: Completed orders per day.
+        expression: COUNT(DISTINCT order_id) WHERE is_completed
+        sources: [acme-dwh.staging.orders.order_id, acme-dwh.staging.orders.is_completed]
+      - name: gross_sales
+        type: NUMERIC
+        nullable: false
+        description: Sales before discount.
+        expression: SUM(gross_amount) WHERE is_completed
+        sources: [acme-dwh.staging.orders.gross_amount, acme-dwh.staging.orders.is_completed]
+      - name: net_sales
+        type: NUMERIC
+        nullable: false
+        description: Sales after discount.
+        expression: SUM(net_amount) WHERE is_completed
+        sources: [acme-dwh.staging.orders.net_amount, acme-dwh.staging.orders.is_completed]
+      - name: avg_order_value
+        type: NUMERIC
+        description: Average net value per completed order.
+        expression: SAFE_DIVIDE(SUM(net_amount), COUNT(DISTINCT order_id)) WHERE is_completed
+        sources: [acme-dwh.staging.orders.net_amount, acme-dwh.staging.orders.order_id, acme-dwh.staging.orders.is_completed]
+
+  - id: acme-dwh.mart.customer_ltv
+    type: bigquery.table
+    name: customer lifetime value
+    parent: acme-dwh.mart
+    domain: Customer
+    owner: bi-team
+    description: Lifetime value per customer, built by sp_customer_ltv.
+    tags: [mart]
+    fields:
+      - name: customer_id
+        type: INT64
+        nullable: false
+        sources: [acme-dwh.staging.customers.customer_id]
+      - name: home_city
+        type: STRING
+        sources: [acme-dwh.staging.customers.city]
+      - name: first_order_date
+        type: DATE
+        expression: MIN(order_date)
+        sources: [acme-dwh.staging.orders.order_date]
+      - name: order_count
+        type: INT64
+        expression: COUNT(order_id) WHERE is_completed
+        sources: [acme-dwh.staging.orders.order_id, acme-dwh.staging.orders.is_completed]
+      - name: lifetime_value
+        type: NUMERIC
+        description: Total net amount of completed orders.
+        expression: SUM(net_amount) WHERE is_completed
+        sources: [acme-dwh.staging.orders.net_amount, acme-dwh.staging.orders.is_completed]
+
+  - id: acme-dwh.mart.v_sales_kpi
+    type: bigquery.view
+    name: sales KPI view
+    parent: acme-dwh.mart
+    domain: Sales
+    owner: bi-team
+    description: Rolling KPIs for the sales dashboard.
+    fields:
+      - name: order_date
+        type: DATE
+        sources: [acme-dwh.mart.sales_daily.order_date]
+      - name: net_sales_7d
+        type: NUMERIC
+        description: Net sales over the last 7 days.
+        expression: SUM(net_sales) OVER (ORDER BY order_date ROWS 6 PRECEDING)
+        sources: [acme-dwh.mart.sales_daily.net_sales]
+      - name: aov
+        type: NUMERIC
+        sources: [acme-dwh.mart.sales_daily.avg_order_value]
+
+  # ---------- finance ----------
+  - id: acme-dwh.finance.revenue_weekly
+    type: bigquery.table
+    name: revenue weekly
+    parent: acme-dwh.finance
+    domain: Finance
+    owner: finance-data
+    description: Weekly revenue with week-over-week growth.
+    tags: [finance, report]
+    fields:
+      - name: week_start
+        type: DATE
+        nullable: false
+        expression: DATE_TRUNC(order_date, WEEK(MONDAY))
+        sources: [acme-dwh.mart.sales_daily.order_date]
+      - name: revenue
+        type: NUMERIC
+        nullable: false
+        expression: SUM(net_sales)
+        sources: [acme-dwh.mart.sales_daily.net_sales]
+      - name: wow_growth_pct
+        type: FLOAT64
+        description: Week-over-week revenue growth in percent.
+        expression: SAFE_DIVIDE(SUM(net_sales) - LAG(SUM(net_sales)) OVER w, LAG(SUM(net_sales)) OVER w) * 100
+        sources: [acme-dwh.mart.sales_daily.net_sales]
