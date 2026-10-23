@@ -317,7 +317,7 @@ textarea.inp{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:13px;l
 <svg aria-hidden="true" width="1" height="1" style="position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; opacity: {{p.op}}"><path d="{{p.d}}" style="fill: none; stroke: {{p.color}}; stroke-width: {{p.w}}px"></path><path d="{{p.head}}" style="fill: {{p.color}}; stroke: none"></path><path d="{{p.d}}" onClick="{{p.pick}}" style="fill: none; stroke: transparent; stroke-width: 14px; pointer-events: stroke; cursor: pointer"></path></svg>
 </sc-for>
 <sc-for list="{{nodes}}" as="n" hint-placeholder-count="3">
-<div style="position: absolute; left: {{n.x}}px; top: {{n.y}}px; width: 240px; height: {{n.h}}px; box-sizing: border-box; border-radius: 10px; background: #FFFFFF; border: 2px solid {{n.bd}}; opacity: {{n.op}}; overflow: hidden; box-shadow: 0 1px 3px rgba(21, 32, 43, 0.08)">
+<div style="position: absolute; left: {{n.x}}px; top: {{n.y}}px; width: {{n.w}}px; height: {{n.h}}px; box-sizing: border-box; border-radius: 10px; background: #FFFFFF; border: 2px solid {{n.bd}}; opacity: {{n.op}}; overflow: hidden; box-shadow: 0 1px 3px rgba(21, 32, 43, 0.08)">
 <button type="button" title="{{n.id}}" onClick="{{n.pick}}" style="width: 100%; height: 58px; box-sizing: border-box; padding: 8px 12px; border: 0; background: {{n.bg}}; color: {{n.fg}}; text-align: left; cursor: pointer; font: inherit; display: flex; flex-direction: column; gap: 2px; justify-content: center">
 <span style="display: flex; gap: 6px; align-items: center; max-width: 100%"><span aria-hidden="true" style="flex: none; width: 9px; height: 9px; border-radius: 50%; background: {{n.tcolor}}; box-shadow: 0 0 0 2px #FFFFFF"></span><span class="mono" style="font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{n.id}}</span></span>
 <span style="font-size: 11px; opacity: 0.85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%">{{n.typeLabel}} · {{n.name}}</span>
@@ -584,7 +584,7 @@ class Component extends DCLogic {
       sel: null, linSel: null, linCol: null, q: '', fq: '', lq: '', zoom: 0.9, showCols: true, focusOnly: false,
       dsForm: this.emptyDs(), fieldForm: this.emptyField(), edgeForm: { from: '', to: '', type: '', process: '' },
       importText: '', mode: 'replace', msg: '', msgKind: 'ok', loaded: [], unused: [], sourceName: '',
-      layout: 'dag', layoutPos: {}, collapsed: {}, depthUp: 2, depthDown: 2, expUp: {}, expDown: {}, layerLimit: 20, layerMore: {}, selEdge: null, linView: 'graph', impDir: 'both',
+      layout: 'dag', layoutPos: {}, layoutEdges: {}, collapsed: {}, depthUp: 2, depthDown: 2, expUp: {}, expDown: {}, layerLimit: 20, layerMore: {}, selEdge: null, linView: 'graph', impDir: 'both',
       fType: '', fDomain: '', fRel: '', fMode: 'hide', colorBy: 'type', connect: false, connectFrom: null, scr: { l: 0, t: 0, w: 0, h: 0 }, showMini: true, panelPinned: true, vSev: ''
     };
     this.diagRef = this.attachDiagram.bind(this);
@@ -730,7 +730,7 @@ class Component extends DCLogic {
     });
     var lineage = a.lineage.slice();
     b.lineage.forEach(function (n) { if (!lineage.some(function (x) { return x.from === n.from && x.to === n.to; })) lineage.push(n); });
-    return { types: this.mergeTypes(a.types, b.types), datasets: datasets, lineage: lineage, layout: Object.assign({}, a.layout || {}, b.layout || {}), loaded: (a.loaded || []).concat(b.loaded || []), unused: a.unused || [] };
+    return { types: this.mergeTypes(a.types, b.types), datasets: datasets, lineage: lineage, layout: Object.assign({}, a.layout || {}, b.layout || {}), layoutEdges: Object.assign({}, a.layoutEdges || {}, b.layoutEdges || {}), loaded: (a.loaded || []).concat(b.loaded || []), unused: a.unused || [] };
   }
   componentWillUnmount() {
     if (this._onMove) { window.removeEventListener('mousemove', this._onMove); window.removeEventListener('mouseup', this._onUp); }
@@ -977,7 +977,7 @@ class Component extends DCLogic {
   toYaml() {
     var s = this.state, self = this;
     var doc = { version: 2, generated_at: new Date().toISOString(), asset_types: s.types, assets: s.datasets.map(function (d) { return self.cleanAsset(d); }), lineage: s.lineage.map(function (e) { return self.cleanEdge(e); }) };
-    if (s.layoutPos && Object.keys(s.layoutPos).length) doc.layout = { nodes: s.layoutPos };
+    if (s.layoutPos && Object.keys(s.layoutPos).length) { doc.layout = { nodes: s.layoutPos }; if (s.layoutEdges && Object.keys(s.layoutEdges).length) doc.layout.edges = s.layoutEdges; }
     return this.dump(doc, 'Metadata Hub — data catalog, data dictionary, data lineage (schema v2, single file)');
   }
   toFiles() {
@@ -985,7 +985,7 @@ class Component extends DCLogic {
     s.datasets.forEach(function (d) { var g = (d.type || 'dataset').split('.')[0].replace(/[^A-Za-z0-9_-]+/g, '-') || 'misc'; (groups[g] = groups[g] || []).push(self.cleanAsset(d)); });
     var hasLayout = s.layoutPos && Object.keys(s.layoutPos).length > 0;
     files['main.yaml'] = this.dump({ version: 2, generated_at: new Date().toISOString(), include: ['asset_types.yaml', 'assets/*.yaml', 'lineage.yaml'].concat(hasLayout ? ['layout.yaml'] : []) }, 'Metadata Hub — entry point. Every file listed under include is loaded in order.');
-    if (hasLayout) files['layout.yaml'] = this.dump({ layout: { nodes: s.layoutPos } }, 'Diagram layout from the Diagram Editor: x, y per asset; w, h for containers (canvas pixels).');
+    if (hasLayout) { var lay = { nodes: s.layoutPos }; if (s.layoutEdges && Object.keys(s.layoutEdges).length) lay.edges = s.layoutEdges; files['layout.yaml'] = this.dump({ layout: lay }, 'Diagram layout from the Diagram Editor: x, y per asset; w, h for containers (canvas pixels); edges: connection points "from>to": {from, to} with l, r, t1-t3 (top), b1-b3 (bottom).'); }
     files['asset_types.yaml'] = this.dump({ asset_types: s.types }, 'Asset type registry — add your own types here.');
     Object.keys(groups).sort().forEach(function (g) { files['assets/' + g + '.yaml'] = self.dump({ assets: groups[g] }, g + ' assets'); });
     files['lineage.yaml'] = this.dump({ lineage: s.lineage.map(function (e) { return self.cleanEdge(e); }) }, 'Asset-level lineage. Column-level lineage lives in each field (expression + sources).');
@@ -1057,7 +1057,7 @@ class Component extends DCLogic {
     var mains = paths.filter(function (p) { return /(^|\/)main\.ya?ml$/i.test(p); }).sort(function (a, b) { return a.split('/').length - b.split('/').length; });
     var entry = mains[0] || (paths.length === 1 ? paths[0] : null);
     if (!entry) throw new Error('main.yaml not found. With several files, main.yaml is the entry point that includes the others.');
-    var acc = { asset_types: [], assets: [], lineage: [], layout: {} }, loaded = [], stack = [];
+    var acc = { asset_types: [], assets: [], lineage: [], layout: {}, layoutEdges: {} }, loaded = [], stack = [];
     var visit = function (path) {
       if (stack.indexOf(path) >= 0) throw new Error('Include cycle: ' + stack.concat([path]).join(' → '));
       if (loaded.indexOf(path) >= 0) return;
@@ -1071,6 +1071,7 @@ class Component extends DCLogic {
         acc[kv[1]] = acc[kv[1]].concat(v.map(function (x) { return x && typeof x === 'object' && !Array.isArray(x) && kv[1] === 'assets' ? Object.assign({ __file: path }, x) : x; }));
       });
       if (doc.layout && typeof doc.layout === 'object' && doc.layout.nodes && typeof doc.layout.nodes === 'object') Object.assign(acc.layout, doc.layout.nodes);
+      if (doc.layout && typeof doc.layout === 'object' && doc.layout.edges && typeof doc.layout.edges === 'object') Object.assign(acc.layoutEdges, doc.layout.edges);
       var inc = doc.include !== undefined ? doc.include : doc.includes;
       var list = inc === null || inc === undefined ? [] : Array.isArray(inc) ? inc : [inc];
       var dir = path.indexOf('/') >= 0 ? path.slice(0, path.lastIndexOf('/') + 1) : '';
@@ -1083,7 +1084,7 @@ class Component extends DCLogic {
       stack.pop();
     };
     visit(entry);
-    var norm = this.normalize({ asset_types: acc.asset_types, assets: acc.assets, lineage: acc.lineage, layout: { nodes: acc.layout } });
+    var norm = this.normalize({ asset_types: acc.asset_types, assets: acc.assets, lineage: acc.lineage, layout: { nodes: acc.layout, edges: acc.layoutEdges } });
     norm.loaded = loaded; norm.unused = paths.filter(function (p) { return loaded.indexOf(p) < 0; });
     return norm;
   }
@@ -1127,7 +1128,9 @@ class Component extends DCLogic {
       if (Number(v.w) > 0 && Number(v.h) > 0) { o.w = Math.round(Number(v.w)); o.h = Math.round(Number(v.h)); }
       layoutPos[k] = o;
     });
-    return { types: types, datasets: datasets, lineage: lineage, layout: layoutPos };
+    var layoutEdges = {}, le = isObj(doc.layout) && isObj(doc.layout.edges) ? doc.layout.edges : {}, SIDES = ['l', 'r', 't1', 't2', 't3', 'b1', 'b2', 'b3'];
+    Object.keys(le).forEach(function (k) { var v = le[k]; if (!isObj(v) || k.indexOf('>') < 0) return; var o = { from: SIDES.indexOf(str(v.from)) >= 0 ? str(v.from) : '', to: SIDES.indexOf(str(v.to)) >= 0 ? str(v.to) : '' }; if (o.from || o.to) layoutEdges[k] = o; });
+    return { types: types, datasets: datasets, lineage: lineage, layout: layoutPos, layoutEdges: layoutEdges };
   }
   applyLoaded(d, sourceName) {
     var s = this.state, datasets, lineage;
@@ -1142,7 +1145,7 @@ class Component extends DCLogic {
     var sel = datasets.some(function (x) { return x.id === s.sel; }) ? s.sel : (datasets[0] ? datasets[0].id : null);
     var files = d.loaded || [];
     this.setState({ types: types, datasets: datasets, lineage: lineage, sel: sel, linSel: null, linCol: null, importText: '', loaded: files, unused: d.unused || [], sourceName: sourceName,
-      layoutPos: s.mode === 'replace' ? (d.layout || {}) : Object.assign({}, s.layoutPos, d.layout || {}), layout: d.layout && Object.keys(d.layout).length ? 'custom' : (s.layout === 'custom' ? 'dag' : s.layout),
+      layoutPos: s.mode === 'replace' ? (d.layout || {}) : Object.assign({}, s.layoutPos, d.layout || {}), layoutEdges: s.mode === 'replace' ? (d.layoutEdges || {}) : Object.assign({}, s.layoutEdges, d.layoutEdges || {}), layout: d.layout && Object.keys(d.layout).length ? 'custom' : (s.layout === 'custom' ? 'dag' : s.layout),
       msg: 'Loaded ' + d.datasets.length + ' assets, ' + d.lineage.length + ' lineage relations and ' + d.types.length + ' custom types from ' + (files.length || 1) + ' file(s) (' + (s.mode === 'replace' ? 'replaced' : 'merged') + ').', msgKind: 'ok' });
   }
 
@@ -1341,7 +1344,8 @@ class Component extends DCLogic {
     };
 
     // one asset card (leaf), placed at x,y inside block `bk`
-    var placeNode = function (bk, id, x, y) {
+    var placeNode = function (bk, id, x, y, wOpt) {
+      var NWn = wOpt || NW;
       var d = byId[id], fields = d ? d.fields : [];
       var showC = s.showCols && fields.length > 0;
       var h = 4 + HEAD + (showC ? 9 + fields.length * ROW : 0);
@@ -1358,9 +1362,9 @@ class Component extends DCLogic {
       });
       var op = p[3]; if (filtering && s.fMode === 'highlight' && !matchF(id) && id !== ls) op = 0.25;
       var isFrom = s.connect && s.connectFrom === id;
-      nodes.push({ id: id, name: d ? d.name : 'not in catalog', typeLabel: d ? tinfo(d.type).label : 'External', tcolor: dotColor(id), x: x, y: y, h: h, bg: p[0], fg: p[1], bd: isFrom || hit ? '#CA8A04' : p[2], op: op, showCols: showC, cols: cols,
+      nodes.push({ id: id, name: d ? d.name : 'not in catalog', typeLabel: d ? tinfo(d.type).label : 'External', tcolor: dotColor(id), x: x, y: y, w: NWn, h: h, bg: p[0], fg: p[1], bd: isFrom || hit ? '#CA8A04' : p[2], op: op, showCols: showC, cols: cols,
         pick: function () { selectAsset(id); } });
-      (inst[bk] = inst[bk] || {})[id] = { key: bk + '|' + id, x: x, y: y, w: NW, ay: y + 31, showC: showC, rows: rows };
+      (inst[bk] = inst[bk] || {})[id] = { key: bk + '|' + id, x: x, y: y, w: NWn, h: h, mid: 31, ay: y + 31, showC: showC, rows: rows };
       if (!firstPos[id]) firstPos[id] = { x: x, y: y };
       return h;
     };
@@ -1541,6 +1545,8 @@ class Component extends DCLogic {
     } else if (s.layout === 'custom') {
       // ---------- Editor layout: positions and container sizes saved by the Diagram Editor (layout.yaml) ----------
       var LP = s.layoutPos, HHc = 36;
+      var nodeWc = function (id) { var d = byId[id]; if (!d) return NW; var w = Math.max(NW, Math.ceil(id.length * 7.4 + 60), Math.ceil((tinfo(d.type).label + ' · ' + d.name).length * 6.5 + 44)); if (s.showCols) d.fields.forEach(function (f) { w = Math.max(w, Math.ceil(f.name.length * 7.4 + Math.max(4, String(f.type || '').length) * 6.3 + 64)); }); return Math.min(w, 1200); };
+      var boxWc = function (d, p) { return Math.max(p.w || 0, Math.ceil(d.name.length * 8 + 70), Math.ceil((tinfo(d.type).label + ' · ' + d.id).length * 6.2 + 70)); };
       var isContC = function (id) { var p = LP[id]; return !!(p && p.w && p.h); };
       var chainOf = function (id) { var out = [], cur = byId[id], g = 0; while (cur && cur.parent && g++ < 30) { out.push(cur.parent); cur = byId[cur.parent]; } return out; };
       var hiddenBy = function (id) { var ch = chainOf(id); for (var i = ch.length - 1; i >= 0; i--) { if (s.collapsed['custom|' + ch[i]] && isContC(ch[i])) return ch[i]; } return null; };
@@ -1554,11 +1560,12 @@ class Component extends DCLogic {
         var hit = lq && (c.id + ' ' + c.name).toLowerCase().indexOf(lq) >= 0;
         var bd = k === 'sel' ? '#0F766E' : k === 'up' ? '#1D4ED8' : k === 'down' ? '#C2410C' : hit ? '#CA8A04' : (c.type === 'airflow.dag' ? '#8996A3' : '#B8C2CC');
         var bg = k === 'sel' ? '#E7F4F2' : k === 'up' ? '#EFF6FF' : k === 'down' ? '#FFF7ED' : (lvl % 2 ? '#F6F8FA' : '#FFFFFF');
-        boxes.push({ x: p.x, y: p.y, w: p.w, h: closed ? HHc : p.h, hh: HHc, fs: c.type === 'airflow.dag' ? 14 : 12, title: c.name, sub: tinfo(c.type).label + ' · ' + c.id, bg: bg, bd: bd, bw: k === 'all' || k === 'other' ? (c.type === 'airflow.dag' ? 2 : 1) : 2, bs: 'solid', op: 1, dot: dotColor(c.id), canToggle: true, open: !closed, chev: closed ? '▸' : '▾',
+        var cw0 = boxWc(c, p);
+        boxes.push({ x: p.x, y: p.y, w: cw0, h: closed ? HHc : p.h, hh: HHc, fs: c.type === 'airflow.dag' ? 14 : 12, title: c.name, sub: tinfo(c.type).label + ' · ' + c.id, bg: bg, bd: bd, bw: k === 'all' || k === 'other' ? (c.type === 'airflow.dag' ? 2 : 1) : 2, bs: 'solid', op: 1, dot: dotColor(c.id), canToggle: true, open: !closed, chev: closed ? '▸' : '▾',
           toggleLabel: (closed ? 'Open ' : 'Close ') + c.id, toggle: function () { var cc = Object.assign({}, self.state.collapsed); if (cc[key]) delete cc[key]; else cc[key] = 1; set({ collapsed: cc }); }, pick: function () { selectAsset(c.id); }, hasPick: true });
-        inst.custom[c.id] = { key: key, x: p.x, y: p.y, w: p.w, ay: p.y + HHc / 2, showC: false, rows: {} };
+        inst.custom[c.id] = { key: key, x: p.x, y: p.y, w: cw0, h: closed ? HHc : p.h, mid: HHc / 2, ay: p.y + HHc / 2, showC: false, rows: {} };
         if (!firstPos[c.id]) firstPos[c.id] = { x: p.x, y: p.y };
-        maxX = Math.max(maxX, p.x + p.w); maxY = Math.max(maxY, p.y + (closed ? HHc : p.h));
+        maxX = Math.max(maxX, p.x + cw0); maxY = Math.max(maxY, p.y + (closed ? HHc : p.h));
       });
       var unplaced = [];
       ids.forEach(function (id) {
@@ -1567,7 +1574,7 @@ class Component extends DCLogic {
         if (hb) return;
         if (!showable(id)) return;
         var p = LP[id]; if (!p) { unplaced.push(id); return; }
-        var h = placeNode('custom', id, p.x, p.y); maxX = Math.max(maxX, p.x + NW); maxY = Math.max(maxY, p.y + h);
+        var wc = nodeWc(id), h = placeNode('custom', id, p.x, p.y, wc); maxX = Math.max(maxX, p.x + wc); maxY = Math.max(maxY, p.y + h);
       });
       ids.forEach(function (id) { var hb = hiddenBy(id); if (hb && inst.custom[hb]) inst.custom[id] = inst.custom[hb]; });
       if (unplaced.length) {
@@ -1618,6 +1625,16 @@ class Component extends DCLogic {
       else if (b.x + b.w <= a.x - 8) { x1 = a.x; x2 = b.x + b.w; dx = Math.max(40, (x1 - x2) / 2); addPath('M' + x1 + ' ' + ay + ' C' + (x1 - dx) + ' ' + ay + ' ' + (x2 + 8 + dx) + ' ' + by2 + ' ' + (x2 + 8) + ' ' + by2, x2, by2, -1, color, w, op, pick); }
       else { var xr = Math.max(a.x + a.w, b.x + b.w); x1 = a.x + a.w; x2 = b.x + b.w; addPath('M' + x1 + ' ' + ay + ' C' + (xr + 60) + ' ' + ay + ' ' + (xr + 60) + ' ' + by2 + ' ' + (x2 + 8) + ' ' + by2, x2, by2, -1, color, w, op, pick); }
     };
+    var SPEC = { l: [0, 'm', -1, 0], r: [1, 'm', 1, 0], t1: [0.25, 0, 0, -1], t2: [0.5, 0, 0, -1], t3: [0.75, 0, 0, -1], b1: [0.25, 1, 0, 1], b2: [0.5, 1, 0, 1], b3: [0.75, 1, 0, 1] };
+    var portPt = function (r, side) { var q = SPEC[side]; if (!q || r.h === undefined) return null; return { x: r.x + q[0] * r.w, y: q[1] === 'm' ? r.y + (r.mid || 31) : r.y + q[1] * r.h, nx: q[2], ny: q[3] }; };
+    var portLink = function (a, b, fp, tp, color, w, op, pick) {
+      if (!fp) fp = b.x >= a.x + a.w ? 'r' : b.x + b.w <= a.x ? 'l' : (b.y > a.y ? 'b2' : 't2');
+      if (!tp) tp = a.x + a.w <= b.x ? 'l' : a.x >= b.x + b.w ? 'r' : (a.y > b.y ? 'b2' : 't2');
+      var p1 = portPt(a, fp), p2 = portPt(b, tp); if (!p1 || !p2) { link(a, a.ay, b, b.ay, color, w, op, pick); return; }
+      var k = Math.max(40, Math.min(160, Math.hypot(p2.x - p1.x, p2.y - p1.y) / 2.5)), ex = p2.x + p2.nx * 9, ey = p2.y + p2.ny * 9;
+      var bx = p2.x + p2.nx * 10, by4 = p2.y + p2.ny * 10, px = -p2.ny * 5, py = p2.nx * 5;
+      paths.push({ d: 'M' + p1.x + ' ' + p1.y + ' C' + (p1.x + p1.nx * k) + ' ' + (p1.y + p1.ny * k) + ' ' + (p2.x + p2.nx * k) + ' ' + (p2.y + p2.ny * k) + ' ' + ex + ' ' + ey, head: 'M' + p2.x + ' ' + p2.y + ' L' + (bx + px) + ' ' + (by4 + py) + ' L' + (bx - px) + ' ' + (by4 - py) + ' Z', color: color, w: w, op: op, pick: pick });
+    };
     Object.keys(inst).forEach(function (bk) {
       var I = inst[bk], seenK = {};
       gEdges.forEach(function (e) {
@@ -1630,7 +1647,9 @@ class Component extends DCLogic {
           if (inUp) { color = '#1D4ED8'; w = 2.5; } else if (inDown) { color = '#C2410C'; w = 2.5; } else op = 0.25;
         }
         if (se && se.from === e.from && se.to === e.to) { color = '#0F766E'; w = 3.5; op = 1; }
-        link(a, a.ay, b, b.ay, color, w, op, function () { set({ selEdge: { from: e.from, to: e.to } }); });
+        var lpe = bk === 'custom' && a.key === bk + '|' + e.from && b.key === bk + '|' + e.to ? s.layoutEdges[e.from + '>' + e.to] : null;
+        if (lpe && (lpe.from || lpe.to)) portLink(a, b, lpe.from, lpe.to, color, w, op, function () { set({ selEdge: { from: e.from, to: e.to } }); });
+        else link(a, a.ay, b, b.ay, color, w, op, function () { set({ selEdge: { from: e.from, to: e.to } }); });
       });
       if (lc) {
         var inTrace = [lc].concat(colUp, colDown), inSet = {};
@@ -1901,7 +1920,7 @@ class Component extends DCLogic {
       hasColTrace: !!lc, ct: { ref: lc || '', summary: summary }, traceUp: traceUp, traceDown: traceDown, noDown: traceDown.length === 0,
       edgeRows: edgeRows, edgeForm: s.edgeForm, efFrom: form('edgeForm', 'from'), efTo: form('edgeForm', 'to'), efProc: form('edgeForm', 'process'), efType: form('edgeForm', 'type'), addEdge: addEdge,
       relTypes: ['reads', 'writes', 'calls', 'triggers', 'uses', 'produces', 'configures', 'deploys', 'depends_on'].map(function (v) { return { v: v }; }),
-      loadSample: function () { var d = self.sample(); set({ types: d.types, datasets: d.datasets, lineage: d.lineage, sel: 'acme-sales.mart.sales_daily', linSel: null, linCol: 'acme-sales.mart.sales_daily.total_sales', focusOnly: false, layout: 'dag', collapsed: {}, selEdge: null, tf: '', loaded: [], unused: [], sourceName: 'built-in example', layoutPos: {}, tab: 'lineage', msg: 'Loaded the example: 5 domains, ' + d.datasets.length + ' assets, at least 5 of every asset type (replaced the current data). Showing the trace of total_sales — press Reset to see everything.', msgKind: 'ok' }); },
+      loadSample: function () { var d = self.sample(); set({ types: d.types, datasets: d.datasets, lineage: d.lineage, sel: 'acme-sales.mart.sales_daily', linSel: null, linCol: 'acme-sales.mart.sales_daily.total_sales', focusOnly: false, layout: 'dag', collapsed: {}, selEdge: null, tf: '', loaded: [], unused: [], sourceName: 'built-in example', layoutPos: {}, layoutEdges: {}, tab: 'lineage', msg: 'Loaded the example: 5 domains, ' + d.datasets.length + ' assets, at least 5 of every asset type (replaced the current data). Showing the trace of total_sales — press Reset to see everything.', msgKind: 'ok' }); },
       yaml: this.toYaml(), download: download, downloadZip: downloadZip, copy: copy, onFile: onFile, onDragOver: onDragOver, onDrop: onDrop,
       importText: s.importText, onImportText: function (e) { set({ importText: e.target.value }); },
       applyPaste: function () {
