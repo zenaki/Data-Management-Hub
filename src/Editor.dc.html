@@ -87,7 +87,7 @@ textarea.inp{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:12px;l
 </aside>
 
 <main style="flex: 1; min-width: 0; position: relative">
-<div ref="{{canvasRef}}" style="position: absolute; inset: 0; overflow: auto; background-color: #FBFCFD; background-image: radial-gradient(#D5DCE3 1px, transparent 1px); background-size: {{gridPx}}px {{gridPx}}px; cursor: grab">
+<div ref="{{canvasRef}}" tabindex="0" aria-label="Diagram canvas" style="outline: none; position: absolute; inset: 0; overflow: auto; background-color: #FBFCFD; background-image: radial-gradient(#D5DCE3 1px, transparent 1px); background-size: {{gridPx}}px {{gridPx}}px; cursor: grab">
 <div style="position: relative; width: {{cw}}px; height: {{chh}}px">
 <div style="position: absolute; left: 0; top: 0; width: {{baseW}}px; height: {{baseH}}px; transform: scale({{zoom}}); transform-origin: 0 0">
 
@@ -123,6 +123,9 @@ textarea.inp{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:12px;l
 </div>
 </sc-for>
 
+<sc-if value="{{hasMarquee}}" hint-placeholder-val="{{false}}">
+<div aria-hidden="true" style="position: absolute; left: {{mq.x}}px; top: {{mq.y}}px; width: {{mq.w}}px; height: {{mq.h}}px; border: 1.5px dashed #0F766E; background: rgba(15, 118, 110, 0.08); pointer-events: none"></div>
+</sc-if>
 <sc-if value="{{hasTemp}}" hint-placeholder-val="{{false}}">
 <svg aria-hidden="true" width="1" height="1" style="position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none"><path d="{{temp.d}}" style="fill: none; stroke: {{temp.color}}; stroke-width: 2px; stroke-dasharray: 6 4"></path></svg>
 </sc-if>
@@ -148,13 +151,15 @@ textarea.inp{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:12px;l
 <li>Drag a container's header to move it with everything inside; drag its corner to resize.</li>
 <li>Drag the <span style="color: #0F766E; font-weight: 600">teal dot</span> onto another asset to add a lineage relation.</li>
 <li>Drag a column's <span style="color: #7E22CE; font-weight: 600">purple dot</span> onto a column of another asset to make it a source.</li>
+<li>Shift/Ctrl/⌘ + click to select several assets, or Shift + drag on empty space to box-select. Drag one of them to move them all.</li>
+<li>Keyboard (click the canvas first): Ctrl/⌘+D duplicate · Delete remove · Ctrl/⌘+A select all · Ctrl/⌘+Z undo · Esc clear.</li>
 <li>Ctrl/⌘ + scroll to zoom; drag the background to pan.</li>
 </ul>
 <span style="font-size: 12px; color: #5B6876">{{stats}}</span>
 </sc-if>
 
 <sc-if value="{{selAsset}}" hint-placeholder-val="{{false}}">
-<div style="display: flex; justify-content: space-between; align-items: center; gap: 8px"><span class="sec">{{pa.typeLabel}}</span><button type="button" class="del" onClick="{{pa.del}}">Delete asset</button></div>
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 8px"><span class="sec">{{pa.typeLabel}}</span><span style="display: flex; gap: 6px"><button type="button" class="tb" style="min-height: 32px" onClick="{{dupOne}}" title="Ctrl/⌘ + D">Duplicate</button><button type="button" class="del" onClick="{{pa.del}}">Delete</button></span></div>
 <div style="display: flex; gap: 6px; align-items: flex-end">
 <label class="lbl" style="flex: 1">ID<input class="inp mono" value="{{idBuf}}" onChange="{{onIdBuf}}"></label>
 <button type="button" class="tb" disabled="{{pa.idSame}}" onClick="{{pa.rename}}">Rename</button>
@@ -204,6 +209,22 @@ textarea.inp{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:12px;l
 </div>
 </sc-if>
 
+<sc-if value="{{selMulti}}" hint-placeholder-val="{{false}}">
+<span class="sec">{{pm.count}} assets selected</span>
+<span style="font-size: 12px; color: #4A5765; line-height: 1.5">Drag any of them to move them together{{pm.extra}}. Shift/Ctrl/⌘ + click adds or removes an asset.</span>
+<div style="display: flex; flex-wrap: wrap; gap: 6px">
+<button type="button" class="tb pri" onClick="{{pm.duplicate}}" title="Ctrl/⌘ + D">Duplicate</button>
+<button type="button" class="del" style="min-height: 36px" onClick="{{pm.del}}" title="Delete">Delete</button>
+<button type="button" class="tb" onClick="{{pm.clear}}" title="Esc">Clear selection</button>
+</div>
+<label class="lbl">Move all into container
+<select class="inp mono" value="{{pm.parent}}" onChange="{{pm.onParent}}"><option value="">— none (top level) —</option><sc-for list="{{pm.parentOpts}}" as="o" hint-placeholder-count="3"><option value="{{o.id}}">{{o.id}}</option></sc-for></select>
+</label>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<sc-for list="{{pm.items}}" as="it" hint-placeholder-count="3"><div style="display: flex; gap: 4px; align-items: center"><button type="button" class="pal mono" style="flex: 1; min-width: 0; font-size: 11px; min-height: 30px" onClick="{{it.pick}}" title="{{it.sub}}"><span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{it.label}}</span></button><button type="button" class="del" style="min-height: 28px" onClick="{{it.remove}}" aria-label="Unselect {{it.id}}">×</button></div></sc-for>
+</div>
+</sc-if>
+
 <sc-if value="{{selEdge}}" hint-placeholder-val="{{false}}">
 <div style="display: flex; justify-content: space-between; align-items: center"><span class="sec">Lineage relation</span><button type="button" class="del" onClick="{{pe.del}}">Delete</button></div>
 <div class="mono" style="font-size: 12px; line-height: 1.6; word-break: break-all"><button type="button" class="pal mono" style="font-size: 12px" onClick="{{pe.pickFrom}}">{{pe.from}}</button><span style="color: #5B6876; padding-left: 10px">↓</span><button type="button" class="pal mono" style="font-size: 12px" onClick="{{pe.pickTo}}">{{pe.to}}</button></div>
@@ -231,7 +252,7 @@ class Component extends DCLogic {
     this.state = {
       types: this.defaultTypes ? this.defaultTypes() : [], datasets: [], lineage: [], layoutPos: {},
       sel: null, zoom: 0.8, showCols: true, snap: true, hist: [], fut: [], msg: core ? '' : 'Core library not loaded — open editor.html from the Metadata Hub site.', msgKind: core ? 'ok' : 'err',
-      drag: null, tq: '', oq: '', relType: 'depends_on', idBuf: '', tagsBuf: '', propBuf: '', srcBuf: {}, sourceName: ''
+      drag: null, multi: [], tq: '', oq: '', relType: 'depends_on', idBuf: '', tagsBuf: '', propBuf: '', srcBuf: {}, sourceName: ''
     };
     this.canvasRef = this.attachCanvas.bind(this);
   }
@@ -258,7 +279,7 @@ class Component extends DCLogic {
   }
   say(m, k) { this.setState({ msg: m, msgKind: k || 'ok' }); }
   select(sel) {
-    var st = { sel: sel, srcBuf: {} };
+    var st = { sel: sel, srcBuf: {}, multi: sel && sel.kind === 'asset' ? [sel.id] : [] };
     var aid = sel && sel.kind === 'asset' ? sel.id : sel && sel.kind === 'col' ? sel.ref.slice(0, sel.ref.lastIndexOf('.')) : null;
     if (aid) {
       var d = this.byIdMap()[aid];
@@ -306,7 +327,7 @@ class Component extends DCLogic {
   attachCanvas(el) {
     var self = this;
     if (this._cv === el) return;
-    if (this._cv) { this._cv.removeEventListener('mousedown', this._onDown); this._cv.removeEventListener('wheel', this._onWheel); }
+    if (this._cv) { this._cv.removeEventListener('mousedown', this._onDown); this._cv.removeEventListener('wheel', this._onWheel); if (this._onKey) this._cv.removeEventListener('keydown', this._onKey); }
     this._cv = el;
     if (!el) return;
     if (!this._onDown) {
@@ -321,14 +342,17 @@ class Component extends DCLogic {
         var t = e.target; if (!t.closest || t.closest('input,textarea,select,a,label')) return;
         var cport = t.closest('[data-colport]'), port = t.closest('[data-port]'), rz = t.closest('[data-resize]'), dg = t.closest('[data-drag]');
         var p = self.canvasPoint(e), LP = self.state.layoutPos;
+        try { el.focus({ preventScroll: true }); } catch (x) {}
         if (cport) self._drag = { kind: 'col', from: cport.getAttribute('data-colport'), x0: p.x, y0: p.y };
         else if (port) self._drag = { kind: 'edge', from: port.getAttribute('data-port'), x0: p.x, y0: p.y };
         else if (rz) { var rid = rz.getAttribute('data-resize'), rp = LP[rid]; if (!rp) return; self._drag = { kind: 'resize', id: rid, p0: p, w0: rp.w, h0: rp.h, moved: false }; }
         else if (dg) {
-          var id = dg.getAttribute('data-drag'), orig = {};
-          [id].concat(self.descendantsOf(id)).forEach(function (i) { if (LP[i]) orig[i] = Object.assign({}, LP[i]); });
-          self._drag = { kind: 'move', id: id, p0: p, orig: orig, moved: false };
-        } else self._drag = { kind: 'pan', cx: e.clientX, cy: e.clientY, l: el.scrollLeft, t: el.scrollTop };
+          var id = dg.getAttribute('data-drag'), orig = {}, mul = self.state.multi;
+          var group = mul.length > 1 && mul.indexOf(id) >= 0 ? self.topLevel(mul) : [id];
+          group.forEach(function (g) { [g].concat(self.descendantsOf(g)).forEach(function (i) { if (LP[i]) orig[i] = Object.assign({}, LP[i]); }); });
+          self._drag = { kind: 'move', id: id, group: group, p0: p, orig: orig, moved: false };
+        } else if (e.shiftKey || e.ctrlKey || e.metaKey) self._drag = { kind: 'marquee', x0: p.x, y0: p.y, add: e.ctrlKey || e.metaKey };
+        else self._drag = { kind: 'pan', cx: e.clientX, cy: e.clientY, l: el.scrollLeft, t: el.scrollTop };
         e.preventDefault();
       };
       this._onMove = function (e) {
@@ -344,6 +368,8 @@ class Component extends DCLogic {
           var excl = {}; Object.keys(d.orig).forEach(function (i) { excl[i] = 1; });
           var mp = LP2[d.id], over = mp ? self.containerAt(mp.x + 40, mp.y + 20, excl) : '';
           self.setState({ layoutPos: LP2, drag: { kind: 'move', over: over } });
+        } else if (d.kind === 'marquee') {
+          self.setState({ drag: { kind: 'marquee', x: Math.min(d.x0, p.x), y: Math.min(d.y0, p.y), w: Math.abs(p.x - d.x0), h: Math.abs(p.y - d.y0) } });
         } else if (d.kind === 'resize') {
           if (!d.moved) { d.moved = true; self.pushHist(true); }
           var LP3 = Object.assign({}, self.state.layoutPos), o2 = LP3[d.id];
@@ -358,8 +384,22 @@ class Component extends DCLogic {
         self._drag = null;
         if (self._cv) self._cv.style.cursor = 'grab';
         if (d.kind === 'move') {
-          if (d.moved) { self._suppress = true; setTimeout(function () { self._suppress = false; }, 0); self.dropReparent(d.id); }
+          if (d.moved) { self._suppress = true; setTimeout(function () { self._suppress = false; }, 0); self.dropReparent(d.group || [d.id]); }
           self.setState({ drag: null });
+        } else if (d.kind === 'marquee') {
+          var r = self.state.drag || { x: 0, y: 0, w: 0, h: 0 };
+          self.setState({ drag: null });
+          if (r.w < 4 && r.h < 4) return;
+          var mm = self.byIdMap(), hcm = self.hasChildMap(), picked = [];
+          self.state.datasets.forEach(function (x) {
+            var q = self.rectOf(x.id, mm, hcm); if (!q) return;
+            var inside = q.x >= r.x && q.y >= r.y && q.x + q.w <= r.x + r.w && q.y + q.h <= r.y + r.h;
+            if (inside) picked.push(x.id);
+          });
+          var base = d.add ? self.selectedIds() : [];
+          picked.forEach(function (x) { if (base.indexOf(x) < 0) base.push(x); });
+          self.setMulti(base);
+          self.say(picked.length ? picked.length + ' assets inside the box selected.' : 'No asset is fully inside the box.', picked.length ? 'ok' : 'err');
         } else if (d.kind === 'resize') {
           if (d.moved) { self._suppress = true; setTimeout(function () { self._suppress = false; }, 0); }
         } else if (d.kind === 'edge' || d.kind === 'col') {
@@ -372,9 +412,24 @@ class Component extends DCLogic {
       window.addEventListener('mousemove', this._onMove);
       window.addEventListener('mouseup', this._onUp);
     }
+    if (!this._onKey) {
+      this._onKey = function (e) {
+        var t = e.target; if (t && t.closest && t.closest('input,textarea,select')) return;
+        var mod = e.ctrlKey || e.metaKey, k = e.key;
+        if ((k === 'Delete' || k === 'Backspace') && self.selectedIds().length) { e.preventDefault(); self.deleteMany(self.selectedIds()); }
+        else if (mod && (k === 'd' || k === 'D')) { e.preventDefault(); self.duplicateMany(self.selectedIds()); }
+        else if (mod && (k === 'a' || k === 'A')) { e.preventDefault(); self.setMulti(self.state.datasets.map(function (x) { return x.id; })); }
+        else if (mod && (k === 'z' || k === 'Z')) { e.preventDefault(); if (e.shiftKey) self.redoNow(); else self.undoNow(); }
+        else if (mod && (k === 'y' || k === 'Y')) { e.preventDefault(); self.redoNow(); }
+        else if (k === 'Escape') { self.setState({ sel: null, multi: [] }); }
+      };
+    }
     el.addEventListener('mousedown', this._onDown);
     el.addEventListener('wheel', this._onWheel, { passive: false });
+    el.addEventListener('keydown', this._onKey);
   }
+  undoNow() { var h = this.state.hist; if (!h.length) return; var prev = h[h.length - 1]; this.setState({ datasets: prev.datasets, lineage: prev.lineage, layoutPos: prev.layoutPos, hist: h.slice(0, -1), fut: this.state.fut.concat([this.snapshot()]), sel: null, multi: [] }); }
+  redoNow() { var f = this.state.fut; if (!f.length) return; var nx = f[f.length - 1]; this.setState({ datasets: nx.datasets, lineage: nx.lineage, layoutPos: nx.layoutPos, fut: f.slice(0, -1), hist: this.state.hist.concat([this.snapshot()]), sel: null, multi: [] }); }
   componentWillUnmount() {
     if (this._onMove) { window.removeEventListener('mousemove', this._onMove); window.removeEventListener('mouseup', this._onUp); }
     this.attachCanvas(null);
@@ -394,19 +449,78 @@ class Component extends DCLogic {
   }
 
   /* ---------- edits ---------- */
-  dropReparent(id) {
-    var m = this.byIdMap(), d = m[id], LP = this.state.layoutPos, p = LP[id]; if (!d || !p) return;
-    var excl = {}; excl[id] = 1; this.descendantsOf(id).forEach(function (x) { excl[x] = 1; });
-    var target = this.containerAt(p.x + 40, p.y + 20, excl), ds = this.state.datasets;
-    if ((d.parent || '') !== target) {
-      var oldP = d.parent && m[d.parent] ? d.parent : '';
-      if (target || oldP) {
-        ds = ds.map(function (x) { return x.id === id ? Object.assign({}, x, { parent: target }) : x; });
-        this.say(target ? 'Moved ' + id + ' into ' + target + '.' : 'Moved ' + id + ' out of ' + oldP + '.');
+  dropReparent(ids) {
+    var self = this, ds = this.state.datasets, LP = this.state.layoutPos, msgs = [];
+    [].concat(ids).forEach(function (id) {
+      var m = {}; ds.forEach(function (x) { m[x.id] = x; });
+      var d = m[id], p = LP[id]; if (!d || !p) return;
+      var excl = {}; [].concat(ids).forEach(function (g) { excl[g] = 1; self.descendantsOf(g).forEach(function (x) { excl[x] = 1; }); });
+      var target = self.containerAt(p.x + 40, p.y + 20, excl);
+      if ((d.parent || '') !== target) {
+        var oldP = d.parent && m[d.parent] ? d.parent : '';
+        if (target || oldP) {
+          ds = ds.map(function (x) { return x.id === id ? Object.assign({}, x, { parent: target }) : x; });
+          msgs.push(target ? id + ' → ' + target : id + ' out of ' + oldP);
+        }
       }
-    }
-    this.setState({ datasets: ds, layoutPos: this.fitAncestors(id, LP, ds) });
+      LP = self.fitAncestors(id, LP, ds);
+    });
+    var st = { datasets: ds, layoutPos: LP };
+    if (msgs.length) { st.msg = 'Moved ' + msgs.join(', ') + '.'; st.msgKind = 'ok'; }
+    this.setState(st);
   }
+  toggleMulti(id) {
+    var cur = this.state.multi.length ? this.state.multi.slice() : (this.state.sel && this.state.sel.kind === 'asset' ? [this.state.sel.id] : []);
+    var i = cur.indexOf(id); if (i >= 0) cur.splice(i, 1); else cur.push(id);
+    this.setMulti(cur);
+  }
+  setMulti(ids) {
+    if (ids.length === 1) { this.select({ kind: 'asset', id: ids[0] }); return; }
+    this.setState({ multi: ids, sel: ids.length ? { kind: 'multi' } : null });
+  }
+  /* the selected assets that are not inside another selected asset */
+  topLevel(ids) {
+    var self = this, inside = {};
+    ids.forEach(function (id) { self.descendantsOf(id).forEach(function (x) { inside[x] = 1; }); });
+    return ids.filter(function (id) { return !inside[id]; });
+  }
+  duplicateMany(ids) {
+    var self = this, m = this.byIdMap(), set = {};
+    ids = ids.filter(function (id) { return m[id]; }); if (!ids.length) return;
+    ids.forEach(function (id) { set[id] = 1; self.descendantsOf(id).forEach(function (x) { set[x] = 1; }); });
+    var all = Object.keys(set), map = {}, used = Object.assign({}, m);
+    all.forEach(function (id) { var n = id + '_copy', k = 2; while (used[n]) { n = id + '_copy' + k; k++; } map[id] = n; used[n] = 1; });
+    var rr = function (r) { var a = r.slice(0, r.lastIndexOf('.')); return map[a] ? map[a] + r.slice(a.length) : r; };
+    var copies = all.map(function (id) {
+      var d = m[id];
+      return Object.assign({}, d, { id: map[id], name: d.name + ' (copy)', parent: d.parent && map[d.parent] ? map[d.parent] : d.parent, tags: d.tags.slice(), properties: JSON.parse(JSON.stringify(d.properties || {})), file: '',
+        fields: d.fields.map(function (f) { return Object.assign({}, f, { sources: (f.sources || []).map(rr) }); }) });
+    });
+    var edges = this.state.lineage.filter(function (e) { return set[e.from] && set[e.to]; }).map(function (e) { return Object.assign({}, e, { from: map[e.from], to: map[e.to], properties: Object.assign({}, e.properties || {}) }); });
+    var LP = Object.assign({}, this.state.layoutPos);
+    all.forEach(function (id) { if (LP[id]) LP[map[id]] = Object.assign({}, LP[id], { x: LP[id].x + 40, y: LP[id].y + 40 }); });
+    this.pushHist(true);
+    var ds = this.state.datasets.concat(copies), tops = this.topLevel(ids).map(function (id) { return map[id]; });
+    tops.forEach(function (id) { LP = self.fitAncestors(id, LP, ds); });
+    this.setState({ datasets: ds, lineage: this.state.lineage.concat(edges), layoutPos: LP, multi: tops, sel: tops.length === 1 ? { kind: 'asset', id: tops[0] } : { kind: 'multi' }, idBuf: tops.length === 1 ? tops[0] : this.state.idBuf,
+      msg: 'Duplicated ' + all.length + ' asset' + (all.length > 1 ? 's' : '') + ' (contents of containers included) and ' + edges.length + ' relation' + (edges.length === 1 ? '' : 's') + ' between them. Copies are selected; drag them into place.', msgKind: 'ok' });
+  }
+  deleteMany(ids) {
+    var m = this.byIdMap(), del = {};
+    ids.forEach(function (id) { if (m[id]) del[id] = 1; });
+    var n = Object.keys(del).length; if (!n) return;
+    this.pushHist(true);
+    var up = function (pid) { var g = 0; while (pid && del[pid] && g++ < 30) pid = m[pid] ? m[pid].parent || '' : ''; return pid || ''; };
+    var gone = function (r) { return !!del[r.slice(0, r.lastIndexOf('.'))]; };
+    var ds = this.state.datasets.filter(function (x) { return !del[x.id]; }).map(function (x) {
+      var nx = x.parent && del[x.parent] ? Object.assign({}, x, { parent: up(x.parent) }) : x;
+      return nx.fields.some(function (f) { return (f.sources || []).some(gone); }) ? Object.assign({}, nx, { fields: nx.fields.map(function (f) { return Object.assign({}, f, { sources: (f.sources || []).filter(function (r) { return !gone(r); }) }); }) }) : nx;
+    });
+    var LP = Object.assign({}, this.state.layoutPos); Object.keys(del).forEach(function (id) { delete LP[id]; });
+    this.setState({ datasets: ds, lineage: this.state.lineage.filter(function (e) { return !del[e.from] && !del[e.to]; }), layoutPos: LP, sel: null, multi: [],
+      msg: 'Deleted ' + n + ' asset' + (n > 1 ? 's' : '') + '. Assets inside them moved up a level; relations and column sources pointing to them were removed.', msgKind: 'ok' });
+  }
+  selectedIds() { var s = this.state; return s.multi.length ? s.multi.slice() : (s.sel && s.sel.kind === 'asset' ? [s.sel.id] : []); }
   addEdge(from, to) {
     if (!to || from === to) return;
     if (this.state.lineage.some(function (e) { return e.from === from && e.to === to; })) { this.say('That relation already exists.', 'err'); return; }
@@ -453,17 +567,7 @@ class Component extends DCLogic {
     });
     this.setState({ datasets: ds });
   }
-  deleteAsset(id) {
-    var m = this.byIdMap(), d = m[id]; if (!d) return;
-    this.pushHist(true);
-    var pref = id + '.';
-    var ds = this.state.datasets.filter(function (x) { return x.id !== id; }).map(function (x) {
-      var n = x.parent === id ? Object.assign({}, x, { parent: d.parent || '' }) : x;
-      return Object.assign({}, n, { fields: n.fields.map(function (f) { return (f.sources || []).some(function (r) { return r.slice(0, r.lastIndexOf('.')) === id; }) ? Object.assign({}, f, { sources: f.sources.filter(function (r) { return r.slice(0, r.lastIndexOf('.')) !== id; }) }) : f; }) });
-    });
-    var LP = Object.assign({}, this.state.layoutPos); delete LP[id];
-    this.setState({ datasets: ds, lineage: this.state.lineage.filter(function (e) { return e.from !== id && e.to !== id; }), layoutPos: LP, sel: null, msg: 'Deleted ' + id + '. Its children moved up one level; relations and column sources pointing to it were removed.', msgKind: 'ok' });
-  }
+  deleteAsset(id) { this.deleteMany([id]); }
   addAsset(type) {
     var m = this.byIdMap(), hc = this.hasChildMap(), base = 'new_' + type.split('.').pop().replace(/[^A-Za-z0-9_]+/g, '_'), n = 1;
     while (m[base + '_' + n]) n++;
@@ -545,7 +649,9 @@ class Component extends DCLogic {
     var tinfo = function (id) { return tmap[id] || { id: id, label: id || 'dataset', category: 'Other', color: '#475569' }; };
     var classify = function (f) { var src = f.sources || []; if (!src.length) return 'Source'; if (f.expression || src.length > 1) return 'Transformed'; return src[0].slice(src[0].lastIndexOf('.') + 1) === f.name ? 'Passthrough' : 'Rename'; };
     var BADGE = { Passthrough: 'pass', Rename: 'ren', Transformed: 'ƒx' };
-    var sel = s.sel || null, selId = sel && sel.kind === 'asset' ? sel.id : null;
+    var sel = s.sel || null, selId = sel && sel.kind === 'asset' ? sel.id : null, msel = {};
+    s.multi.forEach(function (id) { msel[id] = 1; });
+    var pickAsset = function (id) { return function (e) { if (self._suppress) return; if (e && (e.shiftKey || e.ctrlKey || e.metaKey)) self.toggleMulti(id); else self.select({ kind: 'asset', id: id }); }; };
     var selCol = sel && sel.kind === 'col' ? sel.ref : sel && sel.kind === 'colsrc' ? sel.target : null;
     var nest = function (id) { var n = 0, cur = m[id]; while (cur && cur.parent && m[cur.parent] && n < 30) { n++; cur = m[cur.parent]; } return n; };
     var over = s.drag && s.drag.kind === 'move' ? s.drag.over : '';
@@ -554,11 +660,11 @@ class Component extends DCLogic {
     // containers
     var boxes = [], anchors = {}, colRows = {}, x1 = 1600, y1 = 1000;
     ds.filter(function (d) { return self.isCont(d, hc) && LP[d.id] && LP[d.id].w; }).sort(function (a, b) { return nest(a.id) - nest(b.id); }).forEach(function (d) {
-      var p = LP[d.id], on = selId === d.id, isOver = over === d.id;
+      var p = LP[d.id], on = selId === d.id || !!msel[d.id], isOver = over === d.id;
       boxes.push({ id: d.id, x: p.x, y: p.y, w: p.w, h: p.h, title: d.name, sub: tinfo(d.type).label + ' · ' + d.id, dot: tinfo(d.type).color,
         bd: isOver ? '#CA8A04' : on ? '#0F766E' : d.type === 'airflow.dag' ? '#8996A3' : '#B8C2CC', bw: isOver || on ? 3 : d.type === 'airflow.dag' ? 2 : 1,
         bg: isOver ? '#FEFCE8' : on ? '#E7F4F2' : (nest(d.id) % 2 ? '#F6F8FA' : '#FFFFFF'),
-        pick: guard(function () { self.select({ kind: 'asset', id: d.id }); }) });
+        pick: pickAsset(d.id) });
       anchors[d.id] = { x: p.x, y: p.y, w: p.w, ay: p.y + 20 };
       x1 = Math.max(x1, p.x + p.w + 400); y1 = Math.max(y1, p.y + p.h + 300);
     });
@@ -567,7 +673,7 @@ class Component extends DCLogic {
     ds.forEach(function (d) {
       if (self.isCont(d, hc) && LP[d.id] && LP[d.id].w) return;
       var p = LP[d.id]; if (!p) return;
-      var on = selId === d.id, showC = s.showCols && d.fields.length > 0, h = 4 + 58 + (showC ? 9 + d.fields.length * 26 : 0);
+      var on = selId === d.id || !!msel[d.id], showC = s.showCols && d.fields.length > 0, h = 4 + 58 + (showC ? 9 + d.fields.length * 26 : 0);
       var cols = d.fields.map(function (f, i) {
         var ref = d.id + '.' + f.name, cl = classify(f), cs = selCol === ref;
         colRows[ref] = p.y + 2 + 58 + 5 + i * 26 + 13;
@@ -575,7 +681,7 @@ class Component extends DCLogic {
           pick: guard(function () { self.select({ kind: 'col', ref: ref }); }) };
       });
       nodes.push({ id: d.id, x: p.x, y: p.y, h: h, name: d.name, typeLabel: tinfo(d.type).label, dot: tinfo(d.type).color, bg: on ? '#0F766E' : '#FFFFFF', fg: on ? '#FFFFFF' : '#15202B', bd: on ? '#0F766E' : '#C5CED8', showCols: showC, cols: cols,
-        pick: guard(function () { self.select({ kind: 'asset', id: d.id }); }) });
+        pick: pickAsset(d.id) });
       anchors[d.id] = { x: p.x, y: p.y, w: 240, ay: p.y + 31 };
       x1 = Math.max(x1, p.x + 640); y1 = Math.max(y1, p.y + h + 300);
     });
@@ -616,7 +722,7 @@ class Component extends DCLogic {
     s.types.forEach(function (t) { if (tq && (t.label + ' ' + t.id + ' ' + t.category).toLowerCase().indexOf(tq) < 0) return; var g = cats.find(function (c) { return c.cat === t.category; }); if (!g) { g = { cat: t.category, items: [] }; cats.push(g); } g.items.push({ label: t.label, color: t.color, radius: self.CONT()[t.id] ? '2px' : '50%', add: function () { self.addAsset(t.id); } }); });
     var oq = s.oq.trim().toLowerCase(), outline = [];
     var kidsOf = {}; ds.forEach(function (d) { var p = d.parent && m[d.parent] ? d.parent : ''; (kidsOf[p] = kidsOf[p] || []).push(d); });
-    var walkO = function (pid, lvl) { (kidsOf[pid] || []).slice().sort(function (a, b) { return a.id < b.id ? -1 : 1; }).forEach(function (d) { if (!oq || (d.id + ' ' + d.name).toLowerCase().indexOf(oq) >= 0) outline.push({ id: d.id, label: d.id, indent: 10 + (oq ? 0 : lvl * 12), color: tinfo(d.type).color, bg: selId === d.id ? '#E7F4F2' : 'transparent', pick: function () { self.select({ kind: 'asset', id: d.id }); self.centerOn(d.id); } }); walkO(d.id, lvl + 1); }); };
+    var walkO = function (pid, lvl) { (kidsOf[pid] || []).slice().sort(function (a, b) { return a.id < b.id ? -1 : 1; }).forEach(function (d) { if (!oq || (d.id + ' ' + d.name).toLowerCase().indexOf(oq) >= 0) outline.push({ id: d.id, label: d.id, indent: 10 + (oq ? 0 : lvl * 12), color: tinfo(d.type).color, bg: selId === d.id || msel[d.id] ? '#E7F4F2' : 'transparent', pick: function (e) { if (e && (e.shiftKey || e.ctrlKey || e.metaKey)) { self.toggleMulti(d.id); return; } self.select({ kind: 'asset', id: d.id }); self.centerOn(d.id); } }); walkO(d.id, lvl + 1); }); };
     walkO('', 0);
 
     // panel: asset
@@ -691,7 +797,25 @@ class Component extends DCLogic {
         pickTarget: function () { self.select({ kind: 'asset', id: ta }); self.centerOn(ta); },
         remove: function () { var d = m[ta]; if (!d) return; var idx = d.fields.findIndex(function (f) { return f.name === tcn; }); if (idx < 0) return; self.updField(ta, idx, { sources: d.fields[idx].sources.filter(function (x) { return x !== src; }) }, true); set({ sel: null }); } };
     }
-    var stamp = new Date().toISOString().slice(0, 10);
+    var pm = null;
+    if (sel && sel.kind === 'multi' && s.multi.length > 1) {
+      var cntSet = {}; s.multi.forEach(function (id) { cntSet[id] = 1; self.descendantsOf(id).forEach(function (x) { cntSet[x] = 1; }); }); var cnt = Object.keys(cntSet).length;
+      var common = s.multi.every(function (id) { return m[id] && (m[id].parent || '') === (m[s.multi[0]].parent || ''); }) && m[s.multi[0]] ? m[s.multi[0]].parent || '' : '';
+      var exclM = {}; s.multi.forEach(function (id) { exclM[id] = 1; self.descendantsOf(id).forEach(function (x) { exclM[x] = 1; }); });
+      pm = { count: s.multi.length, total: cnt, extra: cnt > s.multi.length ? ' — duplicate and move include what is inside selected containers (' + cnt + ' assets)' : '',
+        items: s.multi.map(function (id) { return { id: id, label: id, sub: m[id] ? tinfo(m[id].type).label : '', pick: function () { self.select({ kind: 'asset', id: id }); self.centerOn(id); }, remove: function () { self.toggleMulti(id); } }; }),
+        duplicate: function () { self.duplicateMany(self.state.multi); }, del: function () { self.deleteMany(self.state.multi); }, clear: function () { set({ sel: null, multi: [] }); },
+        parent: common, parentOpts: ds.filter(function (d) { return !exclM[d.id] && self.isCont(d, hc); }).map(function (d) { return { id: d.id }; }),
+        onParent: function (e) {
+          var np = e.target.value; self.pushHist(true);
+          var ids = self.state.multi, ds2 = self.state.datasets.map(function (d) { return ids.indexOf(d.id) >= 0 ? Object.assign({}, d, { parent: np }) : d; }), LPx = Object.assign({}, self.state.layoutPos), pp = LPx[np];
+          if (pp) { var oy = 0; ids.forEach(function (id) { if (!LPx[id]) return; var dxp = pp.x + 16 - LPx[id].x, dyp = pp.y + 48 + oy - LPx[id].y; [id].concat(self.descendantsOf(id)).forEach(function (i) { if (LPx[i]) LPx[i] = Object.assign({}, LPx[i], { x: LPx[i].x + dxp, y: LPx[i].y + dyp }); }); oy += (LPx[id].h || self.nodeH(id, m)) + 16; }); }
+          ids.forEach(function (id) { LPx = self.fitAncestors(id, LPx, ds2); });
+          set({ datasets: ds2, layoutPos: LPx, msg: 'Moved ' + ids.length + ' assets ' + (np ? 'into ' + np : 'to the top level') + '.', msgKind: 'ok' });
+        } };
+    }
+    var mq = s.drag && s.drag.kind === 'marquee' && s.drag.w !== undefined ? s.drag : null;
+    var stamp = function () { var d = new Date(), z = function (n) { return (n < 10 ? '0' : '') + n; }; return '' + d.getFullYear() + z(d.getMonth() + 1) + z(d.getDate()) + z(d.getHours()) + z(d.getMinutes()) + z(d.getSeconds()); };
     var save = function (blob, name, okMsg) {
       try { var u = URL.createObjectURL(blob), a = document.createElement('a'); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(u); }, 2000); say(okMsg); }
       catch (e) { say('Download is blocked in this view.', 'err'); }
@@ -725,11 +849,10 @@ class Component extends DCLogic {
           .then(function (b) { return self.readZip(b); }).then(function (fs) { self.applyDoc(self.loadProject(fs), 'airflow-bigquery-sample.zip'); })
           .catch(function (err) { say('Could not load the sample — ' + err.message, 'err'); });
       },
-      exportZip: function () { var f = self.toFiles(); save(self.makeZip(f), 'metadata-hub-' + stamp + '.zip', 'Exported ' + Object.keys(f).length + ' files including layout.yaml. Import the .zip in the viewer to see this layout.'); },
-      exportYaml: function () { save(new Blob([self.toYaml()], { type: 'application/x-yaml' }), 'metadata-hub-' + stamp + '.yaml', 'Exported a single YAML file (with layout).'); },
+      exportZip: function () { var f = self.toFiles(); save(self.makeZip(f), 'metadata-hub-' + stamp() + '.zip', 'Exported ' + Object.keys(f).length + ' files including layout.yaml. Import the .zip in the viewer to see this layout.'); },
+      exportYaml: function () { save(new Blob([self.toYaml()], { type: 'application/x-yaml' }), 'metadata-hub-' + stamp() + '.yaml', 'Exported a single YAML file (with layout).'); },
       noUndo: s.hist.length === 0, noRedo: s.fut.length === 0,
-      undo: function () { var h = self.state.hist; if (!h.length) return; var prev = h[h.length - 1]; set({ datasets: prev.datasets, lineage: prev.lineage, layoutPos: prev.layoutPos, hist: h.slice(0, -1), fut: self.state.fut.concat([self.snapshot()]), sel: null }); },
-      redo: function () { var f = self.state.fut; if (!f.length) return; var nx = f[f.length - 1]; set({ datasets: nx.datasets, lineage: nx.lineage, layoutPos: nx.layoutPos, fut: f.slice(0, -1), hist: self.state.hist.concat([self.snapshot()]), sel: null }); },
+      undo: function () { self.undoNow(); }, redo: function () { self.redoNow(); },
       autoAll: function () { if (!ds.length) return; self.pushHist(true); set({ layoutPos: self.autoLayout(false), msg: 'Auto-layout applied. Undo restores your own layout.', msgKind: 'ok' }); },
       zoomIn: function () { self.zoomTo(self.state.zoom * 1.2); }, zoomOut: function () { self.zoomTo(self.state.zoom / 1.2); }, zoomReset: function () { self.zoomTo(1); }, fit: function () { self.fitView(); },
       zoomText: Math.round(z * 100) + '%', zoom: z, baseW: baseW, baseH: baseH, cw: Math.round(baseW * z), chh: Math.round(baseH * z), gridPx: Math.max(4, Math.round(16 * z)),
@@ -740,7 +863,9 @@ class Component extends DCLogic {
       relType: s.relType, onRelType: function (e) { set({ relType: e.target.value }); },
       relTypes: ['depends_on', 'reads', 'writes', 'calls', 'triggers', 'configures', 'uses', 'produces', 'deploys'].map(function (v) { return { v: v }; }),
       oq: s.oq, onOq: function (e) { set({ oq: e.target.value }); }, outline: outline.slice(0, 400), assetCount: ds.length + ' assets',
-      selNone: !pa && !pe && !pcs, selAsset: !!pa, selEdge: !!pe, selColSrc: !!pcs,
+      selNone: !pa && !pe && !pcs && !pm, selAsset: !!pa, selMulti: !!pm, pm: pm || { items: [], parentOpts: [] },
+      hasMarquee: !!mq, mq: mq || { x: 0, y: 0, w: 0, h: 0 },
+      dupOne: function () { self.duplicateMany(self.selectedIds()); }, selEdge: !!pe, selColSrc: !!pcs,
       pa: pa || { cols: [], rels: [], parentOpts: [] }, pe: pe || {}, pcs: pcs || {},
       idBuf: s.idBuf, onIdBuf: function (e) { set({ idBuf: e.target.value }); },
       tagsBuf: s.tagsBuf, onTagsBuf: function (e) { set({ tagsBuf: e.target.value }); },

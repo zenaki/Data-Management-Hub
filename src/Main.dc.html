@@ -1745,9 +1745,9 @@ class Component extends DCLogic {
         say(okMsg + ' If nothing downloads in this view, use "Copy text".');
       } catch (e) { say('Download is blocked in this view — use "Copy text".', 'err'); }
     };
-    var stamp = new Date().toISOString().slice(0, 10);
-    var download = function () { save(new Blob([self.toYaml()], { type: 'application/x-yaml' }), 'metadata-hub-' + stamp + '.yaml', 'Single YAML file downloaded.'); };
-    var downloadZip = function () { var f = self.toFiles(); save(self.makeZip(f), 'metadata-hub-' + stamp + '.zip', 'Zip downloaded with ' + Object.keys(f).length + ' files (main.yaml is the entry point).'); };
+    var stamp = function () { var d = new Date(), z = function (n) { return (n < 10 ? '0' : '') + n; }; return '' + d.getFullYear() + z(d.getMonth() + 1) + z(d.getDate()) + z(d.getHours()) + z(d.getMinutes()) + z(d.getSeconds()); };
+    var download = function () { save(new Blob([self.toYaml()], { type: 'application/x-yaml' }), 'metadata-hub-' + stamp() + '.yaml', 'Single YAML file downloaded.'); };
+    var downloadZip = function () { var f = self.toFiles(); save(self.makeZip(f), 'metadata-hub-' + stamp() + '.zip', 'Zip downloaded with ' + Object.keys(f).length + ' files (main.yaml is the entry point).'); };
     var copy = function () {
       try { navigator.clipboard.writeText(self.toYaml()).then(function () { say('YAML copied to the clipboard.'); }, function () { say('Could not copy automatically — select the text in the box and copy it.', 'err'); }); }
       catch (e) { say('Could not copy automatically — select the text in the box and copy it.', 'err'); }
@@ -1862,7 +1862,7 @@ class Component extends DCLogic {
       showMini: s.showMini && nodes.length > 0, miniLabel: s.showMini ? 'Hide minimap' : 'Show minimap', toggleMini: function () { set({ showMini: !self.state.showMini }); }, mini: mini, onMini: onMini,
       connect: s.connect, connectBg: s.connect ? '#CA8A04' : '#FFFFFF', connectFg: s.connect ? '#FFFFFF' : '#15202B',
       toggleConnect: function () { var on = !self.state.connect; set({ connect: on, connectFrom: null, msg: on ? 'Connect mode on: click a source asset, then a target asset. The relation type and process come from the "Add lineage relation" form (default depends_on).' : 'Connect mode off.', msgKind: 'ok' }); },
-      exportSvg: function () { save(new Blob([self.buildSvg()], { type: 'image/svg+xml' }), 'lineage-' + stamp + '.svg', 'SVG downloaded.'); },
+      exportSvg: function () { save(new Blob([self.buildSvg()], { type: 'image/svg+xml' }), 'lineage-' + stamp() + '.svg', 'SVG downloaded.'); },
       exportPng: function () {
         var L = self._layout; if (!L) return;
         var url = URL.createObjectURL(new Blob([self.buildSvg()], { type: 'image/svg+xml' })), img = new Image();
@@ -1870,7 +1870,7 @@ class Component extends DCLogic {
           var sc = Math.min(2, 8000 / Math.max(L.baseW, L.baseH)), c = document.createElement('canvas');
           c.width = Math.round(L.baseW * sc); c.height = Math.round(L.baseH * sc);
           var g = c.getContext('2d'); g.scale(sc, sc); g.drawImage(img, 0, 0); URL.revokeObjectURL(url);
-          c.toBlob(function (b) { if (b) save(b, 'lineage-' + stamp + '.png', 'PNG downloaded.'); else say('Could not render the PNG.', 'err'); });
+          c.toBlob(function (b) { if (b) save(b, 'lineage-' + stamp() + '.png', 'PNG downloaded.'); else say('Could not render the PNG.', 'err'); });
         };
         img.onerror = function () { say('Could not render the PNG.', 'err'); };
         img.src = url;
