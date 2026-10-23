@@ -1409,7 +1409,9 @@ class Component extends DCLogic {
         if (!blk.dag) return own;
         var isBQ = function (id) { var d = byId[id]; return d && /^bigquery\./.test(d.type) && d.type !== 'bigquery.procedure_step' && d.type !== 'bigquery.project' && d.type !== 'bigquery.dataset'; };
         var rel = allEdges.filter(function (e) { return e.process !== '(implied by columns)' && mem[e.from] && mem[e.to]; });
-        rel.forEach(function (e) { var f = byId[e.from]; if (f && f.type === 'airflow.task' && dagOf(e.from) === blk.id && isBQ(e.to) && !own[e.to]) own[e.to] = e.from; });
+        // explicit: an asset whose parent is a task (set in the Diagram Editor)
+        ds.forEach(function (d) { var p = d.parent && byId[d.parent]; if (p && p.type === 'airflow.task' && dagOf(p.id) === blk.id) { own[d.id] = p.id; mem[d.id] = 1; } });
+        rel.forEach(function (e) { var f = byId[e.from], t = byId[e.to]; if (f && f.type === 'airflow.task' && dagOf(e.from) === blk.id && isBQ(e.to) && !own[e.to] && !(t.parent && byId[t.parent] && byId[t.parent].type === 'bigquery.stored_procedure')) own[e.to] = e.from; });
         rel.forEach(function (e) { var f = byId[e.from]; if (f && f.type === 'bigquery.procedure_step' && own[f.parent] && isBQ(e.to) && !own[e.to]) own[e.to] = own[f.parent]; });
         return own;
       };
@@ -1418,7 +1420,8 @@ class Component extends DCLogic {
         var tn = {}, isChild = {}, order = [], own = blk.own || {};
         var effLane = function (id) {
           if (own[id]) return laneOf(infoOf(own[id]).type);
-          var d = byId[id]; if (d && d.type === 'bigquery.procedure_step' && own[d.parent]) return laneOf(infoOf(own[d.parent]).type);
+          var d = byId[id], g = 0;
+          while (d && d.parent && byId[d.parent] && byId[d.parent].type === 'bigquery.stored_procedure' && g++ < 10) { if (own[d.parent]) return laneOf(infoOf(own[d.parent]).type); d = byId[d.parent]; }
           return laneOf(infoOf(id).type);
         };
         var get = function (id) { if (!tn[id]) { tn[id] = { id: id, children: [], member: false }; order.push(id); } return tn[id]; };

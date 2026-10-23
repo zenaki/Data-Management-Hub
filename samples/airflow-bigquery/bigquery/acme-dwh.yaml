@@ -195,14 +195,14 @@ assets:
   - id: acme-dwh.mart.sp_customer_ltv
     type: bigquery.stored_procedure
     name: sp_customer_ltv
-    parent: acme-dwh.mart
+    parent: airflow.sales_etl_daily.tg_mart.call_sp_customer_ltv
     owner: analytics-eng
     description: Rebuilds mart.customer_ltv for the run date.
     properties:
       language: SQL
       args: [run_date DATE]
 
-  # steps inside the stored procedure (shown as a container, like an Airflow task group)
+  # steps inside the stored procedure; the SP sits inside the task that calls it, customer_ltv inside the SP
   - id: acme-dwh.mart.sp_customer_ltv.step_1_delete
     type: bigquery.procedure_step
     name: step_1_delete
@@ -264,7 +264,7 @@ assets:
   - id: acme-dwh.mart.customer_ltv
     type: bigquery.table
     name: customer lifetime value
-    parent: acme-dwh.mart
+    parent: acme-dwh.mart.sp_customer_ltv
     domain: Customer
     owner: bi-team
     description: Lifetime value per customer, built by sp_customer_ltv.

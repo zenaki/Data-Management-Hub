@@ -283,7 +283,7 @@ class Component extends DCLogic {
   }
 
   /* ---------- helpers ---------- */
-  CONT() { return { 'airflow.dag': 1, 'airflow.task_group': 1, 'bigquery.project': 1, 'bigquery.dataset': 1, 'bigquery.stored_procedure': 1, 'gcs.bucket': 1, 'artifact_registry.repository': 1, 'vertex.pipeline': 1 }; }
+  CONT() { return { 'airflow.dag': 1, 'airflow.task_group': 1, 'airflow.task': 1, 'bigquery.project': 1, 'bigquery.dataset': 1, 'bigquery.stored_procedure': 1, 'gcs.bucket': 1, 'artifact_registry.repository': 1, 'vertex.pipeline': 1 }; }
   byIdMap() { var m = {}; this.state.datasets.forEach(function (d) { m[d.id] = d; }); return m; }
   hasChildMap() { var m = {}; this.state.datasets.forEach(function (d) { if (d.parent) m[d.parent] = 1; }); return m; }
   isCont(d, hc) { return !!(this.CONT()[d.type] || hc[d.id]); }
