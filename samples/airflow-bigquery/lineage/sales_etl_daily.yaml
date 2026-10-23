@@ -62,15 +62,21 @@ lineage:
   - from: airflow.sales_etl_daily.tg_mart.call_sp_customer_ltv
     to: acme-dwh.mart.sp_customer_ltv
     type: calls
-  - from: acme-dwh.staging.orders
-    to: acme-dwh.mart.sp_customer_ltv
-    type: reads
-  - from: acme-dwh.staging.customers
-    to: acme-dwh.mart.sp_customer_ltv
-    type: reads
-  - from: acme-dwh.mart.sp_customer_ltv
+  # inside the stored procedure: step 1 clears the run date, step 2 rebuilds it
+  - from: acme-dwh.mart.sp_customer_ltv.step_1_delete
     to: acme-dwh.mart.customer_ltv
     type: writes
+    process: DELETE for run_date
+  - from: acme-dwh.staging.orders
+    to: acme-dwh.mart.sp_customer_ltv.step_2_insert
+    type: reads
+  - from: acme-dwh.staging.customers
+    to: acme-dwh.mart.sp_customer_ltv.step_2_insert
+    type: reads
+  - from: acme-dwh.mart.sp_customer_ltv.step_2_insert
+    to: acme-dwh.mart.customer_ltv
+    type: writes
+    process: INSERT ... SELECT
   - from: acme-dwh.mart.sales_daily
     to: airflow.sales_etl_daily.tg_mart.create_kpi_view
     type: reads

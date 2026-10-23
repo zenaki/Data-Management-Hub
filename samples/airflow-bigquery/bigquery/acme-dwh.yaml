@@ -202,6 +202,26 @@ assets:
       language: SQL
       args: [run_date DATE]
 
+  # steps inside the stored procedure (shown as a container, like an Airflow task group)
+  - id: acme-dwh.mart.sp_customer_ltv.step_1_delete
+    type: bigquery.procedure_step
+    name: step_1_delete
+    parent: acme-dwh.mart.sp_customer_ltv
+    owner: analytics-eng
+    description: Remove rows for the run date so the procedure can be re-run safely.
+    properties:
+      statement: DELETE
+      sql: DELETE FROM mart.customer_ltv WHERE snapshot_date = run_date
+  - id: acme-dwh.mart.sp_customer_ltv.step_2_insert
+    type: bigquery.procedure_step
+    name: step_2_insert
+    parent: acme-dwh.mart.sp_customer_ltv
+    owner: analytics-eng
+    description: Rebuild lifetime value per customer from completed orders.
+    properties:
+      statement: INSERT ... SELECT
+      sql: INSERT INTO mart.customer_ltv SELECT ... FROM staging.orders JOIN staging.customers USING (customer_id)
+
   - id: acme-dwh.mart.sales_daily
     type: bigquery.table
     name: sales daily

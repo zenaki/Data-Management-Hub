@@ -27,6 +27,8 @@ textarea.inp{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:12px;l
 .pt{position:absolute;width:12px;height:12px;box-sizing:border-box;border-radius:50%;background:#0F766E;border:2px solid #fff;box-shadow:0 0 0 1px #0F766E;cursor:crosshair;opacity:.0;z-index:3}
 .nd:hover>.pt,.nd.on>.pt,.dragging .pt{opacity:1}
 .pt:hover{background:#CA8A04;box-shadow:0 0 0 1px #CA8A04}
+.mi{text-align:left;min-height:34px;padding:0 12px;border:0;border-radius:6px;background:transparent;font:inherit;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px}
+.mi:hover,.mi:focus-visible{background:#EEF1F4;outline:none}
 .chip button{border:0;background:transparent;color:#6B21A8;cursor:pointer;font-size:14px;line-height:1;padding:0 4px;min-height:22px}
 </style>
 </head>
@@ -105,7 +107,7 @@ textarea.inp{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:12px;l
 </sc-for>
 
 <sc-for list="{{paths}}" as="p" hint-placeholder-count="3">
-<svg aria-hidden="true" width="1" height="1" style="position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none"><path d="{{p.d}}" style="fill: none; stroke: {{p.color}}; stroke-width: {{p.w}}px; stroke-dasharray: {{p.dash}}"></path><path d="{{p.head}}" style="fill: {{p.color}}; stroke: none"></path><path d="{{p.d}}" onClick="{{p.pick}}" style="fill: none; stroke: transparent; stroke-width: 14px; pointer-events: stroke; cursor: pointer"></path></svg>
+<svg aria-hidden="true" width="1" height="1" style="position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none"><path d="{{p.d}}" style="fill: none; stroke: {{p.color}}; stroke-width: {{p.w}}px; stroke-dasharray: {{p.dash}}"></path><path d="{{p.head}}" style="fill: {{p.color}}; stroke: none"></path><path d="{{p.d}}" data-edge="{{p.key}}" onClick="{{p.pick}}" style="fill: none; stroke: transparent; stroke-width: 14px; pointer-events: stroke; cursor: pointer"></path></svg>
 </sc-for>
 
 <sc-for list="{{nodes}}" as="n" hint-placeholder-count="3">
@@ -125,6 +127,9 @@ textarea.inp{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:12px;l
 </div>
 </sc-for>
 
+<sc-for list="{{handles}}" as="hd" hint-placeholder-count="2">
+<span data-ehandle="{{hd.which}}" data-edge-i="{{hd.i}}" title="Drag to reconnect the {{hd.label}}" style="position: absolute; left: {{hd.x}}px; top: {{hd.y}}px; width: 18px; height: 18px; margin: -9px 0 0 -9px; box-sizing: border-box; border-radius: 50%; background: #FFFFFF; border: 3px solid #CA8A04; box-shadow: 0 1px 4px rgba(21, 32, 43, 0.3); cursor: grab; z-index: 6"></span>
+</sc-for>
 <sc-if value="{{hasMarquee}}" hint-placeholder-val="{{false}}">
 <div aria-hidden="true" style="position: absolute; left: {{mq.x}}px; top: {{mq.y}}px; width: {{mq.w}}px; height: {{mq.h}}px; border: 1.5px dashed #0F766E; background: rgba(15, 118, 110, 0.08); pointer-events: none"></div>
 </sc-if>
@@ -135,6 +140,12 @@ textarea.inp{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:12px;l
 </div>
 </div>
 </div>
+<sc-if value="{{hasCtx}}" hint-placeholder-val="{{false}}">
+<div role="menu" aria-label="Actions" style="position: absolute; left: {{ctxX}}px; top: {{ctxY}}px; z-index: 50; min-width: 230px; max-width: 320px; background: #FFFFFF; border: 1px solid #C5CED8; border-radius: 8px; box-shadow: 0 10px 28px rgba(21, 32, 43, 0.18); padding: 4px; display: flex; flex-direction: column">
+<span class="mono" style="font-size: 11px; color: #5B6876; padding: 6px 12px 4px; overflow-wrap: anywhere">{{ctxTitle}}</span>
+<sc-for list="{{ctxItems}}" as="ci" hint-placeholder-count="2"><button type="button" role="menuitem" class="mi" style="color: {{ci.color}}" onClick="{{ci.run}}">{{ci.label}}</button></sc-for>
+</div>
+</sc-if>
 <sc-if value="{{isEmpty}}" hint-placeholder-val="{{false}}">
 <div style="position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); max-width: 420px; padding: 24px; background: #FFFFFF; border: 1px solid #DCE3EA; border-radius: 12px; text-align: center; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 6px 20px rgba(21, 32, 43, 0.08)">
 <strong style="font-size: 16px">Start a diagram</strong>
@@ -154,6 +165,8 @@ textarea.inp{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:12px;l
 <li>Hover a block to see its 8 <span style="color: #0F766E; font-weight: 600">teal dots</span> (left, right, 3 on top, 3 at the bottom). Drag one onto another asset to add a lineage relation; the arrow lands on the nearest dot there.</li>
 <li>Drag a column's <span style="color: #7E22CE; font-weight: 600">purple dot</span> onto a column of another asset to make it a source.</li>
 <li>Shift/Ctrl/⌘ + click to select several assets, or Shift + drag on empty space to box-select. Drag one of them to move them all.</li>
+<li>Click a line, then drag its <span style="color: #CA8A04; font-weight: 600">yellow end handles</span> onto another block (or one of its dots) to change the upstream or downstream end.</li>
+<li>Right-click a block, a column, or a line for Edit / Duplicate / Delete.</li>
 <li>Keyboard (click the canvas first): Ctrl/⌘+D duplicate · Delete remove · Ctrl/⌘+A select all · Ctrl/⌘+Z undo · Esc clear.</li>
 <li>Ctrl/⌘ + scroll to zoom; drag the background to pan.</li>
 </ul>
@@ -240,7 +253,7 @@ textarea.inp{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:12px;l
 <select class="inp" value="{{pe.toSide}}" onChange="{{pe.onToSide}}"><option value="">Auto</option><sc-for list="{{sides}}" as="sd" hint-placeholder-count="8"><option value="{{sd.id}}">{{sd.label}}</option></sc-for></select>
 </label>
 </div>
-<span style="font-size: 11px; color: #5B6876">Tip: drag from any of the 8 dots on a block; the arrow lands on the dot nearest to where you drop it.</span>
+<span style="font-size: 11px; color: #5B6876">Drag the yellow handles at either end of the selected line onto another block to reconnect it; the end lands on the dot nearest to where you drop it.</span>
 <div><button type="button" class="tb" onClick="{{pe.reverse}}">Reverse direction</button></div>
 </sc-if>
 
@@ -430,7 +443,7 @@ class Component extends DCLogic {
       ['airflow.variable', 'Airflow Variable', 'Airflow', '#3730A3'], ['airflow.connection', 'Airflow Connection', 'Airflow', '#3730A3'],
       ['bigquery.project', 'BigQuery Project', 'BigQuery', '#115E59'], ['bigquery.dataset', 'BigQuery Dataset', 'BigQuery', '#0F766E'], ['bigquery.table', 'BigQuery Table', 'BigQuery', '#0F766E'],
       ['bigquery.view', 'BigQuery View', 'BigQuery', '#0E7490'], ['bigquery.materialized_view', 'BigQuery Materialized View', 'BigQuery', '#0E7490'],
-      ['bigquery.stored_procedure', 'BigQuery Stored Procedure', 'BigQuery', '#155E75'], ['bigquery.udf', 'BigQuery UDF', 'BigQuery', '#155E75'],
+      ['bigquery.stored_procedure', 'BigQuery Stored Procedure', 'BigQuery', '#155E75'], ['bigquery.procedure_step', 'BigQuery Procedure Step', 'BigQuery', '#0E7490'], ['bigquery.udf', 'BigQuery UDF', 'BigQuery', '#155E75'],
       ['vertex.pipeline', 'Vertex AI Pipeline', 'Vertex AI', '#6D28D9'], ['vertex.pipeline_component', 'Vertex Pipeline Component', 'Vertex AI', '#6D28D9'],
       ['vertex.model', 'Model Registry Model', 'Vertex AI', '#7E22CE'], ['vertex.endpoint', 'Vertex AI Endpoint', 'Vertex AI', '#86198F'], ['vertex.feature_view', 'Vertex Feature View', 'Vertex AI', '#86198F'],
       ['artifact_registry.repository', 'Artifact Registry Repository', 'Artifact Registry', '#9A3412'], ['artifact_registry.image', 'Artifact Registry Image', 'Artifact Registry', '#C2410C'],
@@ -1639,13 +1652,13 @@ class Component extends DCLogic {
     this.state = {
       types: this.defaultTypes ? this.defaultTypes() : [], datasets: [], lineage: [], layoutPos: {}, layoutEdges: {},
       sel: null, zoom: 0.8, showCols: true, snap: true, hist: [], fut: [], msg: core ? '' : 'Core library not loaded — open editor.html from the Metadata Hub site.', msgKind: core ? 'ok' : 'err',
-      drag: null, multi: [], tq: '', oq: '', relType: 'depends_on', idBuf: '', tagsBuf: '', propBuf: '', srcBuf: {}, sourceName: ''
+      drag: null, ctx: null, multi: [], tq: '', oq: '', relType: 'depends_on', idBuf: '', tagsBuf: '', propBuf: '', srcBuf: {}, sourceName: ''
     };
     this.canvasRef = this.attachCanvas.bind(this);
   }
 
   /* ---------- helpers ---------- */
-  CONT() { return { 'airflow.dag': 1, 'airflow.task_group': 1, 'bigquery.project': 1, 'bigquery.dataset': 1, 'gcs.bucket': 1, 'artifact_registry.repository': 1, 'vertex.pipeline': 1 }; }
+  CONT() { return { 'airflow.dag': 1, 'airflow.task_group': 1, 'bigquery.project': 1, 'bigquery.dataset': 1, 'bigquery.stored_procedure': 1, 'gcs.bucket': 1, 'artifact_registry.repository': 1, 'vertex.pipeline': 1 }; }
   byIdMap() { var m = {}; this.state.datasets.forEach(function (d) { m[d.id] = d; }); return m; }
   hasChildMap() { var m = {}; this.state.datasets.forEach(function (d) { if (d.parent) m[d.parent] = 1; }); return m; }
   isCont(d, hc) { return !!(this.CONT()[d.type] || hc[d.id]); }
@@ -1723,7 +1736,7 @@ class Component extends DCLogic {
   attachCanvas(el) {
     var self = this;
     if (this._cv === el) return;
-    if (this._cv) { this._cv.removeEventListener('mousedown', this._onDown); this._cv.removeEventListener('wheel', this._onWheel); if (this._onKey) this._cv.removeEventListener('keydown', this._onKey); }
+    if (this._cv) { this._cv.removeEventListener('mousedown', this._onDown); this._cv.removeEventListener('wheel', this._onWheel); if (this._onKey) this._cv.removeEventListener('keydown', this._onKey); if (this._onCtx) this._cv.removeEventListener('contextmenu', this._onCtx); }
     this._cv = el;
     if (!el) return;
     if (!this._onDown) {
@@ -1736,6 +1749,13 @@ class Component extends DCLogic {
       this._onDown = function (e) {
         if (e.button !== 0) return;
         var t = e.target; if (!t.closest || t.closest('input,textarea,select,a,label')) return;
+        if (self.state.ctx) self.setState({ ctx: null });
+        var eh = t.closest('[data-ehandle]');
+        if (eh && self._selEnds) {
+          var which = eh.getAttribute('data-ehandle'), fixed = which === 'from' ? self._selEnds.p2 : self._selEnds.p1;
+          self._drag = { kind: 'rewire', which: which, i: Number(eh.getAttribute('data-edge-i')), x0: fixed.x, y0: fixed.y };
+          e.preventDefault(); return;
+        }
         var cport = t.closest('[data-colport]'), port = t.closest('[data-port]'), rz = t.closest('[data-resize]'), dg = t.closest('[data-drag]');
         var p = self.canvasPoint(e), LP = self.state.layoutPos;
         try { el.focus({ preventScroll: true }); } catch (x) {}
@@ -1798,6 +1818,12 @@ class Component extends DCLogic {
           self.say(picked.length ? picked.length + ' assets inside the box selected.' : 'No asset is fully inside the box.', picked.length ? 'ok' : 'err');
         } else if (d.kind === 'resize') {
           if (d.moved) { self._suppress = true; setTimeout(function () { self._suppress = false; }, 0); }
+        } else if (d.kind === 'rewire') {
+          self.setState({ drag: null });
+          var hitR = document.elementFromPoint(e.clientX, e.clientY), tnR = hitR && hitR.closest && hitR.closest('[data-node]');
+          if (!tnR) { self.say('Drop the end on a block to reconnect it. Nothing changed.', 'err'); return; }
+          var nid = tnR.getAttribute('data-node'), nside = hitR.getAttribute && hitR.getAttribute('data-port') === nid ? hitR.getAttribute('data-side') : self.nearestSide(nid, self.canvasPoint(e));
+          self.rewireEdge(d.i, d.which, nid, nside);
         } else if (d.kind === 'edge' || d.kind === 'col') {
           self.setState({ drag: null });
           var hit = document.elementFromPoint(e.clientX, e.clientY);
@@ -1823,12 +1849,32 @@ class Component extends DCLogic {
         else if (mod && (k === 'a' || k === 'A')) { e.preventDefault(); self.setMulti(self.state.datasets.map(function (x) { return x.id; })); }
         else if (mod && (k === 'z' || k === 'Z')) { e.preventDefault(); if (e.shiftKey) self.redoNow(); else self.undoNow(); }
         else if (mod && (k === 'y' || k === 'Y')) { e.preventDefault(); self.redoNow(); }
-        else if (k === 'Escape') { self.setState({ sel: null, multi: [] }); }
+        else if (k === 'Escape') { self.setState({ sel: null, multi: [], ctx: null }); }
+      };
+    }
+    if (!this._onCtx) {
+      this._onCtx = function (e) {
+        e.preventDefault();
+        var t = e.target, r = self._cv.getBoundingClientRect(), it = null;
+        if (!t.closest || t.closest('[data-ehandle]')) return;
+        var col = t.closest('[data-col]'), edge = t.closest('[data-edge]'), node = t.closest('[data-node]');
+        if (col) it = { kind: 'col', ref: col.getAttribute('data-col') };
+        else if (edge) {
+          var k = edge.getAttribute('data-edge') || '';
+          if (k.indexOf('e:') === 0) it = { kind: 'edge', i: Number(k.slice(2)) };
+          else if (k.indexOf('c:') === 0) { var bar = k.indexOf('|'); it = { kind: 'colsrc', target: k.slice(2, bar), source: k.slice(bar + 1) }; }
+        } else if (node) it = { kind: 'asset', id: node.getAttribute('data-node') };
+        if (!it) { self.setState({ ctx: null }); return; }
+        it.x = e.clientX - r.left; it.y = e.clientY - r.top;
+        var inMulti = it.kind === 'asset' && self.state.multi.length > 1 && self.state.multi.indexOf(it.id) >= 0;
+        if (!inMulti) { if (it.kind === 'asset' || it.kind === 'col') self.select(it.kind === 'asset' ? { kind: 'asset', id: it.id } : { kind: 'col', ref: it.ref }); else self.setState({ sel: it.kind === 'edge' ? { kind: 'edge', i: it.i } : { kind: 'colsrc', target: it.target, source: it.source }, multi: [] }); }
+        self.setState({ ctx: it });
       };
     }
     el.addEventListener('mousedown', this._onDown);
     el.addEventListener('wheel', this._onWheel, { passive: false });
     el.addEventListener('keydown', this._onKey);
+    el.addEventListener('contextmenu', this._onCtx);
   }
   undoNow() { var h = this.state.hist; if (!h.length) return; var prev = h[h.length - 1]; this.setState({ datasets: prev.datasets, lineage: prev.lineage, layoutPos: prev.layoutPos, layoutEdges: prev.layoutEdges || {}, hist: h.slice(0, -1), fut: this.state.fut.concat([this.snapshot()]), sel: null, multi: [] }); }
   redoNow() { var f = this.state.fut; if (!f.length) return; var nx = f[f.length - 1]; this.setState({ datasets: nx.datasets, lineage: nx.lineage, layoutPos: nx.layoutPos, layoutEdges: nx.layoutEdges || {}, fut: f.slice(0, -1), hist: this.state.hist.concat([this.snapshot()]), sel: null, multi: [] }); }
@@ -1942,6 +1988,39 @@ class Component extends DCLogic {
     return best;
   }
   edgeKey(from, to) { return from + '>' + to; }
+  rewireEdge(i, which, nid, side) {
+    var e = this.state.lineage[i]; if (!e) return;
+    var from = which === 'from' ? nid : e.from, to = which === 'to' ? nid : e.to;
+    if (from === to) { this.say('A relation cannot start and end on the same block.', 'err'); return; }
+    if (this.state.lineage.some(function (x, j) { return j !== i && x.from === from && x.to === to; })) { this.say('That relation already exists.', 'err'); return; }
+    this.pushHist(true);
+    var LE = Object.assign({}, this.state.layoutEdges), old = LE[e.from + '>' + e.to] || {};
+    delete LE[e.from + '>' + e.to];
+    LE[from + '>' + to] = { from: which === 'from' ? side : (old.from || ''), to: which === 'to' ? side : (old.to || '') };
+    this.setState({ lineage: this.state.lineage.map(function (x, j) { return j === i ? Object.assign({}, x, { from: from, to: to }) : x; }), layoutEdges: LE, sel: { kind: 'edge', i: i },
+      msg: (which === 'from' ? 'Upstream' : 'Downstream') + ' end moved: ' + from + ' → ' + to + '.', msgKind: 'ok' });
+  }
+  deleteEdge(i) {
+    var e = this.state.lineage[i]; if (!e) return;
+    this.pushHist(true);
+    var LE = Object.assign({}, this.state.layoutEdges); delete LE[e.from + '>' + e.to];
+    this.setState({ lineage: this.state.lineage.filter(function (_, j) { return j !== i; }), layoutEdges: LE, sel: null, msg: 'Deleted relation ' + e.from + ' → ' + e.to + '.', msgKind: 'ok' });
+  }
+  deleteColumn(ref) {
+    var aid = ref.slice(0, ref.lastIndexOf('.')), cn = ref.slice(aid.length + 1);
+    this.pushHist(true);
+    var ds = this.state.datasets.map(function (d) {
+      var n = d.id === aid ? Object.assign({}, d, { fields: d.fields.filter(function (f) { return f.name !== cn; }) }) : d;
+      return n.fields.some(function (f) { return (f.sources || []).indexOf(ref) >= 0; }) ? Object.assign({}, n, { fields: n.fields.map(function (f) { return Object.assign({}, f, { sources: (f.sources || []).filter(function (x) { return x !== ref; }) }); }) }) : n;
+    });
+    this.setState({ datasets: ds, sel: { kind: 'asset', id: aid }, msg: 'Deleted column ' + ref + ' (and removed it from other columns\' sources).', msgKind: 'ok' });
+  }
+  removeColSource(target, source) {
+    var aid = target.slice(0, target.lastIndexOf('.')), cn = target.slice(aid.length + 1), d = this.byIdMap()[aid]; if (!d) return;
+    var idx = d.fields.findIndex(function (f) { return f.name === cn; }); if (idx < 0) return;
+    this.updField(aid, idx, { sources: d.fields[idx].sources.filter(function (x) { return x !== source; }) }, true);
+    this.setState({ sel: null, msg: 'Removed ' + source + ' from the sources of ' + target + '.', msgKind: 'ok' });
+  }
   addEdge(from, to, fp, tp) {
     if (!to || from === to) return;
     if (this.state.lineage.some(function (e) { return e.from === from && e.to === to; })) { this.say('That relation already exists.', 'err'); return; }
@@ -2111,13 +2190,13 @@ class Component extends DCLogic {
       x1 = Math.max(x1, p.x + nw + 400); y1 = Math.max(y1, p.y + h + 300);
     });
     // lines
-    var paths = [];
+    var paths = [], lastEnds = null, handles = [];
     var addPath = function (d, hx, hy, dir, color, w, dash, pick) { paths.push({ d: d, head: 'M' + hx + ' ' + hy + ' L' + (hx - 10 * dir) + ' ' + (hy - 5) + ' L' + (hx - 10 * dir) + ' ' + (hy + 5) + ' Z', color: color, w: w, dash: dash, pick: pick }); };
     var link = function (a, ay, b, by2, color, w, dash, pick) {
       var x1a, x2a, dx;
-      if (b.x >= a.x + a.w + 8) { x1a = a.x + a.w; x2a = b.x; dx = Math.max(40, (x2a - x1a) / 2); addPath('M' + x1a + ' ' + ay + ' C' + (x1a + dx) + ' ' + ay + ' ' + (x2a - 8 - dx) + ' ' + by2 + ' ' + (x2a - 8) + ' ' + by2, x2a, by2, 1, color, w, dash, pick); }
-      else if (b.x + b.w <= a.x - 8) { x1a = a.x; x2a = b.x + b.w; dx = Math.max(40, (x1a - x2a) / 2); addPath('M' + x1a + ' ' + ay + ' C' + (x1a - dx) + ' ' + ay + ' ' + (x2a + 8 + dx) + ' ' + by2 + ' ' + (x2a + 8) + ' ' + by2, x2a, by2, -1, color, w, dash, pick); }
-      else { var xr = Math.max(a.x + a.w, b.x + b.w); x1a = a.x + a.w; x2a = b.x + b.w; addPath('M' + x1a + ' ' + ay + ' C' + (xr + 60) + ' ' + ay + ' ' + (xr + 60) + ' ' + by2 + ' ' + (x2a + 8) + ' ' + by2, x2a, by2, -1, color, w, dash, pick); }
+      if (b.x >= a.x + a.w + 8) { x1a = a.x + a.w; x2a = b.x; lastEnds = { p1: { x: x1a, y: ay }, p2: { x: x2a, y: by2 } }; dx = Math.max(40, (x2a - x1a) / 2); addPath('M' + x1a + ' ' + ay + ' C' + (x1a + dx) + ' ' + ay + ' ' + (x2a - 8 - dx) + ' ' + by2 + ' ' + (x2a - 8) + ' ' + by2, x2a, by2, 1, color, w, dash, pick); }
+      else if (b.x + b.w <= a.x - 8) { x1a = a.x; x2a = b.x + b.w; lastEnds = { p1: { x: x1a, y: ay }, p2: { x: x2a, y: by2 } }; dx = Math.max(40, (x1a - x2a) / 2); addPath('M' + x1a + ' ' + ay + ' C' + (x1a - dx) + ' ' + ay + ' ' + (x2a + 8 + dx) + ' ' + by2 + ' ' + (x2a + 8) + ' ' + by2, x2a, by2, -1, color, w, dash, pick); }
+      else { var xr = Math.max(a.x + a.w, b.x + b.w); x1a = a.x + a.w; x2a = b.x + b.w; lastEnds = { p1: { x: x1a, y: ay }, p2: { x: x2a, y: by2 } }; addPath('M' + x1a + ' ' + ay + ' C' + (xr + 60) + ' ' + ay + ' ' + (xr + 60) + ' ' + by2 + ' ' + (x2a + 8) + ' ' + by2, x2a, by2, -1, color, w, dash, pick); }
     };
     var portLink = function (a, b, fp, tp, color, w, dash, pick) {
       var autoA = !fp, autoB = !tp;
@@ -2125,6 +2204,7 @@ class Component extends DCLogic {
       if (autoA) fp = b.x >= a.x + a.w ? 'r' : b.x + b.w <= a.x ? 'l' : (b.y > a.y ? 'b2' : 't2');
       if (autoB) tp = a.x + a.w <= b.x ? 'l' : a.x >= b.x + b.w ? 'r' : (a.y > b.y ? 'b2' : 't2');
       var p1 = self.portPoint(a, fp), p2 = self.portPoint(b, tp); if (!p1 || !p2) { link(a, a.ay, b, b.ay, color, w, dash, pick); return; }
+      lastEnds = { p1: p1, p2: p2 };
       var k = Math.max(40, Math.min(160, Math.hypot(p2.x - p1.x, p2.y - p1.y) / 2.5));
       var ex = p2.x + p2.nx * 9, ey = p2.y + p2.ny * 9;
       var dpath = 'M' + p1.x + ' ' + p1.y + ' C' + (p1.x + p1.nx * k) + ' ' + (p1.y + p1.ny * k) + ' ' + (p2.x + p2.nx * k) + ' ' + (p2.y + p2.ny * k) + ' ' + ex + ' ' + ey;
@@ -2135,6 +2215,12 @@ class Component extends DCLogic {
       var a = anchors[e.from], b = anchors[e.to]; if (!a || !b) return;
       var on = sel && sel.kind === 'edge' && sel.i === i, touch = selId && (e.from === selId || e.to === selId), lp = s.layoutEdges[e.from + '>' + e.to] || {};
       portLink(a, b, lp.from, lp.to, on ? '#0F766E' : touch ? '#1D4ED8' : '#8996A3', on ? 3.5 : touch ? 2.5 : 1.5, 'none', guard(function () { self.select({ kind: 'edge', i: i }); }));
+      paths[paths.length - 1].key = 'e:' + i;
+      if (on && lastEnds) {
+        self._selEnds = lastEnds;
+        handles.push({ which: 'from', i: i, x: lastEnds.p1.x, y: lastEnds.p1.y, label: 'start (upstream: ' + e.from + ')' });
+        handles.push({ which: 'to', i: i, x: lastEnds.p2.x, y: lastEnds.p2.y, label: 'arrow end (downstream: ' + e.to + ')' });
+      }
     });
     ds.forEach(function (d) {
       d.fields.forEach(function (f) {
@@ -2144,13 +2230,14 @@ class Component extends DCLogic {
           if (!a || !b || colRows[r] === undefined || colRows[tref] === undefined) return;
           var on = sel && sel.kind === 'colsrc' && sel.target === tref && sel.source === r, touch = selCol === tref || selCol === r;
           link(a, colRows[r], b, colRows[tref], on ? '#7E22CE' : touch ? '#9333EA' : '#C4B5FD', on ? 3 : touch ? 2 : 1.25, '5 4', guard(function () { self.select({ kind: 'colsrc', target: tref, source: r }); }));
+          paths[paths.length - 1].key = 'c:' + tref + '|' + r;
         });
       });
     });
     var temp = null;
-    if (s.drag && (s.drag.kind === 'edge' || s.drag.kind === 'col') && s.drag.x2 !== undefined) {
+    if (s.drag && (s.drag.kind === 'edge' || s.drag.kind === 'col' || s.drag.kind === 'rewire') && s.drag.x2 !== undefined) {
       var dx2 = Math.max(30, Math.abs(s.drag.x2 - s.drag.x1) / 2);
-      temp = { d: 'M' + s.drag.x1 + ' ' + s.drag.y1 + ' C' + (s.drag.x1 + dx2) + ' ' + s.drag.y1 + ' ' + (s.drag.x2 - dx2) + ' ' + s.drag.y2 + ' ' + s.drag.x2 + ' ' + s.drag.y2, color: s.drag.kind === 'col' ? '#7E22CE' : '#0F766E' };
+      temp = { d: 'M' + s.drag.x1 + ' ' + s.drag.y1 + ' C' + (s.drag.x1 + dx2) + ' ' + s.drag.y1 + ' ' + (s.drag.x2 - dx2) + ' ' + s.drag.y2 + ' ' + s.drag.x2 + ' ' + s.drag.y2, color: s.drag.kind === 'col' ? '#7E22CE' : s.drag.kind === 'rewire' ? '#CA8A04' : '#0F766E' };
     }
     var z = s.zoom, baseW = x1, baseH = y1;
 
@@ -2225,7 +2312,7 @@ class Component extends DCLogic {
       pe = { from: ed.from, to: ed.to, type: ed.type, process: ed.process, fromSide: lpe.from || '', toSide: lpe.to || '', onFromSide: setSide('from'), onToSide: setSide('to'),
         onType: function (e) { updE({ type: e.target.value }); }, onProcess: function (e) { updE({ process: e.target.value }); },
         reverse: function () { var LE = Object.assign({}, self.state.layoutEdges), old = LE[ek]; delete LE[ek]; if (old) LE[ed.to + '>' + ed.from] = { from: old.to, to: old.from }; set({ layoutEdges: LE }); updE({ from: ed.to, to: ed.from }, true); },
-        del: function () { self.pushHist(true); set({ lineage: self.state.lineage.filter(function (_, j) { return j !== ei; }), sel: null }); },
+        del: function () { self.deleteEdge(ei); },
         pickFrom: function () { self.select({ kind: 'asset', id: ed.from }); self.centerOn(ed.from); }, pickTo: function () { self.select({ kind: 'asset', id: ed.to }); self.centerOn(ed.to); } };
     }
     var pcs = null;
@@ -2253,6 +2340,37 @@ class Component extends DCLogic {
           set({ datasets: ds2, layoutPos: LPx, msg: 'Moved ' + ids.length + ' assets ' + (np ? 'into ' + np : 'to the top level') + '.', msgKind: 'ok' });
         } };
     }
+    var cx = s.ctx, ctxItems = [], ctxTitle = '';
+    if (cx) {
+      var close = function (fn) { return function () { set({ ctx: null }); fn(); }; };
+      if (cx.kind === 'asset' && m[cx.id]) {
+        var many = s.multi.length > 1 && s.multi.indexOf(cx.id) >= 0;
+        if (many) {
+          ctxTitle = s.multi.length + ' assets selected';
+          ctxItems.push({ label: 'Duplicate ' + s.multi.length + ' assets', color: '#15202B', run: close(function () { self.duplicateMany(self.state.multi); }) });
+          ctxItems.push({ label: 'Delete ' + s.multi.length + ' assets', color: '#B42318', run: close(function () { self.deleteMany(self.state.multi); }) });
+        } else {
+          ctxTitle = cx.id;
+          ctxItems.push({ label: 'Edit', color: '#15202B', run: close(function () { self.select({ kind: 'asset', id: cx.id }); }) });
+          ctxItems.push({ label: 'Duplicate', color: '#15202B', run: close(function () { self.duplicateMany([cx.id]); }) });
+          var nk = self.descendantsOf(cx.id).length;
+          ctxItems.push({ label: 'Delete ' + (self.isCont(m[cx.id], hc) ? 'container' : 'asset') + (nk ? ' (keeps the ' + nk + ' inside)' : ''), color: '#B42318', run: close(function () { self.deleteMany([cx.id]); }) });
+          if (nk) ctxItems.push({ label: 'Delete container and everything inside (' + (nk + 1) + ')', color: '#B42318', run: close(function () { self.deleteMany([cx.id].concat(self.descendantsOf(cx.id))); }) });
+        }
+      } else if (cx.kind === 'edge' && s.lineage[cx.i]) {
+        var ce = s.lineage[cx.i]; ctxTitle = ce.from + ' → ' + ce.to;
+        ctxItems.push({ label: 'Reverse direction', color: '#15202B', run: close(function () { self.select({ kind: 'edge', i: cx.i }); var LE = Object.assign({}, self.state.layoutEdges), old = LE[ce.from + '>' + ce.to]; delete LE[ce.from + '>' + ce.to]; if (old) LE[ce.to + '>' + ce.from] = { from: old.to, to: old.from }; self.pushHist(true); set({ layoutEdges: LE, lineage: self.state.lineage.map(function (x, j) { return j === cx.i ? Object.assign({}, x, { from: ce.to, to: ce.from }) : x; }) }); }) });
+        ctxItems.push({ label: 'Delete relation', color: '#B42318', run: close(function () { self.deleteEdge(cx.i); }) });
+      } else if (cx.kind === 'colsrc') {
+        ctxTitle = cx.source + ' → ' + cx.target;
+        ctxItems.push({ label: 'Remove this column source', color: '#B42318', run: close(function () { self.removeColSource(cx.target, cx.source); }) });
+      } else if (cx.kind === 'col') {
+        ctxTitle = cx.ref;
+        ctxItems.push({ label: 'Edit column', color: '#15202B', run: close(function () { self.select({ kind: 'col', ref: cx.ref }); }) });
+        ctxItems.push({ label: 'Delete column', color: '#B42318', run: close(function () { self.deleteColumn(cx.ref); }) });
+      }
+    }
+    var cvw = self._cv ? self._cv.clientWidth : 1200, cvh = self._cv ? self._cv.clientHeight : 800;
     var mq = s.drag && s.drag.kind === 'marquee' && s.drag.w !== undefined ? s.drag : null;
     var stamp = function () { var d = new Date(), z = function (n) { return (n < 10 ? '0' : '') + n; }; return '' + d.getFullYear() + z(d.getMonth() + 1) + z(d.getDate()) + z(d.getHours()) + z(d.getMinutes()) + z(d.getSeconds()); };
     var save = function (blob, name, okMsg) {
@@ -2304,7 +2422,10 @@ class Component extends DCLogic {
       oq: s.oq, onOq: function (e) { set({ oq: e.target.value }); }, outline: outline.slice(0, 400), assetCount: ds.length + ' assets',
       selNone: !pa && !pe && !pcs && !pm, selAsset: !!pa, selMulti: !!pm, pm: pm || { items: [], parentOpts: [] },
       sides: self.portSpec().map(function (sp) { return { id: sp[0], label: sp[3] }; }),
-      dragCls: s.drag && (s.drag.kind === 'edge') ? 'dragging' : '',
+      dragCls: s.drag && (s.drag.kind === 'edge' || s.drag.kind === 'rewire') ? 'dragging' : '',
+      handles: handles,
+      hasCtx: !!cx && ctxItems.length > 0, ctxItems: ctxItems, ctxTitle: ctxTitle,
+      ctxX: cx ? Math.max(4, Math.min(cx.x, cvw - 300)) : 0, ctxY: cx ? Math.max(4, Math.min(cx.y, cvh - 40 - ctxItems.length * 36)) : 0,
       hasMarquee: !!mq, mq: mq || { x: 0, y: 0, w: 0, h: 0 },
       dupOne: function () { self.duplicateMany(self.selectedIds()); }, selEdge: !!pe, selColSrc: !!pcs,
       pa: pa || { cols: [], rels: [], parentOpts: [] }, pe: pe || {}, pcs: pcs || {},
