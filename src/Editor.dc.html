@@ -203,14 +203,14 @@ textarea.inp{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:12px;l
 <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 4px"><span class="sec">Columns · {{pa.colCount}}</span><button type="button" class="tb" onClick="{{pa.addCol}}">+ Column</button></div>
 <sc-for list="{{pa.cols}}" as="f" hint-placeholder-count="2">
 <div style="border: 1px solid {{f.bd}}; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 6px; background: {{f.bg}}">
-<div style="display: grid; grid-template-columns: 1fr 110px; gap: 6px">
+<div style="display: grid; grid-template-columns: 1fr 150px; gap: 6px">
 <input class="inp mono" aria-label="Column name" value="{{f.name}}" onChange="{{f.onName}}">
-<input class="inp mono" aria-label="Column type" list="col-types" value="{{f.type}}" onChange="{{f.onType}}">
+<div style="position: relative"><input class="inp mono" aria-label="Column type" role="combobox" aria-expanded="{{f.tOpen}}" autocomplete="off" placeholder="{{f.type}}" value="{{f.tVal}}" onFocus="{{f.tFocus}}" onChange="{{f.tInput}}" onKeyDown="{{f.tKey}}" onBlur="{{f.tBlur}}" style="width: 100%; box-sizing: border-box"><sc-if value="{{f.tOpen}}" hint-placeholder-val="{{false}}"><div role="listbox" style="position: absolute; left: 0; right: 0; top: 100%; z-index: 30; margin-top: 2px; max-height: 240px; overflow: auto; background: #FFFFFF; border: 1px solid #B8C2CC; border-radius: 6px; box-shadow: 0 6px 18px rgba(16,24,40,.14)"><sc-for list="{{f.tOpts}}" as="o" hint-placeholder-count="4"><div role="option" class="mono" onMouseDown="{{o.pick}}" title="{{o.v}}" style="padding: 6px 8px; font-size: 12px; cursor: pointer; white-space: normal; word-break: break-all; line-height: 1.35; background: {{o.bg}}">{{o.v}}</div></sc-for><sc-if value="{{f.tNone}}" hint-placeholder-val="{{false}}"><div style="padding: 6px 8px; font-size: 12px; color: #5B6876">No match. Press Enter to use what you typed.</div></sc-if></div></sc-if></div>
 </div>
 <input class="inp" aria-label="Description" placeholder="Description" value="{{f.description}}" onChange="{{f.onDesc}}">
 <input class="inp mono" aria-label="Expression" placeholder="Expression, e.g. SUM(net_amount)" value="{{f.expression}}" onChange="{{f.onExpr}}">
 <div style="display: flex; flex-wrap: wrap; gap: 4px; align-items: center"><span style="font-size: 11px; color: #5B6876">Sources:</span><sc-for list="{{f.sources}}" as="sr" hint-placeholder-count="1"><span class="chip mono"><span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px">{{sr.ref}}</span><button type="button" onClick="{{sr.remove}}" aria-label="Remove source {{sr.ref}}">×</button></span></sc-for><sc-if value="{{f.noSources}}" hint-placeholder-val="{{false}}"><span style="font-size: 11px; color: #5B6876; font-style: italic">none (source column)</span></sc-if></div>
-<div style="display: flex; gap: 6px"><input class="inp mono" list="all-cols" placeholder="add source: asset.column" aria-label="Add source column" value="{{f.srcBuf}}" onChange="{{f.onSrcBuf}}"><button type="button" class="tb" onClick="{{f.addSrc}}">Add</button></div>
+<div style="display: flex; gap: 6px"><div style="position: relative; flex: 1; min-width: 0"><input class="inp mono" role="combobox" aria-expanded="{{f.sOpen}}" autocomplete="off" placeholder="search source column (contains)…" aria-label="Add source column" value="{{f.srcBuf}}" onFocus="{{f.sFocus}}" onChange="{{f.onSrcBuf}}" onKeyDown="{{f.sKey}}" onBlur="{{f.sBlur}}" style="width: 100%; box-sizing: border-box"><sc-if value="{{f.sOpen}}" hint-placeholder-val="{{false}}"><div role="listbox" style="position: absolute; left: 0; right: 0; top: 100%; z-index: 30; margin-top: 2px; max-height: 240px; overflow: auto; background: #FFFFFF; border: 1px solid #B8C2CC; border-radius: 6px; box-shadow: 0 6px 18px rgba(16,24,40,.14)"><sc-for list="{{f.sOpts}}" as="o" hint-placeholder-count="4"><div role="option" class="mono" onMouseDown="{{o.pick}}" title="{{o.v}}" style="padding: 6px 8px; font-size: 12px; cursor: pointer; white-space: normal; word-break: break-all; line-height: 1.35; background: {{o.bg}}">{{o.v}}</div></sc-for><sc-if value="{{f.sNone}}" hint-placeholder-val="{{false}}"><div style="padding: 6px 8px; font-size: 12px; color: #5B6876">No match. Press Enter to use what you typed.</div></sc-if></div></sc-if></div><button type="button" class="tb" onClick="{{f.addSrc}}">Add</button></div>
 <div style="display: flex; gap: 12px; align-items: center; font-size: 12px">
 <label style="display: flex; gap: 6px; align-items: center"><input type="checkbox" checked="{{f.nullable}}" onChange="{{f.onNull}}"> Nullable</label>
 <label style="display: flex; gap: 6px; align-items: center"><input type="checkbox" checked="{{f.pii}}" onChange="{{f.onPii}}"> PII</label>
@@ -280,7 +280,7 @@ class Component extends DCLogic {
     this.state = {
       types: this.defaultTypes ? this.defaultTypes() : [], datasets: [], lineage: [], layoutPos: {}, layoutEdges: {},
       sel: null, zoom: 0.8, showCols: true, snap: true, hist: [], fut: [], msg: core ? '' : 'Core library not loaded — open editor.html from the Metadata Hub site.', msgKind: core ? 'ok' : 'err',
-      drag: null, ctx: null, multi: [], collapsed: {}, tq: '', oq: '', relType: 'depends_on', idBuf: '', tagsBuf: '', propBuf: '', srcBuf: {}, sourceName: ''
+      drag: null, ctx: null, multi: [], collapsed: {}, combo: null, tq: '', oq: '', relType: 'depends_on', idBuf: '', tagsBuf: '', propBuf: '', srcBuf: {}, sourceName: ''
     };
     this.canvasRef = this.attachCanvas.bind(this);
   }
@@ -289,6 +289,7 @@ class Component extends DCLogic {
   CONT() { return { 'airflow.dag': 1, 'airflow.task_group': 1, 'airflow.task': 1, 'bigquery.project': 1, 'bigquery.dataset': 1, 'bigquery.stored_procedure': 1, 'bigquery.direct_query': 1, 'gcs.bucket': 1, 'artifact_registry.repository': 1, 'vertex.pipeline': 1 }; }
   byIdMap() { var m = {}; this.state.datasets.forEach(function (d) { m[d.id] = d; }); return m; }
   hasChildMap() { var m = {}; this.state.datasets.forEach(function (d) { if (d.parent) m[d.parent] = 1; }); return m; }
+  BQ_TYPES() { return ['STRING', 'BYTES', 'INT64', 'INTEGER', 'INT', 'SMALLINT', 'BIGINT', 'TINYINT', 'BYTEINT', 'NUMERIC', 'DECIMAL', 'BIGNUMERIC', 'BIGDECIMAL', 'FLOAT64', 'FLOAT', 'BOOL', 'BOOLEAN', 'DATE', 'DATETIME', 'TIME', 'TIMESTAMP', 'INTERVAL', 'GEOGRAPHY', 'JSON', 'RANGE<DATE>', 'RANGE<DATETIME>', 'RANGE<TIMESTAMP>', 'STRUCT', 'RECORD', 'ARRAY<STRING>', 'ARRAY<INT64>', 'ARRAY<NUMERIC>', 'ARRAY<FLOAT64>', 'ARRAY<BOOL>', 'ARRAY<DATE>', 'ARRAY<TIMESTAMP>', 'ARRAY<STRUCT>', 'STRING(n)', 'BYTES(n)', 'NUMERIC(P, S)', 'BIGNUMERIC(P, S)']; }
   isCont(d, hc) { return !!(this.CONT()[d.type] || hc[d.id]); }
   descendantsOf(id) {
     var out = [], ds = this.state.datasets, frontier = [id];
@@ -910,17 +911,42 @@ class Component extends DCLogic {
         colCount: cur.fields.length,
         addCol: function () { var n = 1; while (cur.fields.some(function (f) { return f.name === 'new_column_' + n; })) n++; self.updAsset(cur.id, function (d) { d.fields = d.fields.concat([{ name: 'new_column_' + n, type: 'STRING', nullable: true, pii: false, description: '', expression: '', sources: [] }]); return d; }, true); },
         cols: cur.fields.map(function (f, i) {
-          var ref = cur.id + '.' + f.name, buf = s.srcBuf[i] || '';
+          var ref = cur.id + '.' + f.name, buf = s.srcBuf[i] || '', cb = s.combo || {};
+          var tOpen = cb.key === 't' + i, sOpen = cb.key === 's' + i, tq = (cb.q || '').toLowerCase();
+          var tList = tOpen ? self.BQ_TYPES().filter(function (v) { return !tq || v.toLowerCase().indexOf(tq) >= 0; }) : [];
+          var sq = buf.trim().toLowerCase(), sList = [];
+          if (sOpen) { s.datasets.some(function (d) { return d.fields.some(function (ff) { var r = d.id + '.' + ff.name; if (r !== ref && (!sq || r.toLowerCase().indexOf(sq) >= 0) && (f.sources || []).indexOf(r) < 0) sList.push(r); return sList.length >= 60; }); }); }
+          var setType = function (v) { v = (v || '').trim(); if (v) self.updField(cur.id, i, { type: v }, true); set({ combo: null }); };
+          var addRef = function (r) { if ((f.sources || []).indexOf(r) < 0) self.updField(cur.id, i, { sources: (f.sources || []).concat([r]) }, true); var b = Object.assign({}, self.state.srcBuf); b[i] = ''; set({ srcBuf: b, combo: null }); };
+          var hl = cb.hl || 0;
           return { name: f.name, type: f.type, description: f.description, expression: f.expression, nullable: f.nullable, pii: f.pii, bd: selCol === ref ? '#7E22CE' : '#DCE3EA', bg: selCol === ref ? '#FAF5FF' : '#FFFFFF',
             onName: function (e) { self.renameColumn(cur.id, i, e.target.value); },
-            onType: function (e) { self.updField(cur.id, i, { type: e.target.value }); },
+            tOpen: tOpen, tVal: tOpen ? cb.q || '' : f.type, tNone: tOpen && !tList.length,
+            tOpts: tList.map(function (v, j) { return { v: v, bg: j === hl ? '#E7F4F2' : v === f.type ? '#F6F8FA' : '#FFFFFF', pick: function (e) { e.preventDefault(); setType(v); } }; }),
+            tFocus: function () { set({ combo: { key: 't' + i, q: '', hl: 0 } }); },
+            tInput: function (e) { set({ combo: { key: 't' + i, q: e.target.value, hl: 0 } }); },
+            tKey: function (e) {
+              if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); var n = tList.length; if (n) set({ combo: Object.assign({}, cb, { hl: (hl + (e.key === 'ArrowDown' ? 1 : n - 1)) % n }) }); }
+              else if (e.key === 'Enter') { e.preventDefault(); setType(tList.length && (cb.q || '') ? tList[hl] || tList[0] : (cb.q || f.type)); e.target.blur(); }
+              else if (e.key === 'Escape') { set({ combo: null }); e.target.blur(); }
+            },
+            tBlur: function () { setTimeout(function () { var c = self.state.combo; if (c && c.key === 't' + i) set({ combo: null }); }, 120); },
+            sOpen: sOpen, sNone: sOpen && !sList.length,
+            sOpts: sList.map(function (r, j) { return { v: r, bg: j === hl ? '#F3E8FF' : '#FFFFFF', pick: function (e) { e.preventDefault(); addRef(r); } }; }),
+            sFocus: function () { set({ combo: { key: 's' + i, q: '', hl: 0 } }); },
+            sKey: function (e) {
+              if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); var n = sList.length; if (n) set({ combo: Object.assign({}, cb, { key: 's' + i, hl: (hl + (e.key === 'ArrowDown' ? 1 : n - 1)) % n }) }); }
+              else if (e.key === 'Enter') { e.preventDefault(); if (sList.length && sq) addRef(sList[hl] || sList[0]); else if (sq) { if (buf.indexOf('.') < 0) say('Use asset.column, e.g. acme-dwh.raw.orders.order_id', 'err'); else addRef(buf.trim()); } }
+              else if (e.key === 'Escape') { set({ combo: null }); e.target.blur(); }
+            },
+            sBlur: function () { setTimeout(function () { var c = self.state.combo; if (c && c.key === 's' + i) set({ combo: null }); }, 120); },
             onDesc: function (e) { self.updField(cur.id, i, { description: e.target.value }); },
             onExpr: function (e) { self.updField(cur.id, i, { expression: e.target.value }); },
             onNull: function (e) { self.updField(cur.id, i, { nullable: e.target.checked }, true); },
             onPii: function (e) { self.updField(cur.id, i, { pii: e.target.checked }, true); },
             sources: (f.sources || []).map(function (r) { return { ref: r, remove: function () { self.updField(cur.id, i, { sources: f.sources.filter(function (x) { return x !== r; }) }, true); } }; }),
             noSources: !(f.sources || []).length,
-            srcBuf: buf, onSrcBuf: function (e) { var b = Object.assign({}, self.state.srcBuf); b[i] = e.target.value; set({ srcBuf: b }); },
+            srcBuf: buf, onSrcBuf: function (e) { var b = Object.assign({}, self.state.srcBuf); b[i] = e.target.value; set({ srcBuf: b, combo: { key: 's' + i, q: '', hl: 0 } }); },
             addSrc: function () { var r = (self.state.srcBuf[i] || '').trim(); if (!r) return; if (r.indexOf('.') < 0) { say('Use asset.column, e.g. acme-dwh.raw.orders.order_id', 'err'); return; } if ((f.sources || []).indexOf(r) >= 0) return; self.updField(cur.id, i, { sources: (f.sources || []).concat([r]) }, true); var b = Object.assign({}, self.state.srcBuf); b[i] = ''; set({ srcBuf: b }); },
             del: function () {
               self.pushHist(true);
@@ -1069,7 +1095,7 @@ class Component extends DCLogic {
       tagsBuf: s.tagsBuf, onTagsBuf: function (e) { set({ tagsBuf: e.target.value }); },
       propBuf: s.propBuf, onPropBuf: function (e) { set({ propBuf: e.target.value }); },
       typeOpts: s.types.map(function (t) { return { id: t.id, label: t.category + ' — ' + t.label }; }),
-      colTypes: ['STRING', 'INT64', 'NUMERIC', 'BIGNUMERIC', 'FLOAT64', 'BOOL', 'DATE', 'DATETIME', 'TIMESTAMP', 'TIME', 'JSON', 'BYTES', 'GEOGRAPHY', 'ARRAY', 'STRUCT'].map(function (v) { return { v: v }; }),
+      colTypes: self.BQ_TYPES().map(function (v) { return { v: v }; }),
       allCols: allCols.slice(0, 2000),
       stats: ds.length + ' assets · ' + s.lineage.length + ' relations · ' + Object.keys(LP).length + ' placed'
     };
