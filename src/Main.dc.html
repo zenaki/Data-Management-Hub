@@ -162,7 +162,7 @@ textarea.inp{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:13px;l
 
 <div class="card" style="overflow-x: auto">
 <table class="tbl" style="min-width: 980px">
-<thead><tr><th scope="col">Column</th><th scope="col">Type</th><th scope="col">Class</th><th scope="col">Nullable</th><th scope="col">PII</th><th scope="col">Description</th><th scope="col">Expression &amp; sources</th><th scope="col"><span style="position: absolute; left: -9999px">Actions</span></th></tr></thead>
+<thead><tr><th scope="col">Column</th><th scope="col">Type</th><th scope="col">Class</th><th scope="col">Nullable</th><th scope="col">PII</th><th scope="col">Role</th><th scope="col">Description</th><th scope="col">Expression &amp; sources</th><th scope="col"><span style="position: absolute; left: -9999px">Actions</span></th></tr></thead>
 <tbody>
 <sc-for list="{{fieldRows}}" as="f" hint-placeholder-count="4">
 <tr>
@@ -171,6 +171,7 @@ textarea.inp{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:13px;l
 <td><span style="font-size: 12px; padding: 3px 8px; border-radius: 999px; background: {{f.clsBg}}; color: {{f.clsFg}}; white-space: nowrap">{{f.cls}}</span></td>
 <td>{{f.nullText}}</td>
 <td><span style="font-size: 12px; padding: 3px 8px; border-radius: 999px; background: {{f.piiBg}}; color: {{f.piiFg}}">{{f.piiText}}</span></td>
+<td style="font-size: 12px; color: #3B4856">{{f.roleText}}</td>
 <td style="color: #3B4856">{{f.description}}<sc-if value="{{f.hasInh}}" hint-placeholder-val="{{false}}"><span class="mono" style="display: block; font-size: 11px; color: #6B21A8; margin-top: 2px">{{f.inhNote}}</span></sc-if></td>
 <td style="max-width: 320px">
 <sc-if value="{{f.hasExpr}}" hint-placeholder-val="{{false}}"><code class="mono" style="display: block; font-size: 12px; color: #0F766E; white-space: pre-wrap; word-break: break-word; margin-bottom: 4px">{{f.expr}}</code></sc-if>
@@ -580,7 +581,7 @@ class Component extends DCLogic {
       sel: null, linSel: null, linCol: null, q: '', fq: '', lq: '', zoom: 0.9, showCols: true, focusOnly: false,
       dsForm: this.emptyDs(), fieldForm: this.emptyField(), edgeForm: { from: '', to: '', type: '', process: '' },
       importText: '', mode: 'replace', msg: '', msgKind: 'ok', loaded: [], unused: [], sourceName: '',
-      layout: 'dag', layoutPos: {}, layoutEdges: {}, collapsed: {}, depthUp: 2, depthDown: 2, expUp: {}, expDown: {}, layerLimit: 20, layerMore: {}, selEdge: null, linView: 'graph', impDir: 'both',
+      layout: 'dag', layoutPos: {}, layoutEdges: {}, collapsed: {}, colsOpen: {}, depthUp: 2, depthDown: 2, expUp: {}, expDown: {}, layerLimit: 20, layerMore: {}, selEdge: null, linView: 'graph', impDir: 'both',
       fType: '', fDomain: '', fRel: '', fMode: 'hide', colorBy: 'type', connect: false, connectFrom: null, scr: { l: 0, t: 0, w: 0, h: 0 }, showMini: true, panelPinned: true, vSev: ''
     };
     this.diagRef = this.attachDiagram.bind(this);
@@ -957,12 +958,14 @@ class Component extends DCLogic {
   }
   cleanAsset(d) {
     var o = { id: d.id, type: d.type, name: d.name };
-    if (d.link_of) { o.link_of = d.link_of; if (d.parent) o.parent = d.parent; return o; } // linked copy: everything else comes from the original
+    if (d.link_of) { o.link_of = d.link_of; if (d.parent) o.parent = d.parent; if (d.used_columns && d.used_columns.length) o.used_columns = d.used_columns; return o; } // linked copy: everything else comes from the original
     ['parent', 'domain', 'owner', 'source', 'description'].forEach(function (k) { if (d[k]) o[k] = d[k]; });
     if (d.tags && d.tags.length) o.tags = d.tags;
+    if (d.used_columns && d.used_columns.length) o.used_columns = d.used_columns;
     if (d.properties && Object.keys(d.properties).length) o.properties = d.properties;
     if (d.fields && d.fields.length) o.fields = d.fields.map(function (f) {
       var x = { name: f.name, type: f.type, nullable: f.nullable, pii: f.pii };
+      if (f.role) x.role = f.role;
       if (f.description) x.description = f.description;
       if (f.expression) x.expression = f.expression;
       if (f.sources && f.sources.length) x.sources = f.sources;
@@ -1096,7 +1099,7 @@ class Component extends DCLogic {
     var types = (Array.isArray(doc.asset_types) ? doc.asset_types : []).filter(function (t) { return t && t.id; }).map(function (t) {
       return { id: str(t.id), label: str(t.label || t.id), category: str(t.category || 'Other'), color: /^#[0-9a-fA-F]{6}$/.test(str(t.color)) ? str(t.color) : '#475569' };
     });
-    var KNOWN = ['id', 'type', 'parent', 'link_of', 'same_as', 'name', 'domain', 'owner', 'source', 'description', 'tags', 'fields', 'columns', 'properties', '__file'];
+    var KNOWN = ['id', 'type', 'parent', 'link_of', 'same_as', 'used_columns', 'name', 'domain', 'owner', 'source', 'description', 'tags', 'fields', 'columns', 'properties', '__file'];
     var dsIn = Array.isArray(doc.assets) ? doc.assets : Array.isArray(doc.datasets) ? doc.datasets : [];
     var seen = {};
     var datasets = dsIn.map(function (d, i) {
@@ -1109,9 +1112,9 @@ class Component extends DCLogic {
       Object.keys(d).forEach(function (k) { if (KNOWN.indexOf(k) < 0) props[k] = d[k]; });
       var fields = (Array.isArray(d.fields) ? d.fields : Array.isArray(d.columns) ? d.columns : []).map(function (f, j) {
         if (!f || typeof f !== 'object' || !f.name) throw new Error(id + where + ': fields[' + j + '] needs a "name".');
-        return { name: str(f.name), type: str(f.type || 'STRING'), nullable: f.nullable !== false, pii: f.pii === true, description: str(f.description), expression: str(f.expression), sources: list(f.sources) };
+        return { name: str(f.name), type: str(f.type || 'STRING'), nullable: f.nullable !== false, pii: f.pii === true, role: str(f.role), description: str(f.description), expression: str(f.expression), sources: list(f.sources) };
       });
-      return { id: id, type: str(d.type || 'dataset'), parent: str(d.parent), link_of: str(d.link_of || d.same_as), name: str(d.name || id), domain: str(d.domain), owner: str(d.owner), source: str(d.source), description: str(d.description), tags: list(d.tags), properties: props, fields: fields, file: str(d.__file) };
+      return { id: id, type: str(d.type || 'dataset'), parent: str(d.parent), link_of: str(d.link_of || d.same_as), used_columns: list(d.used_columns), name: str(d.name || id), domain: str(d.domain), owner: str(d.owner), source: str(d.source), description: str(d.description), tags: list(d.tags), properties: props, fields: fields, file: str(d.__file) };
     });
     var lineage = (Array.isArray(doc.lineage) ? doc.lineage : []).map(function (e, i) {
       if (!e || !e.from || !e.to) throw new Error('lineage[' + i + ']: "from" and "to" are required.');
@@ -1232,7 +1235,7 @@ class Component extends DCLogic {
     var fq = s.fq.trim().toLowerCase();
     var fieldRows = cur ? cur.fields.filter(function (f) { return !fq || [f.name, f.type, f.description, f.expression].join(' ').toLowerCase().indexOf(fq) >= 0; }).map(function (f) {
       var cl = classify(f), inh = !f.description ? inherit(cur.id + '.' + f.name) : null;
-      return { name: f.name, type: f.type, cls: cl, clsBg: CLS[cl][0], clsFg: CLS[cl][1], description: f.description || (inh ? inh.text : '—'), hasInh: !!inh, inhNote: inh ? 'inherited from ' + inh.from : '', nullText: f.nullable ? 'Yes' : 'No', piiText: f.pii ? 'PII' : 'No', piiBg: f.pii ? '#FFEDD5' : '#EEF1F4', piiFg: f.pii ? '#9A3412' : '#4A5765',
+      return { name: f.name, type: f.type, cls: cl, clsBg: CLS[cl][0], clsFg: CLS[cl][1], description: f.description || (inh ? inh.text : '—'), hasInh: !!inh, inhNote: inh ? 'inherited from ' + inh.from : '', roleText: f.role || '—', nullText: f.nullable ? 'Yes' : 'No', piiText: f.pii ? 'PII' : 'No', piiBg: f.pii ? '#FFEDD5' : '#EEF1F4', piiFg: f.pii ? '#9A3412' : '#4A5765',
         hasExpr: !!f.expression, expr: f.expression || '', srcText: (f.sources || []).length ? '← ' + f.sources.join(', ') : 'source column',
         trace: function () { set({ tab: 'lineage', linCol: cur.id + '.' + f.name, linSel: cur.id, focusOnly: false, msg: '' }); },
         del: function () { self.updateFields(cur.id, function (fs) { return fs.filter(function (x) { return x.name !== f.name; }); }); } };
@@ -1294,7 +1297,7 @@ class Component extends DCLogic {
     var lq = s.lq.trim().toLowerCase();
     var isDag = s.layout === 'dag';
     var copiesOf = {}, dsReal = ds;
-    var virt = linkCopies.filter(function (c) { return byId[c.link_of]; }).map(function (c) { (copiesOf[c.link_of] = copiesOf[c.link_of] || []).push(c.id); return Object.assign({}, byId[c.link_of], { id: c.id, parent: c.parent, link_of: c.link_of }); });
+    var virt = linkCopies.filter(function (c) { return byId[c.link_of]; }).map(function (c) { (copiesOf[c.link_of] = copiesOf[c.link_of] || []).push(c.id); return Object.assign({}, byId[c.link_of], { id: c.id, parent: c.parent, link_of: c.link_of, used_columns: c.used_columns || [] }); });
     virt.forEach(function (v) { byId[v.id] = v; });
     var origOf = function (id) { var d = byId[id]; return d && d.link_of ? d.link_of : id; };
     var kindOf0 = kindOf; kindOf = function (id) { return kindOf0(origOf(id)); };
@@ -1361,22 +1364,45 @@ class Component extends DCLogic {
     };
 
     // one asset card (leaf), placed at x,y inside block `bk`
+    // Columns "in use" on a drawn asset: listed in used_columns of that instance, or (on the original) part of column lineage,
+    // or in the current column trace. The rest fold into one "+ N other columns" row on wide tables.
+    var srcUsed = {}; ds.forEach(function (d) { d.fields.forEach(function (f) { (f.sources || []).forEach(function (r) { srcUsed[r] = 1; }); }); });
+    var colView = function (bk, id) {
+      var d = byId[id], fields = d ? d.fields : [], key = bk + '|' + id, orig = origOf(id);
+      if (fields.length <= 12) return { shown: fields, hidden: 0, open: false, key: key };
+      var ex = {}; (d.used_columns || []).forEach(function (c) { ex[c] = 1; });
+      var used = [], other = [];
+      fields.forEach(function (f) { var ref = orig + '.' + f.name; var u = ex[f.name] || (!d.link_of && ((f.sources || []).length || srcUsed[ref])) || (lc && (ref === lc || colUpDist[ref] !== undefined || colDownDist[ref] !== undefined)); (u ? used : other).push(f); });
+      if (!other.length) return { shown: fields, hidden: 0, open: false, key: key };
+      var open = !!(s.colsOpen || {})[key];
+      return { shown: open ? used.concat(other) : used, used: used.length, hidden: other.length, open: open, key: key };
+    };
+    var colRowsN = function (bk, id) { var v = colView(bk, id); return v.shown.length + (v.hidden ? 1 : 0); };
     var placeNode = function (bk, id, x, y, wOpt) {
       var NWn = wOpt || NW;
-      var d = byId[id], fields = d ? d.fields : [];
-      var showC = s.showCols && fields.length > 0;
-      var h = 4 + HEAD + (showC ? 9 + fields.length * ROW : 0);
+      var d = byId[id], cv = colView(bk, id), fields = cv.shown, nAll = d ? d.fields.length : 0;
+      var showC = s.showCols && nAll > 0, nRows = fields.length + (cv.hidden ? 1 : 0);
+      var h = 4 + HEAD + (showC ? 9 + nRows * ROW : 0);
       var rows = {}, k = kindOf(id), p = pal[k];
       var hit = lq && (id + ' ' + (d ? d.name : '')).toLowerCase().indexOf(lq) >= 0;
+      var oid = origOf(id), togI = cv.hidden ? cv.used : -1;
+      var rowY = function (i) { return y + 2 + HEAD + 5 + i * ROW + ROW / 2; };
       var cols = fields.map(function (f, i) {
-        var ref = id + '.' + f.name, cl = classify(f);
-        rows[f.name] = y + 2 + HEAD + 5 + i * ROW + ROW / 2;
+        var ref = oid + '.' + f.name, cl = classify(f);
+        var ii = togI >= 0 && i >= togI ? i + 1 : i;
+        rows[f.name] = rowY(ii);
         var ck = !lc ? 'none' : ref === lc ? 'sel' : colUpDist[ref] !== undefined ? 'up' : colDownDist[ref] !== undefined ? 'down' : 'dim';
         var chit = lq && (ref + ' ' + (f.expression || '') + ' ' + f.description).toLowerCase().indexOf(lq) >= 0;
         var cp = { none: [chit ? '#FEF08A' : 'transparent', '#15202B', 400], sel: ['#0F766E', '#FFFFFF', 600], up: ['#DBEAFE', '#1E3A8A', 500], down: ['#FFEDD5', '#7C2D12', 500], dim: [chit ? '#FEF08A' : 'transparent', '#6B7785', 400] }[ck];
         return { name: f.name, badge: cl === 'Source' ? f.type : CLS[cl][2], title: ref + ' · ' + cl + (f.expression ? ' = ' + f.expression : ''), bg: cp[0], fg: cp[1], fw: cp[2],
-          pick: function () { set({ linCol: self.state.linCol === ref ? null : ref, linSel: id, selEdge: null }); } };
+          pick: function () { set({ linCol: self.state.linCol === ref ? null : ref, linSel: oid, selEdge: null }); } };
       });
+      if (cv.hidden) {
+        var ty = rowY(togI);
+        if (!cv.open) d.fields.forEach(function (f) { if (rows[f.name] === undefined) rows[f.name] = ty; });
+        cols.splice(togI, 0, { name: (cv.open ? '− hide ' : '+ ') + cv.hidden + ' other column' + (cv.hidden === 1 ? '' : 's') + (cv.used ? '' : ' (none marked as used)'), badge: cv.open ? '' : 'show', title: 'Columns not used here. Mark columns as used in the Diagram Editor.', bg: '#F1F5F9', fg: '#334155', fw: 600,
+          pick: function () { var c = Object.assign({}, self.state.colsOpen || {}); if (c[cv.key]) delete c[cv.key]; else c[cv.key] = 1; set({ colsOpen: c }); } });
+      }
       var op = p[3]; if (filtering && s.fMode === 'highlight' && !matchF(id) && id !== ls) op = 0.25;
       var isFrom = s.connect && s.connectFrom === id;
       nodes.push({ id: id, label: origOf(id), name: d ? d.name : 'not in catalog', typeLabel: d ? (d.link_of ? '🔗 linked copy · ' : '') + tinfo(d.type).label : 'External', tcolor: dotColor(id), x: x, y: y, w: NWn, h: h, bg: p[0], fg: p[1], bd: isFrom || hit ? '#CA8A04' : p[2], op: op, showCols: showC, cols: cols,
@@ -1482,7 +1508,7 @@ class Component extends DCLogic {
         return { bd: bd, bg: bg, bw: k === 'all' || k === 'other' ? 1 : 2 };
       };
       var regHidden = function (bk, n, anchor) { (inst[bk] = inst[bk] || {})[n.id] = anchor; n.children.forEach(function (c) { regHidden(bk, c, anchor); }); };
-      var nodeH = function (id) { var d = byId[id], nf = d ? d.fields.length : 0; return 4 + HEAD + (s.showCols && nf ? 9 + nf * ROW : 0); };
+      var nodeH = function (id, bk) { var d = byId[id], nf = d ? d.fields.length : 0; return 4 + HEAD + (s.showCols && nf ? 9 + colRowsN(bk, id) * ROW : 0); };
       var pack = function (items) {
         var rows = [];
         items.slice().sort(function (a, b) { return a.x0 - b.x0; }).forEach(function (it) {
@@ -1535,7 +1561,7 @@ class Component extends DCLogic {
         var colX = function (c) { return x0b + (c + (hasCfg ? 1 : 0)) * (NW + GXD); };
         var measure = function (n) {
           var key = blk.id + '|' + n.id;
-          if (!n.children.length && !n.wasContainer) { var lx = colX(colF(n.id)); return { n: n, leaf: true, key: key, x0: lx, x1: lx + NW, h: nodeH(n.id) }; }
+          if (!n.children.length && !n.wasContainer) { var lx = colX(colF(n.id)); return { n: n, leaf: true, key: key, x0: lx, x1: lx + NW, h: nodeH(n.id, blk.id) }; }
           var kids = n.children.map(measure), isClosed = !!s.collapsed[key];
           var own = n.member && (upMap[n.id] || downMap[n.id]) ? colX(colF(n.id)) : null;
           var xs0 = kids.map(function (k) { return k.x0; }), xs1 = kids.map(function (k) { return k.x1; });

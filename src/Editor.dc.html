@@ -124,7 +124,7 @@ textarea.inp{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:12px;l
 <sc-if value="{{n.showCols}}" hint-placeholder-val="{{true}}">
 <div style="padding: 4px 0; border-top: 1px solid #E6EBF0">
 <sc-for list="{{n.cols}}" as="c" hint-placeholder-count="3">
-<button type="button" data-col="{{c.ref}}" onClick="{{c.pick}}" title="{{c.title}}" style="position: relative; width: 100%; height: 26px; border: 0; padding: 0 14px 0 12px; display: flex; justify-content: space-between; gap: 8px; align-items: center; background: {{c.bg}}; color: {{c.fg}}; font: inherit; font-size: 12px; cursor: pointer; text-align: left"><span class="mono" style="white-space: nowrap">{{c.name}}</span><span class="mono" style="font-size: 10px; opacity: 0.75; white-space: nowrap">{{c.badge}}</span><span data-colport="{{c.ref}}" title="Drag to a column in another asset: that column will use this one as a source" style="position: absolute; right: -7px; top: 7px; width: 10px; height: 10px; border-radius: 50%; background: #7E22CE; border: 2px solid #FFFFFF; cursor: crosshair"></span></button>
+<button type="button" data-col="{{c.ref}}" onClick="{{c.pick}}" title="{{c.title}}" style="position: relative; width: 100%; height: 26px; border: 0; padding: 0 14px 0 12px; display: flex; justify-content: space-between; gap: 8px; align-items: center; background: {{c.bg}}; color: {{c.fg}}; font: inherit; font-size: 12px; cursor: pointer; text-align: left"><span class="mono" style="white-space: nowrap">{{c.name}}</span><span class="mono" style="font-size: 10px; opacity: 0.75; white-space: nowrap">{{c.badge}}</span><sc-if value="{{c.port}}" hint-placeholder-val="{{true}}"><span data-colport="{{c.ref}}" title="Drag to a column in another asset: that column will use this one as a source" style="position: absolute; right: -7px; top: 7px; width: 10px; height: 10px; border-radius: 50%; background: #7E22CE; border: 2px solid #FFFFFF; cursor: crosshair"></span></sc-if></button>
 </sc-for>
 </div>
 </sc-if>
@@ -208,6 +208,11 @@ textarea.inp{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:12px;l
 <div style="display: flex; gap: 6px"><button type="button" class="tb" onClick="{{pa.applyPaste}}">Add columns</button><button type="button" class="tb" onClick="{{pa.togglePaste}}">Cancel</button></div>
 </div></sc-if>
 <sc-if value="{{pa.manyCols}}" hint-placeholder-val="{{false}}"><input class="inp mono" aria-label="Filter columns" placeholder="filter columns (contains)…" value="{{colQ}}" onChange="{{onColQ}}"><span style="font-size: 11px; color: #5B6876">{{pa.colShown}}</span></sc-if>
+<div style="display: flex; flex-wrap: wrap; gap: 4px; align-items: center; font-size: 12px; background: #F6F8FA; border: 1px solid #DCE3EA; border-radius: 8px; padding: 6px"><span style="color: #39434D; font-weight: 600">{{pa.bulkLabel}}</span>
+<button type="button" class="tb" style="min-height: 28px; font-size: 12px" onClick="{{pa.bulkPiiOn}}">PII on</button><button type="button" class="tb" style="min-height: 28px; font-size: 12px" onClick="{{pa.bulkPiiOff}}">PII off</button>
+<button type="button" class="tb" style="min-height: 28px; font-size: 12px" onClick="{{pa.bulkUsedOn}}">Used here</button><button type="button" class="tb" style="min-height: 28px; font-size: 12px" onClick="{{pa.bulkUsedOff}}">Not used</button>
+<select class="inp" aria-label="Set role for these columns" value="__" onChange="{{pa.bulkRole}}" style="width: auto; min-height: 28px; padding: 2px 6px; font-size: 12px"><option value="__">set role…</option><option value="key">key</option><option value="dimension">dimension</option><option value="measure">measure</option><option value="attribute">attribute</option><option value="date">date</option><option value="-">clear role</option></select>
+<sc-if value="{{pa.usedNote}}" hint-placeholder-val="{{false}}"><span style="color: #5B6876; flex-basis: 100%">{{pa.usedNote}}</span></sc-if></div>
 <sc-for list="{{pa.cols}}" as="f" hint-placeholder-count="2">
 <div style="border: 1px solid {{f.bd}}; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 6px; background: {{f.bg}}">
 <div style="display: grid; grid-template-columns: 1fr 150px; gap: 6px">
@@ -221,6 +226,8 @@ textarea.inp{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:12px;l
 <div style="display: flex; gap: 12px; align-items: center; font-size: 12px">
 <label style="display: flex; gap: 6px; align-items: center"><input type="checkbox" checked="{{f.nullable}}" onChange="{{f.onNull}}"> Nullable</label>
 <label style="display: flex; gap: 6px; align-items: center"><input type="checkbox" checked="{{f.pii}}" onChange="{{f.onPii}}"> PII</label>
+<label style="display: flex; gap: 6px; align-items: center" title="Keep this column visible on this block in the diagram"><input type="checkbox" checked="{{f.used}}" onChange="{{f.onUsed}}"> Used here</label>
+<select class="inp" aria-label="Column role" value="{{f.role}}" onChange="{{f.onRole}}" style="width: auto; min-height: 28px; padding: 2px 6px; font-size: 12px"><option value="">role —</option><option value="key">key</option><option value="dimension">dimension</option><option value="measure">measure</option><option value="attribute">attribute</option><option value="date">date</option></select>
 <span style="flex: 1"></span>
 <button type="button" class="del" onClick="{{f.del}}">Delete</button>
 </div>
@@ -287,7 +294,7 @@ class Component extends DCLogic {
     this.state = {
       types: this.defaultTypes ? this.defaultTypes() : [], datasets: [], lineage: [], layoutPos: {}, layoutEdges: {},
       sel: null, zoom: 0.8, showCols: true, snap: true, hist: [], fut: [], msg: core ? '' : 'Core library not loaded — open editor.html from the Metadata Hub site.', msgKind: core ? 'ok' : 'err',
-      drag: null, ctx: null, multi: [], collapsed: {}, combo: null, pasteOpen: false, pasteBuf: '', colQ: '', tq: '', oq: '', relType: 'depends_on', idBuf: '', tagsBuf: '', propBuf: '', srcBuf: {}, sourceName: ''
+      drag: null, ctx: null, multi: [], collapsed: {}, colsOpen: {}, combo: null, pasteOpen: false, pasteBuf: '', colQ: '', tq: '', oq: '', relType: 'depends_on', idBuf: '', tagsBuf: '', propBuf: '', srcBuf: {}, sourceName: ''
     };
     this.canvasRef = this.attachCanvas.bind(this);
   }
@@ -295,7 +302,7 @@ class Component extends DCLogic {
   /* ---------- helpers ---------- */
   CONT() { return { 'airflow.dag': 1, 'airflow.task_group': 1, 'airflow.task': 1, 'bigquery.project': 1, 'bigquery.dataset': 1, 'bigquery.stored_procedure': 1, 'bigquery.direct_query': 1, 'gcs.bucket': 1, 'artifact_registry.repository': 1, 'vertex.pipeline': 1 }; }
   /* a linked copy (link_of) borrows type, name and columns from its original; only id, parent and position are its own */
-  viewDs(ds) { var raw = {}; ds.forEach(function (d) { raw[d.id] = d; }); return ds.map(function (d) { return d.link_of && raw[d.link_of] ? Object.assign({}, raw[d.link_of], { id: d.id, parent: d.parent, link_of: d.link_of }) : d; }); }
+  viewDs(ds) { var raw = {}; ds.forEach(function (d) { raw[d.id] = d; }); return ds.map(function (d) { return d.link_of && raw[d.link_of] ? Object.assign({}, raw[d.link_of], { id: d.id, parent: d.parent, link_of: d.link_of, used_columns: d.used_columns || [] }) : d; }); }
   origOf(id) { var d = this.state.datasets.find(function (x) { return x.id === id; }); return d && d.link_of ? d.link_of : id; }
   origRef(ref) { var i = ref.lastIndexOf('.'); return i < 0 ? ref : this.origOf(ref.slice(0, i)) + ref.slice(i); }
   linkCopy(id) {
@@ -370,7 +377,29 @@ class Component extends DCLogic {
     while (frontier.length) { var x = frontier.pop(); ds.forEach(function (d) { if (d.parent === x && out.indexOf(d.id) < 0 && d.id !== id) { out.push(d.id); frontier.push(d.id); } }); }
     return out;
   }
-  nodeH(id, m) { var d = (m || this.byIdMap())[id], nf = d ? d.fields.length : 0; return 4 + 58 + (this.state.showCols && nf ? 9 + nf * 26 : 0); }
+  /* columns in use on a drawn asset: used_columns of that instance, or (on the original) part of column lineage; the rest fold into one row */
+  setUsed(id, names, on) {
+    var set = {}; names.forEach(function (n) { set[n] = 1; });
+    this.pushHist(true);
+    this.setState({ datasets: this.state.datasets.map(function (d) { if (d.id !== id) return d; var cur = (d.used_columns || []).filter(function (c) { return !set[c]; }); return Object.assign({}, d, { used_columns: on ? cur.concat(names) : cur }); }), msg: names.length + ' column' + (names.length === 1 ? '' : 's') + (on ? ' marked as used here.' : ' no longer marked as used here.'), msgKind: 'ok' });
+  }
+  bulkFields(id, names, patch) {
+    var set = {}; names.forEach(function (n) { set[n] = 1; });
+    this.pushHist(true);
+    this.setState({ datasets: this.state.datasets.map(function (d) { return d.id !== id ? d : Object.assign({}, d, { fields: d.fields.map(function (f) { return set[f.name] ? Object.assign({}, f, patch) : f; }) }); }), msg: 'Updated ' + names.length + ' column' + (names.length === 1 ? '' : 's') + ': ' + Object.keys(patch).map(function (k) { return k + ' = ' + (patch[k] === '' ? '—' : patch[k]); }).join(', ') + '.', msgKind: 'ok' });
+  }
+  srcUsed() { var ds = this.state.datasets; if (this._suKey === ds) return this._su; var o = {}; ds.forEach(function (d) { (d.fields || []).forEach(function (f) { (f.sources || []).forEach(function (r) { o[r] = 1; }); }); }); this._suKey = ds; this._su = o; return o; }
+  colView(d) {
+    var fields = d ? d.fields : [];
+    if (fields.length <= 12) return { shown: fields.map(function (f, i) { return i; }), hidden: 0, used: fields.length, open: false };
+    var su = this.srcUsed(), orig = d.link_of || d.id, ex = {}; (d.used_columns || []).forEach(function (c) { ex[c] = 1; });
+    var used = [], other = [];
+    fields.forEach(function (f, i) { var u = ex[f.name] || (!d.link_of && ((f.sources || []).length || su[orig + '.' + f.name])); (u ? used : other).push(i); });
+    if (!other.length) return { shown: used, hidden: 0, used: used.length, open: false };
+    var open = !!this.state.colsOpen[d.id];
+    return { shown: open ? used.concat(other) : used, hidden: other.length, used: used.length, open: open };
+  }
+  nodeH(id, m) { var d = (m || this.byIdMap())[id], nf = d ? d.fields.length : 0; if (!this.state.showCols || !nf) return 4 + 58; var v = this.colView(d); return 4 + 58 + 9 + (v.shown.length + (v.hidden ? 1 : 0)) * 26; }
   typeLabel(t) { var x = this.state.types.find(function (y) { return y.id === t; }); return x ? x.label : t; }
   /* width that fits the id, the "type · name" line and the column names without cutting them */
   nodeW(id, m) {
@@ -537,7 +566,7 @@ class Component extends DCLogic {
               self.addEdge(d.from, tid, d.side, tp);
             }
           }
-          else { var tc = hit && hit.closest && hit.closest('[data-col]'); if (tc) self.addColSource(self.origRef(tc.getAttribute('data-col')), self.origRef(d.from)); else self.say('Drop the purple dot on a column of another asset.', 'err'); }
+          else { var tc = hit && hit.closest && hit.closest('[data-col]'); if (tc && tc.getAttribute('data-col')) self.addColSource(self.origRef(tc.getAttribute('data-col')), self.origRef(d.from)); else self.say('Drop the purple dot on a column of another asset.', 'err'); }
         }
       };
       window.addEventListener('mousemove', this._onMove);
@@ -888,13 +917,20 @@ class Component extends DCLogic {
     ds.forEach(function (d) {
       if (self.isCont(d, hc) && LP[d.id] && LP[d.id].w) return;
       var p = LP[d.id]; if (!p || hid[d.id]) return;
-      var on = selId === d.id || !!msel[d.id], showC = s.showCols && d.fields.length > 0, h = 4 + 58 + (showC ? 9 + d.fields.length * 26 : 0);
-      var cols = d.fields.map(function (f, i) {
-        var ref = (d.link_of || d.id) + '.' + f.name, cl = classify(f), cs = selCol === ref;
-        (rowsI[d.id] = rowsI[d.id] || {})[f.name] = p.y + 2 + 58 + 5 + i * 26 + 13; if (!d.link_of) colRows[ref] = rowsI[d.id][f.name];
+      var on = selId === d.id || !!msel[d.id], showC = s.showCols && d.fields.length > 0, h = self.nodeH(d.id, m), cv = self.colView(d);
+      var rowY = function (k) { return p.y + 2 + 58 + 5 + k * 26 + 13; }, togI = cv.hidden ? cv.used : -1;
+      var cols = cv.shown.map(function (fi, i) {
+        var f = d.fields[fi], ref = (d.link_of || d.id) + '.' + f.name, cl = classify(f), cs = selCol === ref;
+        (rowsI[d.id] = rowsI[d.id] || {})[f.name] = rowY(togI >= 0 && i >= togI ? i + 1 : i); if (!d.link_of) colRows[ref] = rowsI[d.id][f.name];
         return { ref: ref, name: f.name, badge: cl === 'Source' ? f.type : BADGE[cl], title: ref + ' · ' + cl + (f.expression ? ' = ' + f.expression : ''), bg: cs ? '#7E22CE' : 'transparent', fg: cs ? '#FFFFFF' : '#15202B',
-          pick: guard(function () { self.select({ kind: 'col', ref: ref }); }) };
+          port: true, pick: guard(function () { self.select({ kind: 'col', ref: ref }); }) };
       });
+      if (cv.hidden && showC) {
+        var ty = rowY(togI), ri = rowsI[d.id] = rowsI[d.id] || {};
+        if (!cv.open) d.fields.forEach(function (f) { if (ri[f.name] === undefined) ri[f.name] = ty; });
+        cols.splice(togI, 0, { ref: '', port: false, name: (cv.open ? '− hide ' : '+ ') + cv.hidden + ' other column' + (cv.hidden === 1 ? '' : 's') + (cv.used ? '' : ' (none marked as used)'), badge: cv.open ? '' : 'show', title: 'Columns not used here. Tick "Used here" on a column (or use the bulk buttons) to keep it visible.', bg: '#F1F5F9', fg: '#334155',
+          pick: guard(function () { var c = Object.assign({}, self.state.colsOpen); if (c[d.id]) delete c[d.id]; else c[d.id] = 1; set({ colsOpen: c }); }) });
+      }
       var nw = self.nodeW(d.id, m);
       nodes.push({ id: d.id, label: d.link_of || d.id, x: p.x, y: p.y, w: nw, h: h, cls: on ? 'on' : '', ports: mkPorts(d.id, nw, h, 31), name: d.name, typeLabel: (d.link_of ? '🔗 linked copy · ' : '') + tinfo(d.type).label, dot: tinfo(d.type).color, bg: on ? '#0F766E' : '#FFFFFF', fg: on ? '#FFFFFF' : '#15202B', bd: on ? '#0F766E' : '#C5CED8', showCols: showC, cols: cols,
         pick: pickAsset(d.id) });
@@ -976,6 +1012,9 @@ class Component extends DCLogic {
       var own = linkSel || cur;
       var updA = function (key, conv) { return function (e) { var v = conv ? conv(e) : e.target.value; self.updAsset(cur.id, function (d) { d[key] = v; return d; }); }; };
       var excl = {}; excl[cur.id] = 1; self.descendantsOf(cur.id).forEach(function (x) { excl[x] = 1; });
+      var ownRaw = s.datasets.find(function (d) { return d.id === own.id; }) || own, usedSet = {}; (ownRaw.used_columns || []).forEach(function (c) { usedSet[c] = 1; });
+      var hay = function (f) { return f.name + ' ' + (f.type || '') + ' ' + (f.description || '') + ' ' + (f.role || '') + (f.pii ? ' pii' : '') + (usedSet[f.name] ? ' used' : ''); };
+      var colMatch = function () { var q = s.colQ.trim().toLowerCase(); return cur.fields.filter(function (f) { return !q || hay(f).toLowerCase().indexOf(q) >= 0; }).map(function (f) { return f.name; }); };
       var copyIds = ds.filter(function (d) { return d.link_of === cur.id; }).map(function (d) { return d.id; });
       pa = { typeLabel: tinfo(cur.type).label, type: cur.type, name: cur.name, owner: cur.owner, domain: cur.domain, source: cur.source, description: cur.description, parent: own.parent || '',
         linkNote: linkSel ? 'Linked copy of ' + cur.id + ' — the ID, columns and relations are shared, so edits below change the original. Only Parent and position belong to this copy.' : copyIds.length ? 'Also drawn as ' + copyIds.length + ' linked cop' + (copyIds.length === 1 ? 'y' : 'ies') + ': ' + copyIds.map(function (c) { return m[c] && m[c].parent ? 'in ' + m[c].parent : c; }).join(', ') + '.' : '',
@@ -1007,8 +1046,13 @@ class Component extends DCLogic {
           var r = self.mergeColumns(cur.id, cols); set({ pasteOpen: false, pasteBuf: '' }); say('Columns: ' + r.added + ' added, ' + r.updated + ' updated.');
         },
         manyCols: cur.fields.length > 15,
-        colShown: (function () { var q = s.colQ.trim().toLowerCase(), n = cur.fields.filter(function (f) { return !q || (f.name + ' ' + (f.type || '') + ' ' + (f.description || '')).toLowerCase().indexOf(q) >= 0; }).length; return n > 50 ? 'Showing 50 of ' + n + ' matching columns — type to narrow down.' : n + ' matching column' + (n === 1 ? '' : 's'); })(),
-        cols: (function () { var q = s.colQ.trim().toLowerCase(), shown = 0; return cur.fields.map(function (f, i) { return { f: f, i: i }; }).filter(function (x) { if (q && (x.f.name + ' ' + (x.f.type || '') + ' ' + (x.f.description || '')).toLowerCase().indexOf(q) < 0) return false; return shown++ < 50; }); })().map(function (fx) { var f = fx.f, i = fx.i;
+        bulkN: colMatch().length, bulkLabel: (s.colQ.trim() ? colMatch().length + ' matching' : 'all ' + cur.fields.length) + ' columns:',
+        bulkPiiOn: function () { self.bulkFields(cur.id, colMatch(), { pii: true }); }, bulkPiiOff: function () { self.bulkFields(cur.id, colMatch(), { pii: false }); },
+        bulkUsedOn: function () { self.setUsed(own.id, colMatch(), true); }, bulkUsedOff: function () { self.setUsed(own.id, colMatch(), false); },
+        bulkRole: function (e) { var v = e.target.value; if (v === '__') return; self.bulkFields(cur.id, colMatch(), { role: v === '-' ? '' : v }); e.target.value = '__'; },
+        usedNote: linkSel ? '"Used here" is kept per block: this linked copy has its own list.' : '',
+        colShown: (function () { var q = s.colQ.trim().toLowerCase(), n = cur.fields.filter(function (f) { return !q || hay(f).toLowerCase().indexOf(q) >= 0; }).length; return n > 50 ? 'Showing 50 of ' + n + ' matching columns — type to narrow down.' : n + ' matching column' + (n === 1 ? '' : 's'); })(),
+        cols: (function () { var q = s.colQ.trim().toLowerCase(), shown = 0; return cur.fields.map(function (f, i) { return { f: f, i: i }; }).filter(function (x) { if (q && hay(x.f).toLowerCase().indexOf(q) < 0) return false; return shown++ < 50; }); })().map(function (fx) { var f = fx.f, i = fx.i;
           var ref = cur.id + '.' + f.name, buf = s.srcBuf[i] || '', cb = s.combo || {};
           var tOpen = cb.key === 't' + i, sOpen = cb.key === 's' + i, tq = (cb.q || '').toLowerCase();
           var tList = tOpen ? self.BQ_TYPES().filter(function (v) { return !tq || v.toLowerCase().indexOf(tq) >= 0; }) : [];
@@ -1042,6 +1086,8 @@ class Component extends DCLogic {
             onExpr: function (e) { self.updField(cur.id, i, { expression: e.target.value }); },
             onNull: function (e) { self.updField(cur.id, i, { nullable: e.target.checked }, true); },
             onPii: function (e) { self.updField(cur.id, i, { pii: e.target.checked }, true); },
+            role: f.role || '', onRole: function (e) { self.updField(cur.id, i, { role: e.target.value }, true); },
+            used: usedSet[f.name] === 1, onUsed: function (e) { self.setUsed(own.id, [f.name], e.target.checked); },
             sources: (f.sources || []).map(function (r) { return { ref: r, remove: function () { self.updField(cur.id, i, { sources: f.sources.filter(function (x) { return x !== r; }) }, true); } }; }),
             noSources: !(f.sources || []).length,
             srcBuf: buf, onSrcBuf: function (e) { var b = Object.assign({}, self.state.srcBuf); b[i] = e.target.value; set({ srcBuf: b, combo: { key: 's' + i, q: '', hl: 0 } }); },
