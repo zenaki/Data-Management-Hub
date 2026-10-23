@@ -209,6 +209,16 @@ assets:
         description: Monthly total.
         expression: SUM(total_sales)
         sources: [acme-sales.mart.sales_daily.total_sales]
+  - id: airflow.sales_daily.tg_transform.load_staging.dq_merge_orders
+    type: bigquery.direct_query
+    name: dq_merge_orders
+    parent: airflow.sales_daily.tg_transform.load_staging
+    domain: Sales
+    owner: analytics-eng
+    description: MERGE statement the task sends to BigQuery.
+    properties:
+      statement: MERGE
+      sql: MERGE staging.orders_clean USING raw.orders ON order_id
   - id: acme-inventory
     type: bigquery.project
     name: GCP project inventory
@@ -418,6 +428,16 @@ assets:
         description: Monthly total.
         expression: SUM(total_inventory)
         sources: [acme-inventory.mart.inventory_daily.total_inventory]
+  - id: airflow.inventory_daily.tg_transform.load_staging.dq_merge_movements
+    type: bigquery.direct_query
+    name: dq_merge_movements
+    parent: airflow.inventory_daily.tg_transform.load_staging
+    domain: Inventory
+    owner: analytics-eng
+    description: MERGE statement the task sends to BigQuery.
+    properties:
+      statement: MERGE
+      sql: MERGE staging.movements_clean USING raw.movements ON movement_id
   - id: acme-finance
     type: bigquery.project
     name: GCP project finance
@@ -627,6 +647,16 @@ assets:
         description: Monthly total.
         expression: SUM(total_finance)
         sources: [acme-finance.mart.finance_daily.total_finance]
+  - id: airflow.finance_daily.tg_transform.load_staging.dq_merge_txns
+    type: bigquery.direct_query
+    name: dq_merge_txns
+    parent: airflow.finance_daily.tg_transform.load_staging
+    domain: Finance
+    owner: analytics-eng
+    description: MERGE statement the task sends to BigQuery.
+    properties:
+      statement: MERGE
+      sql: MERGE staging.txns_clean USING raw.txns ON txn_id
   - id: acme-marketing
     type: bigquery.project
     name: GCP project marketing
@@ -836,6 +866,16 @@ assets:
         description: Monthly total.
         expression: SUM(total_marketing)
         sources: [acme-marketing.mart.marketing_daily.total_marketing]
+  - id: airflow.marketing_daily.tg_transform.load_staging.dq_merge_clicks
+    type: bigquery.direct_query
+    name: dq_merge_clicks
+    parent: airflow.marketing_daily.tg_transform.load_staging
+    domain: Marketing
+    owner: analytics-eng
+    description: MERGE statement the task sends to BigQuery.
+    properties:
+      statement: MERGE
+      sql: MERGE staging.clicks_clean USING raw.clicks ON click_id
   - id: acme-support
     type: bigquery.project
     name: GCP project support
@@ -1045,3 +1085,13 @@ assets:
         description: Monthly total.
         expression: SUM(total_support)
         sources: [acme-support.mart.support_daily.total_support]
+  - id: airflow.support_daily.tg_transform.load_staging.dq_merge_tickets
+    type: bigquery.direct_query
+    name: dq_merge_tickets
+    parent: airflow.support_daily.tg_transform.load_staging
+    domain: Support
+    owner: analytics-eng
+    description: MERGE statement the task sends to BigQuery.
+    properties:
+      statement: MERGE
+      sql: MERGE staging.tickets_clean USING raw.tickets ON ticket_id

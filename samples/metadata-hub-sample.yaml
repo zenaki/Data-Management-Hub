@@ -1,6 +1,6 @@
 # Metadata Hub — data catalog, data dictionary, data lineage (schema v2, single file)
 version: 2
-generated_at: 2026-10-22T07:27:43.813Z
+generated_at: 2026-10-23T08:55:07.186Z
 asset_types:
   - id: airflow.dag
     label: Airflow DAG
@@ -46,6 +46,14 @@ asset_types:
     label: BigQuery Stored Procedure
     category: BigQuery
     color: "#155E75"
+  - id: bigquery.procedure_step
+    label: BigQuery Procedure Step
+    category: BigQuery
+    color: "#0E7490"
+  - id: bigquery.direct_query
+    label: BigQuery Direct Query
+    category: BigQuery
+    color: "#0E7490"
   - id: bigquery.udf
     label: BigQuery UDF
     category: BigQuery
@@ -387,6 +395,16 @@ assets:
     properties:
       operator: BigQueryInsertJobOperator
       retries: 2
+  - id: airflow.sales_daily.tg_transform.load_staging.dq_merge_orders
+    type: bigquery.direct_query
+    name: dq_merge_orders
+    parent: airflow.sales_daily.tg_transform.load_staging
+    domain: Sales
+    owner: analytics-eng
+    description: MERGE statement the task sends to BigQuery.
+    properties:
+      statement: MERGE
+      sql: MERGE staging.orders_clean USING raw.orders ON order_id
   - id: airflow.sales_daily.tg_transform.call_sp
     type: airflow.task
     name: call_sp
@@ -750,6 +768,16 @@ assets:
     properties:
       operator: BigQueryInsertJobOperator
       retries: 2
+  - id: airflow.inventory_daily.tg_transform.load_staging.dq_merge_movements
+    type: bigquery.direct_query
+    name: dq_merge_movements
+    parent: airflow.inventory_daily.tg_transform.load_staging
+    domain: Inventory
+    owner: analytics-eng
+    description: MERGE statement the task sends to BigQuery.
+    properties:
+      statement: MERGE
+      sql: MERGE staging.movements_clean USING raw.movements ON movement_id
   - id: airflow.inventory_daily.tg_transform.call_sp
     type: airflow.task
     name: call_sp
@@ -1113,6 +1141,16 @@ assets:
     properties:
       operator: BigQueryInsertJobOperator
       retries: 2
+  - id: airflow.finance_daily.tg_transform.load_staging.dq_merge_txns
+    type: bigquery.direct_query
+    name: dq_merge_txns
+    parent: airflow.finance_daily.tg_transform.load_staging
+    domain: Finance
+    owner: analytics-eng
+    description: MERGE statement the task sends to BigQuery.
+    properties:
+      statement: MERGE
+      sql: MERGE staging.txns_clean USING raw.txns ON txn_id
   - id: airflow.finance_daily.tg_transform.call_sp
     type: airflow.task
     name: call_sp
@@ -1476,6 +1514,16 @@ assets:
     properties:
       operator: BigQueryInsertJobOperator
       retries: 2
+  - id: airflow.marketing_daily.tg_transform.load_staging.dq_merge_clicks
+    type: bigquery.direct_query
+    name: dq_merge_clicks
+    parent: airflow.marketing_daily.tg_transform.load_staging
+    domain: Marketing
+    owner: analytics-eng
+    description: MERGE statement the task sends to BigQuery.
+    properties:
+      statement: MERGE
+      sql: MERGE staging.clicks_clean USING raw.clicks ON click_id
   - id: airflow.marketing_daily.tg_transform.call_sp
     type: airflow.task
     name: call_sp
@@ -1839,6 +1887,16 @@ assets:
     properties:
       operator: BigQueryInsertJobOperator
       retries: 2
+  - id: airflow.support_daily.tg_transform.load_staging.dq_merge_tickets
+    type: bigquery.direct_query
+    name: dq_merge_tickets
+    parent: airflow.support_daily.tg_transform.load_staging
+    domain: Support
+    owner: analytics-eng
+    description: MERGE statement the task sends to BigQuery.
+    properties:
+      statement: MERGE
+      sql: MERGE staging.tickets_clean USING raw.tickets ON ticket_id
   - id: airflow.support_daily.tg_transform.call_sp
     type: airflow.task
     name: call_sp
@@ -1932,6 +1990,13 @@ lineage:
     to: acme-sales.staging.orders_clean
     type: writes
     process: Daily MERGE
+  - from: acme-sales.raw.orders
+    to: airflow.sales_daily.tg_transform.load_staging.dq_merge_orders
+    type: reads
+  - from: airflow.sales_daily.tg_transform.load_staging.dq_merge_orders
+    to: acme-sales.staging.orders_clean
+    type: writes
+    process: MERGE
   - from: acme-sales.staging.fn_clean_amount
     to: acme-sales.staging.orders_clean
     type: used_by
@@ -1995,6 +2060,13 @@ lineage:
     to: acme-inventory.staging.movements_clean
     type: writes
     process: Daily MERGE
+  - from: acme-inventory.raw.movements
+    to: airflow.inventory_daily.tg_transform.load_staging.dq_merge_movements
+    type: reads
+  - from: airflow.inventory_daily.tg_transform.load_staging.dq_merge_movements
+    to: acme-inventory.staging.movements_clean
+    type: writes
+    process: MERGE
   - from: acme-inventory.staging.fn_clean_quantity
     to: acme-inventory.staging.movements_clean
     type: used_by
@@ -2058,6 +2130,13 @@ lineage:
     to: acme-finance.staging.txns_clean
     type: writes
     process: Daily MERGE
+  - from: acme-finance.raw.txns
+    to: airflow.finance_daily.tg_transform.load_staging.dq_merge_txns
+    type: reads
+  - from: airflow.finance_daily.tg_transform.load_staging.dq_merge_txns
+    to: acme-finance.staging.txns_clean
+    type: writes
+    process: MERGE
   - from: acme-finance.staging.fn_clean_amount
     to: acme-finance.staging.txns_clean
     type: used_by
@@ -2121,6 +2200,13 @@ lineage:
     to: acme-marketing.staging.clicks_clean
     type: writes
     process: Daily MERGE
+  - from: acme-marketing.raw.clicks
+    to: airflow.marketing_daily.tg_transform.load_staging.dq_merge_clicks
+    type: reads
+  - from: airflow.marketing_daily.tg_transform.load_staging.dq_merge_clicks
+    to: acme-marketing.staging.clicks_clean
+    type: writes
+    process: MERGE
   - from: acme-marketing.staging.fn_clean_cost
     to: acme-marketing.staging.clicks_clean
     type: used_by
@@ -2184,6 +2270,13 @@ lineage:
     to: acme-support.staging.tickets_clean
     type: writes
     process: Daily MERGE
+  - from: acme-support.raw.tickets
+    to: airflow.support_daily.tg_transform.load_staging.dq_merge_tickets
+    type: reads
+  - from: airflow.support_daily.tg_transform.load_staging.dq_merge_tickets
+    to: acme-support.staging.tickets_clean
+    type: writes
+    process: MERGE
   - from: acme-support.staging.fn_clean_handle_minutes
     to: acme-support.staging.tickets_clean
     type: used_by

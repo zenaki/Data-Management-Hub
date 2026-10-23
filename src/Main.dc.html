@@ -305,7 +305,7 @@ textarea.inp{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:13px;l
 <sc-for list="{{boxes}}" as="b" hint-placeholder-count="2">
 <div style="position: absolute; left: {{b.x}}px; top: {{b.y}}px; width: {{b.w}}px; height: {{b.h}}px; box-sizing: border-box; border: {{b.bw}}px {{b.bs}} {{b.bd}}; border-radius: 12px; background: {{b.bg}}; opacity: {{b.op}}">
 <div style="display: flex; align-items: center; gap: 6px; height: {{b.hh}}px; padding: 0 8px; box-sizing: border-box">
-<sc-if value="{{b.canToggle}}" hint-placeholder-val="{{true}}"><button type="button" onClick="{{b.toggle}}" aria-label="{{b.toggleLabel}}" aria-expanded="{{b.open}}" style="flex: none; width: 28px; height: 28px; border: 1px solid #C5CED8; border-radius: 6px; background: #FFFFFF; color: #15202B; font: inherit; font-size: 13px; cursor: pointer; padding: 0">{{b.chev}}</button></sc-if>
+<sc-if value="{{b.canToggle}}" hint-placeholder-val="{{true}}"><button type="button" onClick="{{b.toggle}}" aria-label="{{b.toggleLabel}}" aria-expanded="{{b.open}}" style="flex: none; width: 28px; height: 28px; border: 1.5px solid #5B6B7B; border-radius: 50%; background: #FFFFFF; color: #15202B; font: inherit; font-size: 17px; font-weight: 700; line-height: 1; cursor: pointer; padding: 0; display: inline-flex; align-items: center; justify-content: center">{{b.chev}}</button></sc-if>
 <span aria-hidden="true" style="flex: none; width: 9px; height: 9px; border-radius: 50%; background: {{b.dot}}"></span>
 <button type="button" onClick="{{b.pick}}" title="{{b.title}}" style="flex: 1; min-width: 0; border: 0; background: transparent; padding: 0; font: inherit; color: #15202B; cursor: pointer; text-align: left; display: flex; flex-direction: column; gap: 1px">
 <span style="font-size: {{b.fs}}px; font-weight: 600; letter-spacing: 0.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%">{{b.title}}</span>
@@ -742,7 +742,7 @@ class Component extends DCLogic {
       ['airflow.variable', 'Airflow Variable', 'Airflow', '#3730A3'], ['airflow.connection', 'Airflow Connection', 'Airflow', '#3730A3'],
       ['bigquery.project', 'BigQuery Project', 'BigQuery', '#115E59'], ['bigquery.dataset', 'BigQuery Dataset', 'BigQuery', '#0F766E'], ['bigquery.table', 'BigQuery Table', 'BigQuery', '#0F766E'],
       ['bigquery.view', 'BigQuery View', 'BigQuery', '#0E7490'], ['bigquery.materialized_view', 'BigQuery Materialized View', 'BigQuery', '#0E7490'],
-      ['bigquery.stored_procedure', 'BigQuery Stored Procedure', 'BigQuery', '#155E75'], ['bigquery.procedure_step', 'BigQuery Procedure Step', 'BigQuery', '#0E7490'], ['bigquery.udf', 'BigQuery UDF', 'BigQuery', '#155E75'],
+      ['bigquery.stored_procedure', 'BigQuery Stored Procedure', 'BigQuery', '#155E75'], ['bigquery.procedure_step', 'BigQuery Procedure Step', 'BigQuery', '#0E7490'], ['bigquery.direct_query', 'BigQuery Direct Query', 'BigQuery', '#0E7490'], ['bigquery.udf', 'BigQuery UDF', 'BigQuery', '#155E75'],
       ['vertex.pipeline', 'Vertex AI Pipeline', 'Vertex AI', '#6D28D9'], ['vertex.pipeline_component', 'Vertex Pipeline Component', 'Vertex AI', '#6D28D9'],
       ['vertex.model', 'Model Registry Model', 'Vertex AI', '#7E22CE'], ['vertex.endpoint', 'Vertex AI Endpoint', 'Vertex AI', '#86198F'], ['vertex.feature_view', 'Vertex Feature View', 'Vertex AI', '#86198F'],
       ['artifact_registry.repository', 'Artifact Registry Repository', 'Artifact Registry', '#9A3412'], ['artifact_registry.image', 'Artifact Registry Image', 'Artifact Registry', '#C2410C'],
@@ -766,7 +766,7 @@ class Component extends DCLogic {
     doms.forEach(function (o) {
       var k = o.k, T = o.T, U = o.U, P = 'acme-' + k, ev = o.ev, ent = o.ent, idc = ev + '_id', entc = ent + '_id';
       var raw = P + '.raw.' + ev + 's', stg = P + '.staging.' + ev + 's_clean', mart = P + '.mart.' + k + '_daily', view = P + '.mart.v_' + k + '_features', mv = P + '.mart.mv_' + k + '_monthly', sp = P + '.mart.sp_build_' + k + '_daily', udf = P + '.staging.fn_clean_' + o.m;
-      var dag = 'airflow.' + k + '_daily', tg = dag + '.tg_transform', tLoad = tg + '.load_staging', tSp = tg + '.call_sp', tTrain = dag + '.trigger_training';
+      var dag = 'airflow.' + k + '_daily', tg = dag + '.tg_transform', tLoad = tg + '.load_staging', dq = tLoad + '.dq_merge_' + ev + 's', tSp = tg + '.call_sp', tTrain = dag + '.trigger_training';
       var vVar = 'airflow.variable.' + k + '_gcp_project', vCon = 'airflow.connection.bq_' + k;
       var vp = 'vertex.pipeline.' + o.model, vc = vp + '.train', mdl = 'vertex.model.' + o.model, ep = 'vertex.endpoint.' + o.model, fv = 'vertex.feature_view.' + k + '_features';
       var repo = 'artifact_registry.ml-' + k, img = repo + '.' + k + '-trainer';
@@ -815,6 +815,7 @@ class Component extends DCLogic {
         A(dag, 'airflow.dag', k + '_daily', { domain: T, owner: o.owner, description: 'Daily ' + k + ' pipeline, from landing files to model training.', tags: ['daily'], properties: { schedule: '0 1 * * *', catchup: false, max_active_runs: 1 } }),
         A(tg, 'airflow.task_group', 'tg_transform', { parent: dag, domain: T }),
         A(tLoad, 'airflow.task', 'load_staging', { parent: tg, domain: T, properties: { operator: 'BigQueryInsertJobOperator', retries: 2 } }),
+        A(dq, 'bigquery.direct_query', 'dq_merge_' + ev + 's', { parent: tLoad, domain: T, owner: 'analytics-eng', description: 'MERGE statement the task sends to BigQuery.', properties: { statement: 'MERGE', sql: 'MERGE staging.' + ev + 's_clean USING raw.' + ev + 's ON ' + idc } }),
         A(tSp, 'airflow.task', 'call_sp', { parent: tg, domain: T, properties: { operator: 'BigQueryInsertJobOperator', sql: 'CALL mart.sp_build_' + k + '_daily(@run_date)' } }),
         A(tTrain, 'airflow.task', 'trigger_training', { parent: dag, domain: T, properties: { operator: 'RunPipelineJobOperator' } }),
         A(repo, 'artifact_registry.repository', 'ml-' + k, { domain: T, owner: 'ml-team', properties: { format: 'DOCKER', location: 'asia-southeast2' } }),
@@ -827,7 +828,7 @@ class Component extends DCLogic {
       );
       lin.push(
         E(ext, obj, 'writes', 'Daily file export'), E(obj, raw, 'writes', 'BigQuery load job'), E(vVar, dag, 'configures'), E(vCon, tLoad, 'uses'),
-        E(raw, tLoad, 'reads'), E(tLoad, stg, 'writes', 'Daily MERGE'), E(udf, stg, 'used_by'), E(tSp, sp, 'calls'), E(stg, sp, 'reads'), E(sheet, sp, 'reads'), E(sp, mart, 'writes'),
+        E(raw, tLoad, 'reads'), E(tLoad, stg, 'writes', 'Daily MERGE'), E(raw, dq, 'reads'), E(dq, stg, 'writes', 'MERGE'), E(udf, stg, 'used_by'), E(tSp, sp, 'calls'), E(stg, sp, 'reads'), E(sheet, sp, 'reads'), E(sp, mart, 'writes'),
         E(mart, view, 'reads'), E(mart, mv, 'reads'), E(view, fv, 'syncs'), E(fv, vp, 'reads'), E(img, vc, 'uses'), E(vc, vp, 'part_of'), E(tTrain, vp, 'triggers'), E(vp, mdl, 'produces'), E(mdl, ep, 'deploys')
       );
     });
@@ -1411,7 +1412,7 @@ class Component extends DCLogic {
         var rel = allEdges.filter(function (e) { return e.process !== '(implied by columns)' && mem[e.from] && mem[e.to]; });
         // explicit: an asset whose parent is a task (set in the Diagram Editor)
         ds.forEach(function (d) { var p = d.parent && byId[d.parent]; if (p && p.type === 'airflow.task' && dagOf(p.id) === blk.id) { own[d.id] = p.id; mem[d.id] = 1; } });
-        rel.forEach(function (e) { var f = byId[e.from], t = byId[e.to]; if (f && f.type === 'airflow.task' && dagOf(e.from) === blk.id && isBQ(e.to) && !own[e.to] && !(t.parent && byId[t.parent] && byId[t.parent].type === 'bigquery.stored_procedure')) own[e.to] = e.from; });
+        rel.forEach(function (e) { var f = byId[e.from], t = byId[e.to]; if (f && f.type === 'airflow.task' && dagOf(e.from) === blk.id && isBQ(e.to) && !own[e.to] && !(t.parent && byId[t.parent] && /^bigquery\.(stored_procedure|direct_query)$/.test(byId[t.parent].type))) own[e.to] = e.from; });
         rel.forEach(function (e) { var f = byId[e.from]; if (f && f.type === 'bigquery.procedure_step' && own[f.parent] && isBQ(e.to) && !own[e.to]) own[e.to] = own[f.parent]; });
         return own;
       };
@@ -1421,7 +1422,7 @@ class Component extends DCLogic {
         var effLane = function (id) {
           if (own[id]) return laneOf(infoOf(own[id]).type);
           var d = byId[id], g = 0;
-          while (d && d.parent && byId[d.parent] && byId[d.parent].type === 'bigquery.stored_procedure' && g++ < 10) { if (own[d.parent]) return laneOf(infoOf(own[d.parent]).type); d = byId[d.parent]; }
+          while (d && d.parent && byId[d.parent] && /^bigquery\.(stored_procedure|direct_query)$/.test(byId[d.parent].type) && g++ < 10) { if (own[d.parent]) return laneOf(infoOf(own[d.parent]).type); d = byId[d.parent]; }
           return laneOf(infoOf(id).type);
         };
         var get = function (id) { if (!tn[id]) { tn[id] = { id: id, children: [], member: false }; order.push(id); } return tn[id]; };
@@ -1483,7 +1484,7 @@ class Component extends DCLogic {
         var props = dg ? dg.properties || {} : {};
         var nTasks = Object.keys(blk.members).filter(function (m) { return byId[m] && byId[m].type === 'airflow.task'; }).length;
         var b = { x: PAD, y: by, w: 600, h: 52, hh: 52, fs: 15, title: dg ? dg.name + '  (' + dg.id + ')' : 'Not in any DAG', sub: dg ? 'Airflow DAG' + (props.schedule ? ' · schedule ' + props.schedule : '') + ' · ' + nTasks + ' tasks · ' + (Object.keys(blk.members).length - 1) + ' assets' : restN + ' assets with no DAG',
-          bg: st.bg === '#F6F8FA' ? '#FFFFFF' : st.bg, bd: dg ? (st.bd === '#B8C2CC' ? '#8996A3' : st.bd) : '#B8C2CC', bw: 2, bs: dg ? 'solid' : 'dashed', op: 1, dot: dg ? dotColor(dg.id) : '#94A3B8', canToggle: true, open: !closed, chev: closed ? '▸' : '▾',
+          bg: st.bg === '#F6F8FA' ? '#FFFFFF' : st.bg, bd: dg ? (st.bd === '#B8C2CC' ? '#8996A3' : st.bd) : '#B8C2CC', bw: 2, bs: dg ? 'solid' : 'dashed', op: 1, dot: dg ? dotColor(dg.id) : '#94A3B8', canToggle: true, open: !closed, chev: closed ? '+' : '−',
           toggleLabel: (closed ? 'Open ' : 'Close ') + (dg ? dg.id : 'unassigned assets'), toggle: function () { var c = Object.assign({}, self.state.collapsed); if (c[bkey]) delete c[bkey]; else c[bkey] = 1; set({ collapsed: c }); },
           pick: function () { if (dg) selectAsset(dg.id); }, hasPick: !!dg };
         boxes.push(b);
@@ -1529,7 +1530,7 @@ class Component extends DCLogic {
           var n = m.n, d = byId[n.id], sty = boxStyle(n.id, lvl), cnt = 0;
           var countLeaves = function (q) { if (!q.children.length) cnt++; q.children.forEach(countLeaves); };
           n.children.forEach(countLeaves);
-          var key = m.key, bx = { x: m.x0, y: y, w: m.x1 - m.x0, h: m.h, hh: HH, fs: 12, title: d ? d.name : n.id, sub: (d ? tinfo(d.type).label : 'Group') + ' · ' + cnt + ' inside', bg: sty.bg, bd: sty.bd, bw: sty.bw, bs: 'solid', op: 1, dot: dotColor(n.id), canToggle: true, open: !m.closed, chev: m.closed ? '▸' : '▾',
+          var key = m.key, bx = { x: m.x0, y: y, w: m.x1 - m.x0, h: m.h, hh: HH, fs: 12, title: d ? d.name : n.id, sub: (d ? tinfo(d.type).label : 'Group') + ' · ' + cnt + ' inside', bg: sty.bg, bd: sty.bd, bw: sty.bw, bs: 'solid', op: 1, dot: dotColor(n.id), canToggle: true, open: !m.closed, chev: m.closed ? '+' : '−',
             toggleLabel: (m.closed ? 'Open ' : 'Close ') + n.id, toggle: function () { var c = Object.assign({}, self.state.collapsed); if (c[key]) delete c[key]; else c[key] = 1; set({ collapsed: c }); }, pick: function () { selectAsset(n.id); }, hasPick: true };
           boxes.push(bx);
           var anchor = { key: key, x: m.x0, y: y, w: bx.w, ay: y + HH / 2, showC: false, rows: {} };
@@ -1579,7 +1580,7 @@ class Component extends DCLogic {
         var bd = k === 'sel' ? '#0F766E' : k === 'up' ? '#1D4ED8' : k === 'down' ? '#C2410C' : hit ? '#CA8A04' : (c.type === 'airflow.dag' ? '#8996A3' : '#B8C2CC');
         var bg = k === 'sel' ? '#E7F4F2' : k === 'up' ? '#EFF6FF' : k === 'down' ? '#FFF7ED' : (lvl % 2 ? '#F6F8FA' : '#FFFFFF');
         var cw0 = boxWc(c, p);
-        boxes.push({ x: p.x, y: p.y, w: cw0, h: closed ? HHc : p.h, hh: HHc, fs: c.type === 'airflow.dag' ? 14 : 12, title: c.name, sub: tinfo(c.type).label + ' · ' + c.id, bg: bg, bd: bd, bw: k === 'all' || k === 'other' ? (c.type === 'airflow.dag' ? 2 : 1) : 2, bs: 'solid', op: 1, dot: dotColor(c.id), canToggle: true, open: !closed, chev: closed ? '▸' : '▾',
+        boxes.push({ x: p.x, y: p.y, w: cw0, h: closed ? HHc : p.h, hh: HHc, fs: c.type === 'airflow.dag' ? 14 : 12, title: c.name, sub: tinfo(c.type).label + ' · ' + c.id, bg: bg, bd: bd, bw: k === 'all' || k === 'other' ? (c.type === 'airflow.dag' ? 2 : 1) : 2, bs: 'solid', op: 1, dot: dotColor(c.id), canToggle: true, open: !closed, chev: closed ? '+' : '−',
           toggleLabel: (closed ? 'Open ' : 'Close ') + c.id, toggle: function () { var cc = Object.assign({}, self.state.collapsed); if (cc[key]) delete cc[key]; else cc[key] = 1; set({ collapsed: cc }); }, pick: function () { selectAsset(c.id); }, hasPick: true });
         inst.custom[c.id] = { key: key, x: p.x, y: p.y, w: cw0, h: closed ? HHc : p.h, mid: HHc / 2, ay: p.y + HHc / 2, showC: false, rows: {} };
         if (!firstPos[c.id]) firstPos[c.id] = { x: p.x, y: p.y };

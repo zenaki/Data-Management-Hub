@@ -1,4 +1,4 @@
 # Metadata Hub — entry point. Every file listed under include is loaded in order.
 version: 2
-generated_at: 2026-10-22T07:26:18.947Z
+generated_at: 2026-10-23T08:54:57.778Z
 include: [asset_types.yaml, assets/*.yaml, lineage.yaml]

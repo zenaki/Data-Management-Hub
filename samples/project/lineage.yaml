@@ -21,6 +21,13 @@ lineage:
     to: acme-sales.staging.orders_clean
     type: writes
     process: Daily MERGE
+  - from: acme-sales.raw.orders
+    to: airflow.sales_daily.tg_transform.load_staging.dq_merge_orders
+    type: reads
+  - from: airflow.sales_daily.tg_transform.load_staging.dq_merge_orders
+    to: acme-sales.staging.orders_clean
+    type: writes
+    process: MERGE
   - from: acme-sales.staging.fn_clean_amount
     to: acme-sales.staging.orders_clean
     type: used_by
@@ -84,6 +91,13 @@ lineage:
     to: acme-inventory.staging.movements_clean
     type: writes
     process: Daily MERGE
+  - from: acme-inventory.raw.movements
+    to: airflow.inventory_daily.tg_transform.load_staging.dq_merge_movements
+    type: reads
+  - from: airflow.inventory_daily.tg_transform.load_staging.dq_merge_movements
+    to: acme-inventory.staging.movements_clean
+    type: writes
+    process: MERGE
   - from: acme-inventory.staging.fn_clean_quantity
     to: acme-inventory.staging.movements_clean
     type: used_by
@@ -147,6 +161,13 @@ lineage:
     to: acme-finance.staging.txns_clean
     type: writes
     process: Daily MERGE
+  - from: acme-finance.raw.txns
+    to: airflow.finance_daily.tg_transform.load_staging.dq_merge_txns
+    type: reads
+  - from: airflow.finance_daily.tg_transform.load_staging.dq_merge_txns
+    to: acme-finance.staging.txns_clean
+    type: writes
+    process: MERGE
   - from: acme-finance.staging.fn_clean_amount
     to: acme-finance.staging.txns_clean
     type: used_by
@@ -210,6 +231,13 @@ lineage:
     to: acme-marketing.staging.clicks_clean
     type: writes
     process: Daily MERGE
+  - from: acme-marketing.raw.clicks
+    to: airflow.marketing_daily.tg_transform.load_staging.dq_merge_clicks
+    type: reads
+  - from: airflow.marketing_daily.tg_transform.load_staging.dq_merge_clicks
+    to: acme-marketing.staging.clicks_clean
+    type: writes
+    process: MERGE
   - from: acme-marketing.staging.fn_clean_cost
     to: acme-marketing.staging.clicks_clean
     type: used_by
@@ -273,6 +301,13 @@ lineage:
     to: acme-support.staging.tickets_clean
     type: writes
     process: Daily MERGE
+  - from: acme-support.raw.tickets
+    to: airflow.support_daily.tg_transform.load_staging.dq_merge_tickets
+    type: reads
+  - from: airflow.support_daily.tg_transform.load_staging.dq_merge_tickets
+    to: acme-support.staging.tickets_clean
+    type: writes
+    process: MERGE
   - from: acme-support.staging.fn_clean_handle_minutes
     to: acme-support.staging.tickets_clean
     type: used_by

@@ -44,6 +44,14 @@ asset_types:
     label: BigQuery Stored Procedure
     category: BigQuery
     color: "#155E75"
+  - id: bigquery.procedure_step
+    label: BigQuery Procedure Step
+    category: BigQuery
+    color: "#0E7490"
+  - id: bigquery.direct_query
+    label: BigQuery Direct Query
+    category: BigQuery
+    color: "#0E7490"
   - id: bigquery.udf
     label: BigQuery UDF
     category: BigQuery
