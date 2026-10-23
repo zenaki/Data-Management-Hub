@@ -1103,16 +1103,34 @@ class Component extends DCLogic {
       ids.forEach(function (x) { if (!assigned[x] && !(hasChild[x] && !nbr[x])) { rest[x] = 1; restN++; } });
       if (restN) blocks.push({ id: '__none', dag: null, members: rest });
 
+      // An Airflow task is a container for the BigQuery assets it writes or calls (one owner task per asset
+      // inside a DAG); tables written by the steps of a stored procedure go to the task that calls it.
+      var ownerOf = function (blk) {
+        var own = {}, mem = blk.members;
+        if (!blk.dag) return own;
+        var isBQ = function (id) { var d = byId[id]; return d && /^bigquery\./.test(d.type) && d.type !== 'bigquery.procedure_step' && d.type !== 'bigquery.project' && d.type !== 'bigquery.dataset'; };
+        var rel = allEdges.filter(function (e) { return e.process !== '(implied by columns)' && mem[e.from] && mem[e.to]; });
+        rel.forEach(function (e) { var f = byId[e.from]; if (f && f.type === 'airflow.task' && dagOf(e.from) === blk.id && isBQ(e.to) && !own[e.to]) own[e.to] = e.from; });
+        rel.forEach(function (e) { var f = byId[e.from]; if (f && f.type === 'bigquery.procedure_step' && own[f.parent] && isBQ(e.to) && !own[e.to]) own[e.to] = own[f.parent]; });
+        return own;
+      };
+      var hideE = {};
       var buildLane = function (blk, lane) {
-        var tn = {}, isChild = {}, order = [];
+        var tn = {}, isChild = {}, order = [], own = blk.own || {};
+        var effLane = function (id) {
+          if (own[id]) return laneOf(infoOf(own[id]).type);
+          var d = byId[id]; if (d && d.type === 'bigquery.procedure_step' && own[d.parent]) return laneOf(infoOf(own[d.parent]).type);
+          return laneOf(infoOf(id).type);
+        };
         var get = function (id) { if (!tn[id]) { tn[id] = { id: id, children: [], member: false }; order.push(id); } return tn[id]; };
         Object.keys(blk.members).forEach(function (id) {
-          if (id === blk.id || laneOf(infoOf(id).type) !== lane) return;
+          if (id === blk.id || effLane(id) !== lane) return;
           get(id).member = true;
+          if (own[id]) { var tk = get(own[id]); if (tk.children.indexOf(id) < 0) tk.children.push(id); isChild[id] = 1; hideE[own[id] + '>' + id] = 1; return; }
           var cur = id, g = 0;
           while (g++ < 1) { // one container level (task group, dataset, bucket, repository, pipeline) keeps lines running sideways
             var d = byId[cur]; if (!d || !d.parent || d.parent === blk.id) break;
-            var p = byId[d.parent]; if (!p || laneOf(p.type) !== lane) break;
+            var p = byId[d.parent]; if (!p || effLane(p.id) !== lane) break;
             var pn = get(p.id); if (pn.children.indexOf(cur) < 0) pn.children.push(cur);
             isChild[cur] = 1; cur = p.id;
           }
@@ -1154,6 +1172,7 @@ class Component extends DCLogic {
       var by = PAD;
       blocks.forEach(function (blk) {
         var bkey = blk.id + '|' + blk.id; allKeys.push(bkey);
+        blk.own = ownerOf(blk);
         var lanes = LANES.map(function (L) { return { L: L, roots: buildLane(blk, L[0]).map(prune).filter(Boolean) }; }).filter(function (l) { return l.roots.length; });
         var dagShow = blk.dag ? showable(blk.id) : false;
         if (!lanes.length && !dagShow) return;
@@ -1336,6 +1355,7 @@ class Component extends DCLogic {
       var I = inst[bk], seenK = {};
       gEdges.forEach(function (e) {
         var a = I[e.from], b = I[e.to]; if (!a || !b || a === b || a.key === b.key) return;
+        if (bk !== 'custom' && hideE && hideE[e.from + '>' + e.to]) return; // task -> asset it contains: shown by nesting
         var k = a.key + '>' + b.key; if (seenK[k]) return; seenK[k] = 1;
         var color = '#A3AFBB', w = 1.5, op = lc ? 0.3 : 1;
         if (!lc && ls) {
