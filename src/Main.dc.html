@@ -320,7 +320,7 @@ textarea.inp{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:13px;l
 <sc-for list="{{nodes}}" as="n" hint-placeholder-count="3">
 <div style="position: absolute; left: {{n.x}}px; top: {{n.y}}px; width: {{n.w}}px; height: {{n.h}}px; box-sizing: border-box; border-radius: 10px; background: #FFFFFF; border: 2px solid {{n.bd}}; opacity: {{n.op}}; overflow: hidden; box-shadow: 0 1px 3px rgba(21, 32, 43, 0.08)">
 <button type="button" title="{{n.id}}" onClick="{{n.pick}}" style="width: 100%; height: 58px; box-sizing: border-box; padding: 8px 12px; border: 0; background: {{n.bg}}; color: {{n.fg}}; text-align: left; cursor: pointer; font: inherit; display: flex; flex-direction: column; gap: 2px; justify-content: center">
-<span style="display: flex; gap: 6px; align-items: center; max-width: 100%"><span aria-hidden="true" style="flex: none; width: 9px; height: 9px; border-radius: 50%; background: {{n.tcolor}}; box-shadow: 0 0 0 2px #FFFFFF"></span><span class="mono" style="font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{n.id}}</span></span>
+<span style="display: flex; gap: 6px; align-items: center; max-width: 100%"><span aria-hidden="true" style="flex: none; width: 9px; height: 9px; border-radius: 50%; background: {{n.tcolor}}; box-shadow: 0 0 0 2px #FFFFFF"></span><span class="mono" style="font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{n.label}}</span></span>
 <span style="font-size: 11px; opacity: 0.85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%">{{n.typeLabel}} · {{n.name}}</span>
 </button>
 <sc-if value="{{n.showCols}}" hint-placeholder-val="{{true}}">
@@ -957,6 +957,7 @@ class Component extends DCLogic {
   }
   cleanAsset(d) {
     var o = { id: d.id, type: d.type, name: d.name };
+    if (d.link_of) { o.link_of = d.link_of; if (d.parent) o.parent = d.parent; return o; } // linked copy: everything else comes from the original
     ['parent', 'domain', 'owner', 'source', 'description'].forEach(function (k) { if (d[k]) o[k] = d[k]; });
     if (d.tags && d.tags.length) o.tags = d.tags;
     if (d.properties && Object.keys(d.properties).length) o.properties = d.properties;
@@ -1095,7 +1096,7 @@ class Component extends DCLogic {
     var types = (Array.isArray(doc.asset_types) ? doc.asset_types : []).filter(function (t) { return t && t.id; }).map(function (t) {
       return { id: str(t.id), label: str(t.label || t.id), category: str(t.category || 'Other'), color: /^#[0-9a-fA-F]{6}$/.test(str(t.color)) ? str(t.color) : '#475569' };
     });
-    var KNOWN = ['id', 'type', 'parent', 'name', 'domain', 'owner', 'source', 'description', 'tags', 'fields', 'columns', 'properties', '__file'];
+    var KNOWN = ['id', 'type', 'parent', 'link_of', 'same_as', 'name', 'domain', 'owner', 'source', 'description', 'tags', 'fields', 'columns', 'properties', '__file'];
     var dsIn = Array.isArray(doc.assets) ? doc.assets : Array.isArray(doc.datasets) ? doc.datasets : [];
     var seen = {};
     var datasets = dsIn.map(function (d, i) {
@@ -1110,7 +1111,7 @@ class Component extends DCLogic {
         if (!f || typeof f !== 'object' || !f.name) throw new Error(id + where + ': fields[' + j + '] needs a "name".');
         return { name: str(f.name), type: str(f.type || 'STRING'), nullable: f.nullable !== false, pii: f.pii === true, description: str(f.description), expression: str(f.expression), sources: list(f.sources) };
       });
-      return { id: id, type: str(d.type || 'dataset'), parent: str(d.parent), name: str(d.name || id), domain: str(d.domain), owner: str(d.owner), source: str(d.source), description: str(d.description), tags: list(d.tags), properties: props, fields: fields, file: str(d.__file) };
+      return { id: id, type: str(d.type || 'dataset'), parent: str(d.parent), link_of: str(d.link_of || d.same_as), name: str(d.name || id), domain: str(d.domain), owner: str(d.owner), source: str(d.source), description: str(d.description), tags: list(d.tags), properties: props, fields: fields, file: str(d.__file) };
     });
     var lineage = (Array.isArray(doc.lineage) ? doc.lineage : []).map(function (e, i) {
       if (!e || !e.from || !e.to) throw new Error('lineage[' + i + ']: "from" and "to" are required.');
@@ -1147,7 +1148,9 @@ class Component extends DCLogic {
   }
 
   renderVals() {
-    var self = this, s = this.state, ds = s.datasets, edges = s.lineage;
+    var self = this, s = this.state, edges = s.lineage;
+    // linked copies (link_of: <id>) are extra places to draw an asset; catalog, dictionary and analysis use the original
+    var linkCopies = s.datasets.filter(function (d) { return d.link_of; }), ds = s.datasets.filter(function (d) { return !d.link_of; });
     var set = function (p) { self.setState(p); };
     var say = function (m, k) { self.setState({ msg: m, msgKind: k || 'ok' }); };
     var form = function (name, key, chk) { return function (e) { var o = Object.assign({}, self.state[name]); o[key] = chk ? e.target.checked : e.target.value; var p = {}; p[name] = o; self.setState(p); }; };
@@ -1290,6 +1293,21 @@ class Component extends DCLogic {
     var filtering = !!(s.fType || s.fDomain);
     var lq = s.lq.trim().toLowerCase();
     var isDag = s.layout === 'dag';
+    var copiesOf = {}, dsReal = ds;
+    var virt = linkCopies.filter(function (c) { return byId[c.link_of]; }).map(function (c) { (copiesOf[c.link_of] = copiesOf[c.link_of] || []).push(c.id); return Object.assign({}, byId[c.link_of], { id: c.id, parent: c.parent, link_of: c.link_of }); });
+    virt.forEach(function (v) { byId[v.id] = v; });
+    var origOf = function (id) { var d = byId[id]; return d && d.link_of ? d.link_of : id; };
+    var kindOf0 = kindOf; kindOf = function (id) { return kindOf0(origOf(id)); };
+    ds = ds.concat(virt);
+    var ancSet = function (id) { var o = {}, cur = id, g = 0; while (cur && g++ < 40) { o[cur] = g; cur = byId[cur] ? byId[cur].parent : ''; } return o; };
+    var steps = function (x, anc) { var cur = x, g = 0; while (cur && g < 40) { if (anc[cur]) return g + anc[cur]; cur = byId[cur] ? byId[cur].parent : ''; g++; } return 999; };
+    // the drawn instance of id (original or a linked copy) that sits closest to `near` in the container tree
+    var pickInst = function (I, id, near) {
+      var c = [id].concat(copiesOf[id] || []).filter(function (x) { return I[x]; });
+      if (c.length < 2) return c[0];
+      var anc = ancSet(near); var shares = function (x, anc) { var cur = byId[x] ? byId[x].parent : '', g = 0; while (cur && g++ < 40) { if (anc[cur]) return !(byId[cur] && byId[cur].type === 'airflow.dag'); cur = byId[cur] ? byId[cur].parent : ''; } return false; }; var cp = c.filter(function (x) { return x !== id && shares(x, anc); }); if (I[id] && !cp.length) return id; if (cp.length) c = cp; c.sort(function (a, b) { return steps(a, anc) - steps(b, anc); }); return c[0];
+    };
+    var pickPair = function (I, f, t) { var a = pickInst(I, f, t), b = pickInst(I, t, a || f); a = pickInst(I, f, b || t); return [a, b]; };
 
     // which assets are inside the depth window around the selection ("Related only")
     var vis = {};
@@ -1308,6 +1326,7 @@ class Component extends DCLogic {
     }
     var showable = function (id) {
       if (id === ls) return true;
+      id = origOf(id); if (id === ls) return true;
       if (!vis[id]) return false;
       if (filtering && s.fMode === 'hide' && !matchF(id)) return false;
       return true;
@@ -1325,6 +1344,7 @@ class Component extends DCLogic {
     var baseW = 400, baseH = 200;
 
     var selectAsset = function (id) {
+      id = origOf(id);
       var st = self.state;
       if (st.connect) {
         if (!st.connectFrom) { set({ connectFrom: id, msg: 'Connect mode: ' + id + ' is the source. Now click the target asset.', msgKind: 'ok' }); return; }
@@ -1359,7 +1379,7 @@ class Component extends DCLogic {
       });
       var op = p[3]; if (filtering && s.fMode === 'highlight' && !matchF(id) && id !== ls) op = 0.25;
       var isFrom = s.connect && s.connectFrom === id;
-      nodes.push({ id: id, name: d ? d.name : 'not in catalog', typeLabel: d ? tinfo(d.type).label : 'External', tcolor: dotColor(id), x: x, y: y, w: NWn, h: h, bg: p[0], fg: p[1], bd: isFrom || hit ? '#CA8A04' : p[2], op: op, showCols: showC, cols: cols,
+      nodes.push({ id: id, label: origOf(id), name: d ? d.name : 'not in catalog', typeLabel: d ? (d.link_of ? '🔗 linked copy · ' : '') + tinfo(d.type).label : 'External', tcolor: dotColor(id), x: x, y: y, w: NWn, h: h, bg: p[0], fg: p[1], bd: isFrom || hit ? '#CA8A04' : p[2], op: op, showCols: showC, cols: cols,
         pick: function () { selectAsset(id); } });
       (inst[bk] = inst[bk] || {})[id] = { key: bk + '|' + id, x: x, y: y, w: NWn, h: h, mid: 31, ay: y + 31, showC: showC, rows: rows };
       if (!firstPos[id]) firstPos[id] = { x: x, y: y };
@@ -1394,10 +1414,11 @@ class Component extends DCLogic {
           var x = queue.shift();
           (nbr[x] || []).forEach(function (y) { if (mem[y]) return; var od = dagOf(y); if (od && od !== dg.id) return; mem[y] = 1; queue.push(y); });
         }
+        // a linked copy inside this DAG stands in for its original
         return { id: dg.id, dag: dg, members: mem };
       });
       var assigned = {}, hasChild = {};
-      blocks.forEach(function (b) { Object.keys(b.members).forEach(function (k) { assigned[k] = 1; }); });
+      blocks.forEach(function (b) { Object.keys(b.members).forEach(function (k) { assigned[k] = 1; var o = byId[k] && byId[k].link_of; if (o) assigned[o] = 1; }); });
       ds.forEach(function (d) { if (d.parent) hasChild[d.parent] = 1; });
       var rest = {}, restN = 0;
       ids.forEach(function (x) { if (!assigned[x] && !(hasChild[x] && !nbr[x])) { rest[x] = 1; restN++; } });
@@ -1657,8 +1678,8 @@ class Component extends DCLogic {
     Object.keys(inst).forEach(function (bk) {
       var I = inst[bk], seenK = {};
       gEdges.forEach(function (e) {
-        var a = I[e.from], b = I[e.to]; if (!a || !b || a === b || a.key === b.key) return;
-        if (bk !== 'custom' && hideE && hideE[e.from + '>' + e.to]) return; // task -> asset it contains: shown by nesting
+        var pp = pickPair(I, e.from, e.to), a = pp[0] ? I[pp[0]] : null, b = pp[1] ? I[pp[1]] : null; if (!a || !b || a === b || a.key === b.key) return;
+        if (bk !== 'custom' && hideE && (hideE[pp[0] + '>' + pp[1]] || hideE[e.from + '>' + e.to])) return; // task -> asset it contains: shown by nesting
         var k = a.key + '>' + b.key; if (seenK[k]) return; seenK[k] = 1;
         var color = '#A3AFBB', w = 1.5, op = lc ? 0.3 : 1;
         if (!lc && ls) {
@@ -1679,7 +1700,7 @@ class Component extends DCLogic {
           var td = refDs(ref), tc = ref.slice(td.length + 1);
           fm.f.sources.forEach(function (src) {
             if (!inSet[src]) return;
-            var sd = refDs(src), sc = src.slice(sd.length + 1), a = I[sd], b = I[td];
+            var sd = refDs(src), sc = src.slice(sd.length + 1), pq = pickPair(I, sd, td), a = pq[0] ? I[pq[0]] : null, b = pq[1] ? I[pq[1]] : null;
             if (!a || !b || a.key === b.key) return;
             var y1 = a.showC && a.rows[sc] ? a.rows[sc] : a.ay, y2 = b.showC && b.rows[tc] ? b.rows[tc] : b.ay;
             var isUp = ref === lc || colUpDist[ref] !== undefined;
@@ -1688,6 +1709,7 @@ class Component extends DCLogic {
         });
       }
     });
+    ds = dsReal;
     var z = s.zoom;
     self._layout = { nodes: nodes, boxes: boxes, paths: paths, baseW: baseW, baseH: baseH, first: firstPos };
 
