@@ -142,3 +142,32 @@ assets:
     properties:
       operator: BigQueryCheckOperator
       sql: SELECT COUNT(*) > 0 FROM mart.sales_daily WHERE order_date = '{{ ds }}'
+
+  # direct queries the tasks send to BigQuery (each task is a container for its queries)
+  - id: airflow.sales_etl_daily.tg_mart.build_sales_daily.dq_delete_run_date
+    type: bigquery.direct_query
+    name: dq_delete_run_date
+    parent: airflow.sales_etl_daily.tg_mart.build_sales_daily
+    owner: analytics-eng
+    description: Clear the run date so the task can be re-run safely.
+    properties:
+      statement: DELETE
+      sql: "DELETE FROM mart.sales_daily WHERE order_date = '{{ ds }}'"
+  - id: airflow.sales_etl_daily.tg_mart.build_sales_daily.dq_insert_sales_daily
+    type: bigquery.direct_query
+    name: dq_insert_sales_daily
+    parent: airflow.sales_etl_daily.tg_mart.build_sales_daily
+    owner: analytics-eng
+    description: Rebuild the run date from staging.orders.
+    properties:
+      statement: INSERT ... SELECT
+      sql: "INSERT INTO mart.sales_daily SELECT ... FROM staging.orders WHERE order_date = '{{ ds }}'"
+  - id: airflow.sales_etl_daily.tg_quality.dq_sales_daily.q_select_run_date
+    type: bigquery.direct_query
+    name: q_select_run_date
+    parent: airflow.sales_etl_daily.tg_quality.dq_sales_daily
+    owner: data-engineering
+    description: Read the run date rows for the quality check.
+    properties:
+      statement: SELECT
+      sql: "SELECT * FROM mart.sales_daily WHERE order_date = '{{ ds }}'"

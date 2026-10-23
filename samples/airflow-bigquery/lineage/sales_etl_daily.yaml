@@ -52,13 +52,18 @@ lineage:
     process: CREATE OR REPLACE TABLE
 
   # mart
-  - from: acme-dwh.staging.orders
-    to: airflow.sales_etl_daily.tg_mart.build_sales_daily
-    type: reads
-  - from: airflow.sales_etl_daily.tg_mart.build_sales_daily
+  # build_sales_daily runs two direct queries: DELETE then INSERT ... SELECT
+  - from: airflow.sales_etl_daily.tg_mart.build_sales_daily.dq_delete_run_date
     to: acme-dwh.mart.sales_daily
     type: writes
-    process: DELETE + INSERT for the run date
+    process: DELETE for the run date
+  - from: acme-dwh.staging.orders
+    to: airflow.sales_etl_daily.tg_mart.build_sales_daily.dq_insert_sales_daily
+    type: reads
+  - from: airflow.sales_etl_daily.tg_mart.build_sales_daily.dq_insert_sales_daily
+    to: acme-dwh.mart.sales_daily
+    type: writes
+    process: INSERT ... SELECT
   - from: airflow.sales_etl_daily.tg_mart.call_sp_customer_ltv
     to: acme-dwh.mart.sp_customer_ltv
     type: calls
@@ -86,7 +91,8 @@ lineage:
     process: CREATE OR REPLACE VIEW
 
   # quality
+  # the quality task runs a SELECT * check
   - from: acme-dwh.mart.sales_daily
-    to: airflow.sales_etl_daily.tg_quality.dq_sales_daily
+    to: airflow.sales_etl_daily.tg_quality.dq_sales_daily.q_select_run_date
     type: reads
     process: row-count check for the run date
