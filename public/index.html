@@ -638,6 +638,11 @@ class Component extends DCLogic {
       window.addEventListener('mouseup', this._onUp);
     }
     el.addEventListener('wheel', this._onWheel, { passive: false });
+    // Safari pinch on a trackpad sends gesture events instead of ctrl + wheel
+    var gz = null, self2 = this;
+    el.addEventListener('gesturestart', function (e) { e.preventDefault(); gz = self2.state.zoom; });
+    el.addEventListener('gesturechange', function (e) { e.preventDefault(); if (gz === null) return; var r = el.getBoundingClientRect(); self2.zoomTo(gz * e.scale, e.clientX - r.left, e.clientY - r.top); });
+    el.addEventListener('gestureend', function (e) { e.preventDefault(); gz = null; });
     el.addEventListener('mousedown', this._onDown);
   }
   // bring the newly selected asset into view
