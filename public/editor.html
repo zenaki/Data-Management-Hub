@@ -1908,6 +1908,26 @@ class Component extends DCLogic {
     });
     return best || '';
   }
+  /* while moving, resizing or drawing a line, scroll the canvas when the pointer is near its edge */
+  autoScroll() {
+    var self = this;
+    if (self._asRaf) return;
+    var step = function () {
+      self._asRaf = null;
+      var d = self._drag, c = self._cv, ev = self._lastEv;
+      if (!d || !c || !ev || d.kind === 'pan') return;
+      var r = c.getBoundingClientRect(), M = 48, vx = 0, vy = 0;
+      var sp = function (dist) { return Math.ceil(Math.min(1, (M - dist) / M) * 22); };
+      if (ev.clientX < r.left + M) vx = -sp(ev.clientX - r.left); else if (ev.clientX > r.right - M) vx = sp(r.right - ev.clientX);
+      if (ev.clientY < r.top + M) vy = -sp(ev.clientY - r.top); else if (ev.clientY > r.bottom - M) vy = sp(r.bottom - ev.clientY);
+      if (!vx && !vy) return;
+      var l0 = c.scrollLeft, t0 = c.scrollTop;
+      c.scrollLeft += vx; c.scrollTop += vy;
+      if (c.scrollLeft !== l0 || c.scrollTop !== t0 || vx > 0 || vy > 0) { self._onMove(Object.assign({}, ev, { _auto: true })); }
+      self._asRaf = requestAnimationFrame(step);
+    };
+    self._asRaf = requestAnimationFrame(step);
+  }
   canvasPoint(e) { var el = this._cv, r = el.getBoundingClientRect(), z = this.state.zoom; return { x: (e.clientX - r.left + el.scrollLeft) / z, y: (e.clientY - r.top + el.scrollTop) / z }; }
 
   /* ---------- canvas interaction ---------- */
@@ -1952,6 +1972,8 @@ class Component extends DCLogic {
       this._onMove = function (e) {
         var d = self._drag, c = self._cv; if (!d || !c) return;
         if (d.kind === 'pan') { c.scrollLeft = d.l - (e.clientX - d.cx); c.scrollTop = d.t - (e.clientY - d.cy); c.style.cursor = 'grabbing'; return; }
+        self._lastEv = { clientX: e.clientX, clientY: e.clientY, shiftKey: e.shiftKey, ctrlKey: e.ctrlKey, metaKey: e.metaKey, target: e.target };
+        if (!e._auto) self.autoScroll();
         var p = self.canvasPoint(e);
         if (d.kind === 'move') {
           var dx = p.x - d.p0.x, dy = p.y - d.p0.y;
@@ -2050,6 +2072,8 @@ class Component extends DCLogic {
       };
     }
     el.addEventListener('mousedown', this._onDown);
+    // scrolling (wheel or auto-scroll) during a drag keeps the dragged block under the pointer
+    el.addEventListener('scroll', function () { if (self._drag && self._drag.kind !== 'pan' && self._lastEv) self._onMove(Object.assign({}, self._lastEv, { _auto: true })); });
     el.addEventListener('wheel', this._onWheel, { passive: false });
     el.addEventListener('keydown', this._onKey);
     el.addEventListener('contextmenu', this._onCtx);
