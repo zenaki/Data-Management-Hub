@@ -1086,7 +1086,7 @@ class Component extends DCLogic {
     var srcUsed = {}; ds.forEach(function (d) { d.fields.forEach(function (f) { (f.sources || []).forEach(function (r) { srcUsed[r] = 1; }); }); });
     var colView = function (bk, id) {
       var d = byId[id], fields = d ? d.fields : [], key = bk + '|' + id, orig = origOf(id);
-      if (fields.length <= 12) return { shown: fields, hidden: 0, open: false, key: key };
+      if (fields.length <= 3) return { shown: fields, hidden: 0, open: false, key: key };
       var ex = {}; (d.used_columns || []).forEach(function (c) { ex[c] = 1; });
       var used = [], other = [];
       fields.forEach(function (f) { var ref = orig + '.' + f.name; var u = ex[f.name] || (!d.link_of && ((f.sources || []).length || srcUsed[ref])) || (lc && (ref === lc || colUpDist[ref] !== undefined || colDownDist[ref] !== undefined)); (u ? used : other).push(f); });
@@ -1837,7 +1837,7 @@ class Component extends DCLogic {
   srcUsed() { var ds = this.state.datasets; if (this._suKey === ds) return this._su; var o = {}; ds.forEach(function (d) { (d.fields || []).forEach(function (f) { (f.sources || []).forEach(function (r) { o[r] = 1; }); }); }); this._suKey = ds; this._su = o; return o; }
   colView(d) {
     var fields = d ? d.fields : [];
-    if (fields.length <= 12) return { shown: fields.map(function (f, i) { return i; }), hidden: 0, used: fields.length, open: false };
+    if (fields.length <= 3) return { shown: fields.map(function (f, i) { return i; }), hidden: 0, used: fields.length, open: false };
     var su = this.srcUsed(), orig = d.link_of || d.id, ex = {}; (d.used_columns || []).forEach(function (c) { ex[c] = 1; });
     var used = [], other = [];
     fields.forEach(function (f, i) { var u = ex[f.name] || (!d.link_of && ((f.sources || []).length || su[orig + '.' + f.name])); (u ? used : other).push(i); });
